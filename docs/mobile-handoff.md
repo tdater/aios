@@ -47,7 +47,8 @@ Not built: push, SSE, background sync, native plugins beyond secure storage and 
 10. A different server at the same address is detected (`server_id`) and requires confirmation; its cache is never shown.
 
 ## Test results (2026-10-24)
-- Backend: 286 passed at the last full run (33 of them are mobile-contract tests). Web: 64 passed, typecheck clean.
+- Backend: 288 tests passing at the last full run (33 of them are mobile-contract tests). Web: 66 passed, typecheck clean.
+  GitHub Actions also ran the real-browser e2e (14/14) green on a Windows runner.
 - Real browser (Edge, phone viewport, real server + SQLite, isolated temp state): 14/14, including a dropped response on task
   submit (exactly one task after retry), cancel requested→confirmed, server killed and restarted mid-run (UI shows stale data
   honestly, then resyncs to `interrupted`), approve-once/reject, version-conflict edit, offline draft → reconnect → explicit send.

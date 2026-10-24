@@ -21,7 +21,8 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 - Never commit private runtime state, imported history, tokens or keystores (all git-ignored). Defense in depth:
   `scripts/scan_secrets.py`, the pre-commit hook (`scripts/install-hooks.ps1`, run once per clone), the CI secret job, and
   GitHub's own secret scanning/push protection where enabled. Dependabot alerts are enabled.
-- CI (`.github/workflows/ci.yml`): see "Test status" for its last verified state.
+- CI (`.github/workflows/ci.yml`) runs on push/PR and manually; it is free on a public repo. Android build/emulator tests are not in
+  CI (slow, need an emulator).
 - At first release AIOS becomes page(s) on the user's **signal-workshop** site. Publish only a curated selection.
 
 ## Status legend: IMPLEMENTED+TESTED / MOCKED / BLOCKED / PLANNED
@@ -50,10 +51,13 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Quota detection from real providers | PLANNED (state and UI exist; tested via a test executor) |
 
 ## Test status (last run 2026-10-24)
-- Backend `pytest`: **286 passed**. Web `vitest` + `tsc`: **64 passed**, typecheck clean. Production build OK. Secret scan clean;
-  `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
-- First GitHub Actions run (2026-10-24, public repo): backend, web and secret-scan jobs **passed** on GitHub's runners; the e2e job
-  passed 13/14 and failed one step on a timing race in the test script (fixed, awaiting the next run).
+- Backend `pytest`: **288 tests, all passing** at the last full run. Web `vitest` + `tsc`: **66 passed**, typecheck clean. Production
+  build OK. Secret scan clean; `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
+- **GitHub Actions (public repo), commit 91631b5: all 4 jobs green** (secret scan, backend on Windows/py3.14, web, real-browser e2e 14/14).
+  Earlier runs found real problems that are now fixed: an e2e timing race, a cancel-test race, and a service-worker first-install page
+  reload that wiped the pairing form (product bug).
+- Clean-room check (anonymous clone of the public repo → `scripts\setup.ps1` → tests): setup 101 s, backend + web tests pass. It also
+  exposed that `start.ps1` polled an endpoint that had become authenticated; fixed and verified (start → pair → 401 without auth → stop).
 - Real-browser e2e (`apps/web/e2e/mobile.e2e.mjs`, Edge, phone viewport, real server): **14/14**.
 - Android emulator e2e (`apps/web/e2e/android-emulator.e2e.mjs`, real WebView): **11/11** on the last run, after two earlier
   runs failed from emulator overload (system ANR dialogs) and a script locator bug. It is sensitive to host memory pressure.
@@ -67,11 +71,12 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
 
 ## Known issues
 - Emulator e2e flakes if the host is low on RAM (the emulator is software-rendered). Close heavy apps or use `-memory 2560`.
-- CI blocked by GitHub billing (above).
+- Server `__version__` is still 0.1.0 while the client reports 0.2.0 (cosmetic; bump together at release).
 - `docs/history-bootstrap.md` predates the full brief; ingestion is implemented but its real-data pilot has not happened.
+- No LICENSE file (owner decision).
 
 ## Next actions (in order)
-1. User: fix the GitHub billing item (or decide to stay manual-only), then re-enable CI triggers and run it.
+1. User decides on a LICENSE (until then all rights are reserved).
 2. User approves a small real history sample (copy into `C:\aios-state\imports\approved`), then pilot `review-new` and
    validate parser assumptions against real files.
 3. Physical-phone pass using the checklist in `docs/mobile-android.md`; real Tailscale Serve test (user runs the commands in
