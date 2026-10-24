@@ -7,7 +7,7 @@ import re
 from .config import REPO_ROOT, Settings
 from .db import Database
 from .security import resolve_within, validate_workspace_root
-from .util import canonical_json, new_id, now
+from .util import canonical_json, new_id, now  # noqa: F401  (now re-exported for the API layer)
 
 
 def _slug(name: str) -> str:
@@ -31,6 +31,62 @@ def register_project(db: Database, settings: Settings, name: str, path: str, kin
         con.execute("INSERT INTO audit_log(ts,actor,action,detail_json) VALUES (?,?,?,?)",
                     (now(), "operator", "project.register", canonical_json({"project": pid, "path": str(root)})))
     return {"id": pid, "slug": slug, "name": name, "workspace_id": wid, "path": str(root)}
+
+
+BLOCK_DISPLAY = {"awaiting_provider_session": "awaiting_provider_session", "quota_exhausted": "blocked_quota"}
+
+
+def display_state(run: dict) -> str:
+    """Honest, user-facing state. Raw `state` stays the machine contract."""
+    s = run["state"]
+    if s == "blocked":
+        return BLOCK_DISPLAY.get(run.get("block_code") or "", "blocked")
+    return {"succeeded": "completed"}.get(s, s)
+
+
+def cancellation_view(db: Database, run: dict) -> dict:
+    req, conf = run.get("cancel_requested_at"), run.get("cancel_confirmed_at")
+    if not req:
+        status = "none"
+    elif conf:
+        status = "confirmed"
+    elif run["state"] in ("succeeded", "failed"):
+        status = "too_late"      # finished before the cancellation could take effect
+    else:
+        status = "requested"
+    inflight = None
+    if status == "requested":
+        s = db.one("SELECT name, side_effect FROM steps WHERE run_id=? AND state='started'", (run["id"],))
+        inflight = {"step": s["name"], "side_effect": bool(s["side_effect"])} if s else None
+    return {"status": status, "requested_at": req, "confirmed_at": conf,
+            "in_flight_step": inflight, "may_still_finish_step": bool(inflight),
+            "note": "Cancelling stops further steps. It does not reverse side effects that already completed."}
+
+
+def decorate_run(db: Database, run: dict, with_cancel: bool = True) -> dict:
+    run["display_state"] = display_state(run)
+    if with_cancel:
+        run["cancellation"] = cancellation_view(db, run)
+    return run
+
+
+def approval_view(db: Database, a: dict, detail: bool = True) -> dict:
+    from datetime import datetime, timezone
+    from .approvals import describe
+    action = json.loads(a.pop("action_json"))
+    t = datetime.now(timezone.utc)
+    a["action"] = action
+    a["review"] = describe(action)
+    a["destructive"] = bool(a["destructive"])
+    a["age_s"] = int((t - datetime.fromisoformat(a["requested_at"])).total_seconds())
+    a["expires_in_s"] = int((datetime.fromisoformat(a["expires_at"]) - t).total_seconds())
+    if detail and a.get("run_id"):
+        run = db.one("SELECT r.id, r.state, t.title AS task_title, t.kind AS task_kind FROM runs r "
+                     "JOIN tasks t ON t.id=r.task_id WHERE r.id=?", (a["run_id"],))
+        a["context"] = {"run": run, "evidence": db.query(
+            "SELECT kind, summary, created_at FROM evidence WHERE run_id=? ORDER BY created_at DESC LIMIT 5",
+            (a["run_id"],))}
+    return a
 
 
 def list_projects(db: Database) -> list[dict]:
@@ -78,8 +134,10 @@ def run_detail(db: Database, run_id: str) -> dict | None:
     if not run:
         return None
     q = lambda sql: db.query(sql, (run_id,))  # noqa: E731
+    decorate_run(db, run)
     return {
         "run": run,
+        "last_event_id": (db.one("SELECT COALESCE(MAX(id),0) m FROM run_events WHERE run_id=?", (run_id,)))["m"],
         "attempts": q("SELECT * FROM run_attempts WHERE run_id=? ORDER BY n"),
         "steps": q("SELECT * FROM steps WHERE run_id=? ORDER BY seq"),
         "events": q("SELECT * FROM run_events WHERE run_id=? ORDER BY id"),

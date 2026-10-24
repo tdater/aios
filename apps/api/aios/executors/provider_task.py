@@ -47,7 +47,8 @@ def provider_task(ctx: RunContext) -> dict:
         raise Blocked(f"unknown provider '{provider}'")
     if cap["mode"] == "unavailable":
         reason = cap["detail"].get("reason", "unavailable")
-        raise Blocked(f"provider '{provider}' unavailable: {reason}. No result was produced.")
+        raise Blocked(f"provider '{provider}' unavailable: {reason}. No result was produced.",
+                      code="provider_unavailable")
     if cap["mode"] == "automated":  # mock provider only, in Phase 1
         ctx.add_artifact("provider_result", "mock-result.md",
                          f"MOCK RESPONSE for: {ctx.spec.get('prompt', '')[:200]}\n",
@@ -58,5 +59,5 @@ def provider_task(ctx: RunContext) -> dict:
         ctx.step("build_task_packet", lambda: ctx.add_artifact(
             "task_packet", "task-packet.md", build_packet(ctx, provider), provenance="generated"))
         raise Blocked(f"awaiting result from a user-started {provider} session; open the task packet "
-                      "artifact, run it there, then import the result")
+                      "artifact, run it there, then import the result", code="awaiting_provider_session")
     return {"summary": "result imported from user-run session (unverified claim)", "verified": False}

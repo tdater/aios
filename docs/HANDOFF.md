@@ -44,6 +44,12 @@ Last `claude doctor`: no issues, but auto-update failed once (`install_failed`).
 14 redaction + path tests: DONE |
 15 UI against real backend: PARTIAL (see above)
 
+## Hosting and future publication
+- Source of truth remote: **GitHub, private repo `tdater/aios`**. Azure is not part of the plan.
+- At first release the project will be presented as page(s) in the user's **signal-workshop** personal website. That repo is
+  unrelated and untouched. Publishing must be curated (no private paths, machine details, history or unreleased security
+  design). Ask the user what to publish before copying any docs.
+
 ## Next actions (in order)
 1. Run `scripts\setup.ps1` clean in a temp clone to prove acceptance 1.
 2. Click through the UI (tasks -> run -> approvals) with a real browser pass; fix what breaks.

@@ -18,6 +18,12 @@ class Settings:
     max_concurrent: int = 2
     default_deadline_s: int = 300
     stall_after_s: int = 120
+    approval_ttl_s: int = 24 * 3600
+    # Extra Host names the server answers to (e.g. a Tailscale name). Binding stays on loopback;
+    # a reverse proxy such as `tailscale serve` terminates TLS in front of it.
+    allowed_hosts: tuple[str, ...] = ()
+    # Origins allowed to call the API with a Bearer token from a WebView/other site (no cookies).
+    cors_origins: tuple[str, ...] = ("https://localhost", "capacitor://localhost", "http://localhost")
 
     @property
     def db_path(self) -> Path:
@@ -36,13 +42,20 @@ class Settings:
         return self.state_dir / "backups"
 
     @property
+    def approved_dir(self) -> Path:
+        """The only place history sources are ever read from. Private state, never in Git."""
+        return self.state_dir / "imports" / "approved"
+
+    @property
     def runs_dir(self) -> Path:
         return self.state_dir / "runs"
 
     def ensure_dirs(self) -> None:
         for d in (self.state_dir / "db", self.artifacts_dir, self.backups_dir, self.runs_dir,
+                  self.approved_dir, self.state_dir / "imports" / "quarantine",
                   *(self.vault_dir / s for s in
-                    ("projects", "decisions", "lessons", "procedures", "research", "inbox"))):
+                    ("projects", "decisions", "lessons", "procedures", "preferences", "facts",
+                     "research", "inbox"))):
             d.mkdir(parents=True, exist_ok=True)
 
 
@@ -60,4 +73,10 @@ def load_settings() -> Settings:
         state_dir=state, workspaces_dir=ws, host=host,
         port=int(os.environ.get("AIOS_PORT", "8765")),
         max_concurrent=int(os.environ.get("AIOS_MAX_CONCURRENT", "2")),
+        approval_ttl_s=int(os.environ.get("AIOS_APPROVAL_TTL_S", str(24 * 3600))),
+        allowed_hosts=tuple(h.strip().lower() for h in os.environ.get("AIOS_ALLOWED_HOSTS", "").split(",")
+                            if h.strip()),
+        cors_origins=tuple(o.strip() for o in os.environ.get(
+            "AIOS_CORS_ORIGINS", "https://localhost,capacitor://localhost,http://localhost").split(",")
+            if o.strip()),
     )

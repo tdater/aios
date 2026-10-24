@@ -13,3 +13,18 @@ aios-state/
 .env
 .env.*
 config/local.*
+
+# Android: build outputs and, above all, signing material (never commit)
+apps/web/android/keystore.properties
+apps/web/android/**/*.jks
+apps/web/android/**/*.keystore
+apps/web/android/local.properties
+apps/web/android/app/build/
+apps/web/android/build/
+apps/web/android/.gradle/
+apps/web/android/capacitor-cordova-android-plugins/
+apps/web/android/app/src/main/assets/public/
+apps/web/android/app/src/main/assets/capacitor.config.json
+apps/web/android/app/src/main/assets/capacitor.plugins.json
+apps/web/android/app/capacitor.build.gradle
+apps/web/android/capacitor.settings.gradle

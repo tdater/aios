@@ -23,6 +23,7 @@ for ($i = 0; $i -lt 40; $i++) {
     try {
         $h = Invoke-RestMethod "http://127.0.0.1:$Port/api/health" -TimeoutSec 2
         Write-Host "AIOS up (pid $($p.Id)) -> http://127.0.0.1:$Port  schema=$($h.schema -join ',')"
+        Write-Host "First time on a device? Run scripts\pair.ps1 and enter the one-time code there (all API access needs a paired device)."
         exit 0
     } catch { }
 }

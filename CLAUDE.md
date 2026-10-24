@@ -7,6 +7,8 @@ then `docs/architecture.md` (ownership, threat model, provider rules).
 - Setup: `scripts\setup.ps1` · Start: `scripts\start.ps1` · Stop: `scripts\stop.ps1`
 - Backend tests: `.venv\Scripts\python.exe -m pytest` · Web: `cd apps\web; npm test; npm run build`
 - Sample workspace: `.venv\Scripts\python.exe scripts\seed_sample.py`
+- Pair a device (all API access needs one): `scripts\pair.ps1` · API contract: `docs\api-v1.md` (snapshot `docs\openapi-v1.json`, regenerate with `scripts\export_openapi.py`)
+- Real browser e2e: `cd apps\web; node e2e\mobile.e2e.mjs` · Android: `scripts\android-build.ps1 -Variant debug`, then `node e2e\android-emulator.e2e.mjs` (needs a booted emulator). Mobile status: `docs\mobile-handoff.md`
 
 ## Rules
 - Private state lives in `C:\aios-state`, never in this repo. Never commit state, secrets, or vault content.

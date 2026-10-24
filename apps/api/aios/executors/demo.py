@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 
-from ..engine import RetryableError, RunContext, executor
+from ..engine import Blocked, RetryableError, RunContext, executor
 from ..security import resolve_within
 
 
@@ -32,6 +32,20 @@ def loop(ctx: RunContext) -> dict:
         if ctx.spec.get("sleep"):
             time.sleep(ctx.spec["sleep"])
     return {"summary": "loop finished"}
+
+
+@executor("demo.quota")
+def quota(ctx: RunContext) -> dict:
+    """Test seam: reports what a real provider quota stop will look like."""
+    raise Blocked("provider quota exhausted; AIOS will not switch to paid access", code="quota_exhausted")
+
+
+@executor("demo.slow_steps")
+def slow_steps(ctx: RunContext) -> dict:
+    """Test seam: several steps with a pause, so cancellation can be requested mid-run."""
+    for i in range(ctx.spec.get("steps", 5)):
+        ctx.step(f"s{i}", lambda: time.sleep(ctx.spec.get("pause", 0.2)) or {"i": i})
+    return {"summary": "all steps done"}
 
 
 @executor("demo.flaky")

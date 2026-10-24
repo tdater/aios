@@ -38,7 +38,13 @@ class RunError(Exception):
 
 
 class Blocked(RunError):
-    """Cannot proceed for a real, reportable reason (missing provider, uncertain effect...)."""
+    """Cannot proceed for a real, reportable reason (missing provider, uncertain effect...).
+    code is a stable machine-readable reason: provider_unavailable | awaiting_provider_session |
+    quota_exhausted | dependency | uncertain_side_effect | other."""
+
+    def __init__(self, message: str, code: str = "other"):
+        super().__init__(message)
+        self.code = code
 
 
 class RetryableError(RunError):
@@ -94,9 +100,12 @@ class RunContext:
     def check(self) -> None:
         if time.monotonic() > self._deadline:
             raise DeadlineExceeded(f"run exceeded its {self.run['deadline_s']}s deadline")
-        row = self.db.one("SELECT state FROM runs WHERE id=?", (self.run_id,))
+        row = self.db.one("SELECT state, cancel_requested_at FROM runs WHERE id=?", (self.run_id,))
         if not row or row["state"] != "running":
             raise Cancelled(f"run is {row['state'] if row else 'gone'}")
+        if row["cancel_requested_at"]:
+            self.engine.confirm_cancel(self.run_id)
+            raise Cancelled("cancellation confirmed at a step boundary")
         self.db.execute("UPDATE runs SET updated_at=? WHERE id=?", (now(), self.run_id))
 
     def tick(self, n: int = 1) -> None:
@@ -119,7 +128,8 @@ class RunContext:
             if row["state"] in ("uncertain",) or (row["state"] == "started" and row["side_effect"]):
                 self.db.execute("UPDATE steps SET state='uncertain' WHERE id=?", (row["id"],))
                 raise Blocked(f"side-effect step '{name}' has unknown outcome after an interruption; "
-                              "verify it manually before resuming (it will not be repeated automatically)")
+                              "verify it manually before resuming (it will not be repeated automatically)",
+                              code="uncertain_side_effect")
             self.db.execute("DELETE FROM steps WHERE id=?", (row["id"],))
         sid = new_id("stp")
         seq = (self.db.one("SELECT COUNT(*) c FROM steps WHERE run_id=?", (self.run_id,)) or {"c": 0})["c"] + 1
@@ -149,7 +159,7 @@ class RunContext:
         if state == "rejected":
             raise ApprovalRejected(f"approval {aid} was rejected")
         if state in ("none", "pending"):
-            aid = approvals.request(self.db, self.run_id, action, summary)
+            aid = approvals.request(self.db, self.run_id, action, summary, self.settings.approval_ttl_s)
             raise NeedsApproval(aid)
 
         def spend_then_perform():
@@ -204,7 +214,7 @@ class Engine:
                         (now(), actor, action, canonical_json(redact_obj(detail)) if detail else None))
 
     def transition(self, run_id: str, new: str, reason: str | None = None,
-                   expect: str | None = None) -> bool:
+                   expect: str | None = None, block_code: str | None = None) -> bool:
         with self.db.tx() as con:
             row = con.execute("SELECT state FROM runs WHERE id=?", (run_id,)).fetchone()
             if not row:
@@ -216,8 +226,9 @@ class Engine:
                 raise ValueError(f"illegal transition {cur} -> {new}")
             fin = now() if new in TERMINAL else None
             con.execute("UPDATE runs SET state=?, state_reason=?, updated_at=?, "
-                        "finished_at=COALESCE(?, finished_at) WHERE id=?",
-                        (new, redact(reason)[:2000] if reason else None, now(), fin, run_id))
+                        "finished_at=COALESCE(?, finished_at), block_code=? WHERE id=?",
+                        (new, redact(reason)[:2000] if reason else None, now(), fin,
+                         (block_code or "other") if new == "blocked" else None, run_id))
         self.event(run_id, "state", f"{cur} -> {new}" + (f": {reason}" if reason else ""))
         return True
 
@@ -261,7 +272,8 @@ class Engine:
                 "SELECT t.id FROM task_deps d JOIN tasks t ON t.id=d.depends_on "
                 "WHERE d.task_id=? AND t.status<>'done'", (task["id"],))
             if unmet:
-                self.transition(run_id, "blocked", f"waiting on {len(unmet)} unfinished dependency task(s)")
+                self.transition(run_id, "blocked", f"waiting on {len(unmet)} unfinished dependency task(s)",
+                                block_code="dependency")
                 self._set_task(task["id"], "blocked", "unfinished dependencies")
                 return "blocked"
             if ws and not self._lock_workspace(ws["id"], run_id):
@@ -344,7 +356,7 @@ class Engine:
             except Blocked as e:
                 end_attempt("blocked", e)
                 self.db.execute("UPDATE runs SET attempt=attempt-1 WHERE id=?", (run_id,))
-                if self.transition(run_id, "blocked", str(e), expect="running"):
+                if self.transition(run_id, "blocked", str(e), expect="running", block_code=e.code):
                     self._set_task(task["id"], "blocked", str(e))
                 return "blocked"
             except ApprovalRejected as e:
@@ -403,13 +415,36 @@ class Engine:
         return out
 
     # ---- operator actions ----
-    def cancel(self, run_id: str) -> None:
+    def cancel(self, run_id: str) -> str:
+        """Two-phase cancellation. Returns 'confirmed' (run was not executing, so it stopped at once)
+        or 'requested' (run is executing: it stops at the next step boundary; a step already in
+        flight may still finish, and completed side effects are never reversed)."""
         run = self.db.one("SELECT * FROM runs WHERE id=?", (run_id,))
+        if not run:
+            raise KeyError(run_id)
         if run["state"] in TERMINAL:
             raise ValueError(f"run already {run['state']}")
+        self.audit("operator", "run.cancel", {"run": run_id, "state": run["state"]})
+        if run["state"] == "running":
+            n = self.db.execute("UPDATE runs SET cancel_requested_at=COALESCE(cancel_requested_at, ?) "
+                                "WHERE id=? AND state='running'", (now(), run_id))
+            if n:
+                self.event(run_id, "cancel", "cancellation requested; the run stops at the next step boundary")
+                return "requested"
+        for aid in self.db.query("SELECT id FROM approvals WHERE run_id=? AND status='pending'", (run_id,)):
+            self.db.execute("UPDATE approvals SET status='superseded', decided_at=?, decision_note='run cancelled' "
+                            "WHERE id=?", (now(), aid["id"]))
         self.transition(run_id, "cancelled", "cancelled by operator")
+        self.db.execute("UPDATE runs SET cancel_requested_at=COALESCE(cancel_requested_at, ?), "
+                        "cancel_confirmed_at=? WHERE id=?", (now(), now(), run_id))
         self._set_task(run["task_id"], "cancelled", "cancelled by operator")
-        self.audit("operator", "run.cancel", {"run": run_id})
+        return "confirmed"
+
+    def confirm_cancel(self, run_id: str) -> None:
+        run = self.db.one("SELECT task_id FROM runs WHERE id=?", (run_id,))
+        if self.transition(run_id, "cancelled", "cancellation confirmed at a step boundary", expect="running"):
+            self.db.execute("UPDATE runs SET cancel_confirmed_at=? WHERE id=?", (now(), run_id))
+            self._set_task(run["task_id"], "cancelled", "cancelled by operator")
 
     def resume(self, run_id: str) -> None:
         """blocked/interrupted -> queued. A run with an uncertain side effect will block again."""
@@ -420,8 +455,8 @@ class Engine:
         self._set_task(run["task_id"], "open", None)
         self.audit("operator", "run.resume", {"run": run_id})
 
-    def decide_approval(self, approval_id: str, approve: bool, note: str = "") -> None:
-        row = approvals.decide(self.db, approval_id, approve, note)
+    def decide_approval(self, approval_id: str, approve: bool, note: str = "", **guards) -> None:
+        row = approvals.decide(self.db, approval_id, approve, note, **guards)
         self.audit("operator", "approval.approve" if approve else "approval.reject",
                    {"approval": approval_id, "hash": row["action_hash"]})
         run = self.db.one("SELECT * FROM runs WHERE id=?", (row["run_id"],))
