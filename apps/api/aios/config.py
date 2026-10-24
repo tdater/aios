@@ -19,6 +19,9 @@ class Settings:
     default_deadline_s: int = 300
     stall_after_s: int = 120
     approval_ttl_s: int = 24 * 3600
+    # Where approved skills are deployed (git-tracked) and where their regression cases live.
+    skills_dir: Path = REPO_ROOT / ".claude" / "skills"
+    evals_dir: Path = REPO_ROOT / "evals" / "skills"
     # Extra Host names the server answers to (e.g. a Tailscale name). Binding stays on loopback;
     # a reverse proxy such as `tailscale serve` terminates TLS in front of it.
     allowed_hosts: tuple[str, ...] = ()

@@ -393,6 +393,38 @@
         "title": "ProjectIn",
         "type": "object"
       },
+      "PromoteIn": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "PromoteIn",
+        "type": "object"
+      },
+      "RejectIn": {
+        "properties": {
+          "note": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "RejectIn",
+        "type": "object"
+      },
       "ReviewIn": {
         "properties": {
           "max_files": {
@@ -411,6 +443,30 @@
           }
         },
         "title": "ReviewIn",
+        "type": "object"
+      },
+      "RollbackIn": {
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Note",
+            "type": "string"
+          },
+          "to_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Version"
+          }
+        },
+        "title": "RollbackIn",
         "type": "object"
       },
       "RunIn": {
@@ -451,6 +507,64 @@
           "task_id"
         ],
         "title": "RunIn",
+        "type": "object"
+      },
+      "SubmitIn": {
+        "properties": {
+          "content": {
+            "maxLength": 60000,
+            "minLength": 20,
+            "title": "Content",
+            "type": "string"
+          },
+          "evals": {
+            "additionalProperties": true,
+            "title": "Evals",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 49,
+            "minLength": 3,
+            "title": "Name",
+            "type": "string"
+          },
+          "new_evidence": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Evidence"
+          },
+          "rationale": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "target_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Path"
+          }
+        },
+        "required": [
+          "name",
+          "content",
+          "evals",
+          "rationale"
+        ],
+        "title": "SubmitIn",
         "type": "object"
       },
       "SupersedeIn": {
@@ -2558,6 +2672,236 @@
           }
         },
         "summary": "Resume"
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "operationId": "overview_api_v1_skills_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Overview"
+      }
+    },
+    "/api/v1/skills/candidates": {
+      "post": {
+        "operationId": "submit_api_v1_skills_candidates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit"
+      }
+    },
+    "/api/v1/skills/candidates/{cid}/evaluate": {
+      "post": {
+        "operationId": "evaluate_api_v1_skills_candidates__cid__evaluate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluate"
+      }
+    },
+    "/api/v1/skills/candidates/{cid}/promote": {
+      "post": {
+        "operationId": "promote_api_v1_skills_candidates__cid__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote"
+      }
+    },
+    "/api/v1/skills/candidates/{cid}/reject": {
+      "post": {
+        "operationId": "reject_api_v1_skills_candidates__cid__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject"
+      }
+    },
+    "/api/v1/skills/{name}/rollback": {
+      "post": {
+        "operationId": "rollback_api_v1_skills__name__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback"
       }
     },
     "/api/v1/tasks": {

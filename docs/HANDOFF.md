@@ -43,11 +43,17 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Android app (Capacitor 8, debug build) | IMPLEMENTED+TESTED **on an emulator** (11/11). Physical phone: **not tested** |
 | Android release build / signing | Build configured; see mobile-handoff for what was verified. No signing key exists (user creates it) |
 | Push notifications, SSE, background sync | PLANNED (documented, deliberately absent) |
-| 9 Claude skills, hooks/deny rules, schedules, evaluation + rollback, improvement proposals, research-import UI | PLANNED |
+| 9 Claude skills (`.claude/skills/*`, each with purpose/trigger, inputs, preconditions, allowed actions, verification, stop conditions, example, eval cases) + regression cases in `evals/skills/` | IMPLEMENTED; **structure** is machine-checked by `scripts/skill_eval.py` (tests). The behavioural cases are specifications and are **not executed** automatically; the skills have never been run by a model against them |
+| Safety guard hook (`scripts/claude_guard.py` wired in `.claude/settings.json`, fail-closed): denies force-push, public exposure (`tailscale funnel`), Azure CLI, curl-to-shell, credential/keystore/private-state access, deleting state or `.git`; asks before GitHub repo changes, firewall changes, destructive git, and edits to the evaluator/guard/settings/CI | IMPLEMENTED+TESTED (pytest, plus a live refusal observed in-session). Pattern-based, not a sandbox |
+| Improvement loop: candidate → executable evaluation + regression set → human confirmation → versioned deploy → exact rollback; evaluator/safety files untouchable; no auto-promotion; rejected ideas not re-proposed | IMPLEMENTED+TESTED (pytest + HTTP). The loop is skill-focused; workflow/memory improvements are not covered |
+| Schedules / bounded scheduled review, research-import UI | PLANNED |
 | Quota detection from real providers | PLANNED (state and UI exist; tested via a test executor) |
 
 ## Test status (last run 2026-10-24)
-- Backend `pytest`: **104 passed**. Web `vitest` + `tsc`: **64 passed**, typecheck clean. Production build OK.
+- Backend `pytest`: **286 passed**. Web `vitest` + `tsc`: **64 passed**, typecheck clean. Production build OK. Secret scan clean;
+  `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
+- First GitHub Actions run (2026-10-24, public repo): backend, web and secret-scan jobs **passed** on GitHub's runners; the e2e job
+  passed 13/14 and failed one step on a timing race in the test script (fixed, awaiting the next run).
 - Real-browser e2e (`apps/web/e2e/mobile.e2e.mjs`, Edge, phone viewport, real server): **14/14**.
 - Android emulator e2e (`apps/web/e2e/android-emulator.e2e.mjs`, real WebView): **11/11** on the last run, after two earlier
   runs failed from emulator overload (system ANR dialogs) and a script locator bug. It is sensitive to host memory pressure.
@@ -56,7 +62,7 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 1 fresh setup: scripts exist; `setup.ps1` **not** run clean from scratch | 2 restart persistence: done (live) | 3 sample
 registration: done | 4 real audit: done | 5 blocked by missing provider: done | 6 approval rejection + exact binding: done |
 7 limits/retries: done | 8 crash recovery: done (simulated + real restart in e2e) | 9 memory create/retrieve/correct/delete:
-done (tests) | 10 skill candidate failing evaluation: **TODO** | 11 versioned improvement + rollback: **TODO** | 12 backup restore
+done (tests) | 10 skill candidate failing evaluation stays unpromoted: done (tests) | 11 versioned improvement + exact rollback: done (tests) | 12 backup restore
 elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done | 15 UI against real backend: done (browser 14/14, emulator 11/11).
 
 ## Known issues
@@ -71,8 +77,9 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
 3. Physical-phone pass using the checklist in `docs/mobile-android.md`; real Tailscale Serve test (user runs the commands in
    `docs/mobile-remote-access.md`).
 4. Create a release keystore (user), build/sign the release APK, install on the phone.
-5. Remaining planned work: 9 skills + hooks/deny rules, schedules, evaluation/rollback loop, SSE, research-import UI, `setup.ps1`
-   clean-room run, TalkBack/keyboard accessibility audit.
+5. Remaining planned work: run the skills' behavioural cases with a model-driven evaluation (they are specs today), a UI for the
+   skill candidate/versions review (API exists), schedules, SSE, research-import UI, `setup.ps1` clean-room run,
+   TalkBack/keyboard accessibility audit.
 
 ## Provider sources (checked 2026-10-24)
 code.claude.com/docs/en/{legal-and-compliance,headless,skills,hooks,permissions,mcp,costs};

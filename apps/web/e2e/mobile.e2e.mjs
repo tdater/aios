@@ -154,8 +154,13 @@ try {
     await page.getByText(/This request is (approved|consumed)/).waitFor();
     for (let i = 0; i < 40 && !existsSync(approvalFile); i++) await sleep(250);
     expect(existsSync(approvalFile) && readFileSync(approvalFile, "utf8") === "approved from the phone", "approved effect did not occur exactly");
-    const resolved = await api("GET", `/runs/${made.body.run.id}`);
-    expect(resolved.body.run.display_state === "completed", "run should be completed");
+    // the file appears a moment before the run records its last step and acceptance checks: poll, don't race
+    let state = "";
+    for (let i = 0; i < 40 && state !== "completed"; i++) {
+      state = (await api("GET", `/runs/${made.body.run.id}`)).body.run.display_state;
+      if (state !== "completed") await sleep(250);
+    }
+    expect(state === "completed", `run should complete after approval (last state: ${state})`);
   });
   await step("approval rejection: nothing is written and the run is cancelled", async () => {
     await api("POST", "/tasks", { title: "guarded no", kind: "demo.guarded_write", spec: { filename: "never.txt", content: "do not write" }, start_run: true });

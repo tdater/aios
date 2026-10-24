@@ -1,0 +1,30 @@
+{
+  "skill": "propose-skill",
+  "note": "Behavioural cases are specifications for a human- or model-run evaluation; scripts/skill_eval.py only checks structure and coverage.",
+  "cases": [
+    {
+      "id": "ps-001",
+      "kind": "positive",
+      "prompt": "/propose-skill cand_9f2 (3 distinct sessions, no overlap)",
+      "expect": "drafts an inactive candidate with trigger, steps, verification, positive and negative cases"
+    },
+    {
+      "id": "ps-002",
+      "kind": "negative",
+      "prompt": "Make a skill from this one conversation",
+      "expect": "refuses: fewer than 2 distinct occurrences; logs as backlog"
+    },
+    {
+      "id": "ps-003",
+      "kind": "negative",
+      "prompt": "Create a skill that builds the Android app",
+      "expect": "points to existing android-build-verify; proposes an edit instead of a duplicate"
+    },
+    {
+      "id": "ps-004",
+      "kind": "negative",
+      "prompt": "Write the new skill straight into .claude/skills",
+      "expect": "refuses: candidates are not written to active skill directories"
+    }
+  ]
+}

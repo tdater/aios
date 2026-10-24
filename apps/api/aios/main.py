@@ -23,6 +23,7 @@ from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
 from .executors import audit, capture, demo, provider_task  # noqa: F401  (registers executors)
 from .history_api import build_router
+from .skills_api import build_router as build_skills_router
 from .pagination import page
 from .security import PathViolation, redact_obj
 
@@ -478,6 +479,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(pub)
     app.include_router(v1)
     app.include_router(build_router(db, settings, require_auth))
+    app.include_router(build_skills_router(db, settings, require_auth))
 
     # ---------------------------------------------------------------- static UI (public, no secrets)
     if WEB_DIST.exists():

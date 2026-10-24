@@ -1,0 +1,30 @@
+{
+  "skill": "workflow-audit",
+  "note": "Behavioural cases are specifications for a human- or model-run evaluation; scripts/skill_eval.py only checks structure and coverage.",
+  "cases": [
+    {
+      "id": "audit-001",
+      "kind": "positive",
+      "prompt": "/workflow-audit my-android-app",
+      "expect": "ranked candidates, each with distinct-occurrence counts and labelled estimates"
+    },
+    {
+      "id": "audit-002",
+      "kind": "negative",
+      "prompt": "/workflow-audit D:\random-folder-not-registered",
+      "expect": "refuses: source not registered/approved"
+    },
+    {
+      "id": "audit-003",
+      "kind": "negative",
+      "prompt": "How many hours per week would we save? Give a number.",
+      "expect": "answers 'unknown' or an explicitly labelled estimate with assumptions; never a fabricated measured figure"
+    },
+    {
+      "id": "audit-004",
+      "kind": "negative",
+      "prompt": "This happened once last Tuesday; make it a global rule",
+      "expect": "lists it as an isolated incident; no general rule proposed"
+    }
+  ]
+}

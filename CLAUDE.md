@@ -10,6 +10,12 @@ then `docs/architecture.md` (ownership, threat model, provider rules).
 - Pair a device (all API access needs one): `scripts\pair.ps1` · API contract: `docs\api-v1.md` (snapshot `docs\openapi-v1.json`, regenerate with `scripts\export_openapi.py`)
 - Real browser e2e: `cd apps\web; node e2e\mobile.e2e.mjs` · Android: `scripts\android-build.ps1 -Variant debug`, then `node e2e\android-emulator.e2e.mjs` (needs a booted emulator). Mobile status: `docs\mobile-handoff.md`
 
+## Safety controls (code, not prompts)
+- `scripts/claude_guard.py` (wired in `.claude/settings.json`, fail-closed) blocks/asks for dangerous commands and edits. Editing it,
+  `scripts/skill_eval.py`, the scan scripts, `.secret-allowlist`, CI or settings requires the user's approval. Skills and the improvement
+  loop can never target those files. Skills: `.claude/skills/` (checked by `python scripts/skill_eval.py`).
+- This repo is PUBLIC: never commit private state, imported history, tokens, keystores, or personal/machine details.
+
 ## Rules
 - Private state lives in `C:\aios-state`, never in this repo. Never commit state, secrets, or vault content.
 - No paid API use by default. Never read, copy, or store OAuth tokens/API keys. Claude work is a user-started session via task packet.

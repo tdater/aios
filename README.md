@@ -19,7 +19,10 @@ web/PWA/Android client. It runs on your own machine; it is not a hosted service 
 - **Authenticated API v1** (device pairing; HttpOnly cookie + CSRF for browsers, bearer token for the Android app), structured
   errors, pagination, record versions, idempotency keys, reconnectable run monitoring.
 - **Client**: responsive React/TypeScript app, installable PWA, and a Capacitor 8 Android shell (tested on an emulator).
-- Tests: Python `pytest` (104), web `vitest` (64), plus real-browser and Android-emulator end-to-end scripts.
+- **Nine Claude skills** with a deterministic structural evaluator, a **fail-closed PreToolUse safety hook**, and an
+  **evaluation-gated, versioned, reversible improvement loop** (no auto-promotion; the evaluator and safety files cannot be
+  changed by the loop). The skills' behavioural cases are specifications; they are not executed automatically.
+- Tests: Python `pytest`, web `vitest`, plus real-browser and Android-emulator end-to-end scripts (exact counts in `docs/HANDOFF.md`).
 
 ## Safety model (read this)
 - The server binds to **loopback only** and refuses anything else. Remote use is intended through a private network path
