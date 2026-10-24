@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+apps/web/dist/
+# private runtime state must never live in the repo; guard anyway
+state/
+aios-state/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+config/local.*
