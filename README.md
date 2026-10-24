@@ -1,0 +1,56 @@
+# AIOS
+
+A **personal, local-first workflow and project operating layer**: a durable run engine with evidence-based verification,
+exact-action approvals, a markdown knowledge vault, a review queue for lessons mined from your own history, and a companion
+web/PWA/Android client. It runs on your own machine; it is not a hosted service and not an operating system.
+
+> **Status: early personal project (v0.2, one author).** Built for one user on Windows 11. It has not had an external
+> security review. Do **not** expose it to the public internet. See "Safety model" and "Known limitations".
+
+## What works today (tested)
+- **Run engine**: queued → running → awaiting approval / blocked / interrupted → succeeded / failed / cancelled, with deadlines,
+  iteration limits, bounded retries, workspace locks, idempotent submission, restart reconciliation, and a rule that
+  side effects with unknown outcome are **never** replayed automatically.
+- **Approvals bound to the exact action** (hash of the payload), single use, expiring, race-safe, with explicit confirmation for
+  destructive actions.
+- **Read-only workspace audit** with recorded evidence; **memory** in a markdown vault (canonical) with a rebuildable SQLite/FTS index.
+- **History review pipeline** (deterministic, no model calls): parse approved exports/sessions → redact → dedupe → extract
+  candidate preferences/lessons/scripts with evidence and chronology → human review queue. Tested on synthetic fixtures only.
+- **Authenticated API v1** (device pairing; HttpOnly cookie + CSRF for browsers, bearer token for the Android app), structured
+  errors, pagination, record versions, idempotency keys, reconnectable run monitoring.
+- **Client**: responsive React/TypeScript app, installable PWA, and a Capacitor 8 Android shell (tested on an emulator).
+- Tests: Python `pytest` (104), web `vitest` (64), plus real-browser and Android-emulator end-to-end scripts.
+
+## Safety model (read this)
+- The server binds to **loopback only** and refuses anything else. Remote use is intended through a private network path
+  (for example Tailscale Serve) **plus HTTPS plus the app's own device login**. `docs/mobile-remote-access.md` explains it.
+- AIOS never reads, copies or stores provider OAuth tokens and makes no paid API calls by default. Claude and Gemini work
+  happens in sessions **you** start, using a task packet; results come back as unverified claims.
+- Private runtime state (database, vault, imported history, backups) lives **outside** this repository and is git-ignored.
+- Imported text (history, research, repo contents) is treated as untrusted data, never as instructions.
+- Path checks are application-level guards, **not an OS sandbox**.
+
+## Quick start (Windows, PowerShell)
+```powershell
+scripts\setup.ps1              # Python venv, dependencies, web build
+scripts\start.ps1              # http://127.0.0.1:8765  (state in ..\aios-state by default)
+scripts\pair.ps1               # one-time code to sign a browser/phone in
+.\.venv\Scripts\python.exe -m pytest        # backend tests
+cd apps\web; npm test; npm run build        # web tests and production build
+```
+Android: `scripts\android-build.ps1 -Variant debug` (see `docs/mobile-android.md`). Release signing keys are yours to create
+and are never committed.
+
+## Layout
+`apps/api` FastAPI app and SQLite migrations · `apps/web` React client, PWA, Capacitor Android project, e2e scripts ·
+`tests` backend tests · `scripts` setup/run/build/scan helpers · `docs` architecture, API, mobile and handoff notes.
+Start with `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
+
+## Known limitations
+No push notifications or SSE yet; no scheduled jobs; the skill/evaluation/rollback loop is not built; Gemini is unsupported;
+the Android app has not been tested on a physical phone; Windows is the only supported host; the history parsers are unvalidated
+against real exports.
+
+## License
+No license has been chosen yet, so by default **all rights are reserved**: you may read the code but have no permission to reuse
+or redistribute it until a license is added.

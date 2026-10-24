@@ -3,21 +3,25 @@
 Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
 ## Environment (verified)
-Lenovo 83JT laptop/desktop (a local PC, **not** an Azure VM), 16 GB RAM, Windows 11 Pro 10.0.26200, PowerShell 7.6,
+A local Windows 11 Pro PC (10.0.26200; **not** a cloud VM), 16 GB RAM, PowerShell 7.6,
 Python 3.14.7, Node 26.8.1, Git 2.55, JDK 21 (Gradle uses it; Android Studio's bundled JDK 25 is not used),
 Android SDK (platforms 35/37, build-tools 34/36, one AVD `Medium_Phone_API_37.0`, WHPX acceleration available),
 Tailscale 1.104.1 installed but **unhealthy/unconfigured** (could not reach its coordination server),
-Claude Code logged in (Pro), Gemini CLI **not installed**, no metered API keys set.
+Claude Code logged in with a subscription, Gemini CLI **not installed**, no metered API keys set.
 Paths: repo `C:\aios`, private state `C:\aios-state`, sample workspace `C:\aios-workspaces\sample-project`.
 The emulator needs ~3–5 GB RAM; with a browser and other apps open the host runs short (see Known issues).
 
 ## Hosting
-- Remote: **GitHub, private repo `tdater/aios`**, branch `main` (local `foundation` tracks it). Azure is not part of the plan.
-- GitHub secret scanning is **not available** for this private free-plan repo; substitutes: `scripts/scan_secrets.py`,
-  pre-commit hook (`scripts/install-hooks.ps1`, run once per clone) and the CI secret job. Dependabot alerts are enabled.
-- **CI (`.github/workflows/ci.yml`) is manual-only and has never run.** GitHub refused to start jobs ("recent account payments
-  have failed or your spending limit needs to be increased"). That is a billing item on the user's account; nothing was
-  changed there. When fixed: restore the `push`/`pull_request` triggers, run it, fix any real failures.
+- Remote: **GitHub, `tdater/aios`**, branch `main` (local `foundation` tracks it). Azure is not part of the plan.
+- Visibility: created private; made **public on 2026-10-24 at the owner's decision** (all of the owner's repos are public and
+  they will not pay for private features). Before that, the tree and the full git history were reviewed: no secrets, no email
+  addresses, no account IDs, no Windows-username paths. History keeps a few mild earlier mentions (laptop model, subscription
+  tier); it was deliberately **not** rewritten. **No LICENSE file** has been added (an owner decision): without one, others have
+  no permission to reuse the code.
+- Never commit private runtime state, imported history, tokens or keystores (all git-ignored). Defense in depth:
+  `scripts/scan_secrets.py`, the pre-commit hook (`scripts/install-hooks.ps1`, run once per clone), the CI secret job, and
+  GitHub's own secret scanning/push protection where enabled. Dependabot alerts are enabled.
+- CI (`.github/workflows/ci.yml`): see "Test status" for its last verified state.
 - At first release AIOS becomes page(s) on the user's **signal-workshop** site. Publish only a curated selection.
 
 ## Status legend: IMPLEMENTED+TESTED / MOCKED / BLOCKED / PLANNED

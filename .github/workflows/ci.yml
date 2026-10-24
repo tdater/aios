@@ -1,7 +1,7 @@
 name: CI
 
-# Manual-only for now: GitHub refused to start jobs on this account (billing/spending limit; see docs/HANDOFF.md).
-# Once that is resolved, restore the triggers below. Until then the same checks run locally (see CLAUDE.md).
+# Manual-only for now (Actions unavailable on this account until it is re-enabled; see docs/HANDOFF.md).
+# To enable automatic runs restore the triggers below. The same checks run locally (see CLAUDE.md).
 #   push:
 #     branches: [main]
 #   pull_request:
