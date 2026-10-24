@@ -1,9 +1,12 @@
 name: CI
 
+# Manual-only for now: GitHub refused to start jobs on this account (billing/spending limit; see docs/HANDOFF.md).
+# Once that is resolved, restore the triggers below. Until then the same checks run locally (see CLAUDE.md).
+#   push:
+#     branches: [main]
+#   pull_request:
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read          # least privilege: CI never writes to the repo

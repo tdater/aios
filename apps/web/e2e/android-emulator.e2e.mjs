@@ -42,7 +42,20 @@ const results = [];
 async function step(name, fn) {
   const t = Date.now();
   try { await fn(); results.push([true, name]); console.log(`PASS  ${name} (${Date.now() - t}ms)`); }
-  catch (e) { results.push([false, name]); console.log(`FAIL  ${name}\n      ${String(e.message).split("\n")[0]}`); }
+  catch (e) {
+    results.push([false, name]);
+    console.log(`FAIL  ${name}\n      ${String(e.message).split("\n")[0]}`);
+    try { screencap(`fail-${results.length}`); } catch {}
+    try { console.log(`      page: ${(await page.evaluate(() => `${location.hash} | ${document.body.innerText.replace(/\s+/g, " ").slice(0, 260)}`))}`); } catch {}
+    console.log(`      focus: ${sh("dumpsys window | grep -E 'mCurrentFocus' | head -1")}`);
+  }
+}
+// The software-rendered emulator is slow right after boot; keep system UI from stealing focus.
+function calmEmulator() {
+  for (const k of ["window_animation_scale", "transition_animation_scale", "animator_duration_scale"]) adb("shell", "settings", "put", "global", k, "0");
+  adb("shell", "settings", "put", "global", "hide_error_dialogs", "1");
+  adb("shell", "am", "broadcast", "-a", "android.intent.action.CLOSE_SYSTEM_DIALOGS");
+  adb("shell", "input", "keyevent", "3");
 }
 const expect = (c, m) => { if (!c) throw new Error(m); };
 const screencap = (n) => { const r = spawnSync(adbExe, ["exec-out", "screencap", "-p"], { maxBuffer: 1 << 26 }); writeFileSync(join(shots, `${n}.png`), r.stdout); };
@@ -80,6 +93,9 @@ try {
     const r = adb("install", "-r", "-t", apk);
     expect(/Success/.test(r.stdout), `install failed: ${r.stdout}${r.stderr}`);
     adb("shell", "pm", "clear", APP);
+    calmEmulator();
+    await sleep(8000);
+    calmEmulator();
     adb("reverse", `tcp:${PORT}`, `tcp:${PORT}`);
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0");
     adb("shell", "settings", "put", "system", "user_rotation", "0");
@@ -93,7 +109,7 @@ try {
     for (const [bad, msg] of [["http://example.com", /HTTPS is required/], ["https://user:pw@host.example", /credentials/i], ["http://192.168.1.50:8765", /HTTPS is required/]]) {
       await page.getByLabel("Server address").fill(bad);
       await page.getByRole("button", { name: "Continue" }).click();
-      await page.getByText(msg).waitFor();
+      await page.getByRole("alert").getByText(msg).waitFor();   // the error box only (the help text also says "credentials")
     }
     await page.getByLabel("Server address").fill("http://localhost:8765");
     await page.getByRole("button", { name: "Continue" }).click();
