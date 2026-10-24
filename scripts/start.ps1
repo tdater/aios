@@ -21,8 +21,9 @@ Set-Content $PidFile $p.Id
 for ($i = 0; $i -lt 40; $i++) {
     Start-Sleep -Milliseconds 500
     try {
-        $h = Invoke-RestMethod "http://127.0.0.1:$Port/api/health" -TimeoutSec 2
-        Write-Host "AIOS up (pid $($p.Id)) -> http://127.0.0.1:$Port  schema=$($h.schema -join ',')"
+        # /meta is the public liveness + compatibility endpoint (everything else requires a paired device)
+        $m = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/meta" -TimeoutSec 2
+        Write-Host "AIOS up (pid $($p.Id)) -> http://127.0.0.1:$Port  api=$($m.api_version) server=$($m.server_version)"
         Write-Host "First time on a device? Run scripts\pair.ps1 and enter the one-time code there (all API access needs a paired device)."
         exit 0
     } catch { }

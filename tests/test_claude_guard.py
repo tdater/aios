@@ -126,5 +126,31 @@ def test_settings_wire_the_guard_fail_closed_if_present():
     cfg = json.loads(p.read_text(encoding="utf-8"))
     hooks = cfg["hooks"]["PreToolUse"]
     entry = next(h for h in hooks if "claude_guard.py" in json.dumps(h))
-    assert {"Bash", "PowerShell", "Edit", "Write", "NotebookEdit"} <= set(entry["matcher"].split("|"))
+    # Every tool the guard knows how to judge MUST be routed to it, or that tool bypasses the guard entirely.
+    assert set(g.GUARDED_TOOLS) <= set(entry["matcher"].split("|")), set(g.GUARDED_TOOLS) - set(entry["matcher"].split("|"))
     assert all(x.get("onFailure") == "block" for x in entry["hooks"])
+
+
+def test_multiedit_is_guarded_like_edit():
+    assert "MultiEdit" in g.GUARDED_TOOLS
+    assert dec("MultiEdit", file_path=".git/config") == "deny"
+    assert dec("MultiEdit", file_path="scripts/claude_guard.py") == "ask"
+    assert dec("MultiEdit", file_path="docs/HANDOFF.md") is None
+
+
+def test_a_symlink_cannot_smuggle_a_write_to_a_protected_file(tmp_path):
+    """A link inside an ordinary folder that points at the guard (or .git) must be judged by its TARGET."""
+    link_dir = ROOT / "docs" / "_guard_symlink_test"
+    link_dir.mkdir(exist_ok=True)
+    link = link_dir / "innocent.md"
+    try:
+        link.unlink(missing_ok=True)
+        try:
+            link.symlink_to(ROOT / "scripts" / "claude_guard.py")
+        except OSError:
+            pytest.skip("symlink creation not permitted on this machine")
+        assert dec("Edit", file_path=str(link)) == "ask"
+        assert dec("Write", file_path="docs/_guard_symlink_test/innocent.md") == "ask"
+    finally:
+        link.unlink(missing_ok=True)
+        link_dir.rmdir()

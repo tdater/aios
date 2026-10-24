@@ -33,8 +33,14 @@ const results = [];
 async function step(name, fn) {
   const t = Date.now();
   try { await fn(); results.push([true, name]); console.log(`PASS  ${name} (${Date.now() - t}ms)`); }
-  catch (e) { results.push([false, name]); console.log(`FAIL  ${name}\n      ${String(e.message).split("\n")[0]}`); }
+  catch (e) {
+    results.push([false, name]);
+    console.log(`FAIL  ${name}\n      ${String(e.message).split("\n")[0]}`);
+    try { await dbgPage?.screenshot({ path: join(shots, `fail-${results.length}.png`) }); } catch {}
+    try { console.log(`      page: ${await dbgPage.evaluate(() => `${location.hash} | ${document.body.innerText.replace(/\s+/g, " ").slice(0, 300)}`)}`); } catch {}
+  }
 }
+let dbgPage = null;
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 let browser;
@@ -45,6 +51,8 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   page.setDefaultTimeout(20000);
+  dbgPage = page;
+  page.on("console", (m) => { if (m.type() === "error") console.log(`      [browser console] ${m.text().slice(0, 200)}`); });
   const api = (method, path, body, key) => page.evaluate(async ({ method, path, body, key }) => {
     const csrf = (document.cookie.split("; ").find((c) => c.startsWith("aios_csrf=")) || "").split("=")[1] || "";
     const r = await fetch(`/api/v1${path}`, { method, headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf, ...(key ? { "Idempotency-Key": key } : {}) }, body: body ? JSON.stringify(body) : undefined });
@@ -112,7 +120,8 @@ try {
     await shot("02-run-completed");
   });
   await step("cancel a running run: REQUESTED first, CONFIRMED later, UI says so honestly", async () => {
-    const made = await api("POST", "/tasks", { title: "slow cancel", kind: "demo.slow_steps", spec: { steps: 30, pause: 0.4 }, start_run: true });
+    // Long steps keep the "requested" state alive for seconds, so a slow runner can't skip straight to "confirmed" between polls.
+    const made = await api("POST", "/tasks", { title: "slow cancel", kind: "demo.slow_steps", spec: { steps: 4, pause: 6 }, start_run: true });
     const id = made.body.run.id;
     await page.goto(`${BASE}/#/runs/${id}`);
     await badge("running").waitFor();

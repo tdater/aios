@@ -2,6 +2,25 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
+import { createReloadGate } from "../pwa/register";
+
+describe("service worker reload gate", () => {
+  it("never reloads the page on a first install (controllerchange) because that would wipe what the user is typing", () => {
+    const reload = vi.fn();
+    const gate = createReloadGate(reload);
+    gate.onControllerChange();                 // first install: the new worker claims the page
+    gate.onControllerChange();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("reloads only after the user explicitly applied an update", () => {
+    const reload = vi.fn();
+    const gate = createReloadGate(reload);
+    gate.requestApply();
+    gate.onControllerChange();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+});
 
 function loadSw(shell = ["/", "/index.html", "/assets/app.js"]) {
   const src = readFileSync(resolve(__dirname, "../pwa/sw.template.js"), "utf8")

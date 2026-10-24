@@ -76,10 +76,11 @@ def check_command(cmd: str) -> tuple[str, str] | None:
 
 
 def norm_path(p: str, cwd: str) -> str:
+    """Resolve symlinks/junctions (realpath), so a link inside the repo cannot smuggle a write to a protected file."""
     q = Path(p)
     if not q.is_absolute():
         q = Path(cwd) / q
-    return os.path.normcase(os.path.abspath(q)).replace("\\", "/")
+    return os.path.normcase(os.path.realpath(q)).replace("\\", "/")
 
 
 def check_path(p: str, cwd: str) -> tuple[str, str] | None:
@@ -94,13 +95,18 @@ def check_path(p: str, cwd: str) -> tuple[str, str] | None:
     return None
 
 
+SHELL_TOOLS = ("Bash", "PowerShell")
+FILE_WRITE_TOOLS = ("Edit", "MultiEdit", "Write", "NotebookEdit")
+GUARDED_TOOLS = SHELL_TOOLS + FILE_WRITE_TOOLS   # .claude/settings.json's matcher MUST list every one (a test enforces it)
+
+
 def decide(payload: dict) -> tuple[str, str] | None:
     tool = payload.get("tool_name", "")
     inp = payload.get("tool_input") or {}
     cwd = payload.get("cwd") or os.getcwd()
-    if tool in ("Bash", "PowerShell"):
+    if tool in SHELL_TOOLS:
         return check_command(str(inp.get("command", "")))
-    if tool in ("Edit", "Write", "NotebookEdit", "MultiEdit"):
+    if tool in FILE_WRITE_TOOLS:
         p = inp.get("file_path") or inp.get("notebook_path")
         return check_path(str(p), cwd) if p else None
     return None
