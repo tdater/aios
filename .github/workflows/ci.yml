@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read          # least privilege: CI never writes to the repo
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    # Substitute for GitHub push protection (not offered on private free-plan repos).
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python scripts/scan_secrets.py --all
+
+  backend:
+    # Windows because AIOS targets Windows paths/semantics (workspace guards, junction handling).
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.14", cache: pip, cache-dependency-path: requirements.lock.txt }
+      - run: python -m pip install -r requirements.lock.txt
+      - run: python -m pytest
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npm run build
+
+  e2e:
+    # Real server + SQLite + real Edge at phone size. (The Android build/emulator run is not in CI: ~11 min cold, needs an emulator.)
+    needs: [backend, web]
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.14", cache: pip, cache-dependency-path: requirements.lock.txt }
+      - run: python -m venv .venv
+      - run: .venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm run build
+        working-directory: apps/web
+      - run: node e2e/mobile.e2e.mjs
+        working-directory: apps/web
