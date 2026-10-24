@@ -8,11 +8,11 @@ import re
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
-from . import memory
+from . import memory, publish_export
 from .config import REPO_ROOT, Settings
 from .db import Database
 from .errors import ApiError, check_version, not_found
-from .history import extract, review
+from .history import extract, review, schedule
 from .history.ingest import Ingestor
 from .pagination import page
 from .security import redact_obj
@@ -51,6 +51,11 @@ class SupersedeIn(BaseModel):
 class ReviewIn(BaseModel):
     max_files: int = Field(default=200, ge=1, le=2000)
     max_seconds: float = Field(default=120, ge=1, le=900)
+
+
+class ScheduleIn(BaseModel):
+    enabled: bool
+    every_hours: int = Field(default=24, ge=1, le=168)
 
 
 class MemoryIn(BaseModel):
@@ -119,6 +124,14 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     def review_new(body: ReviewIn):
         return guard(review.review_new, db, settings, max_files=body.max_files, max_seconds=body.max_seconds,
                      skills_dir=skills_dir)
+
+    @r.get("/history/schedule")
+    def get_schedule():
+        return schedule.get(db)
+
+    @r.put("/history/schedule")
+    def put_schedule(body: ScheduleIn):
+        return schedule.configure(db, enabled=body.enabled, every_hours=body.every_hours)
 
     @r.get("/history/review-runs")
     def review_runs():
@@ -243,6 +256,15 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     def published_preview():
         """What `scripts/export_published.py` would write: only notes tagged `publish` and approved, redacted."""
         return redact_obj(memory.published(db, settings))
+
+    @r.post("/published/export")
+    def published_export():
+        """Write the bundle to <state>/exports/published (inside private state, never the repo). Uploads nothing."""
+        out = settings.state_dir / "exports" / "published"
+        res = memory.published(db, settings)
+        files = publish_export.write_bundle(res, out)
+        return {"count": len(files), "path": str(out), "skipped": len(res["skipped"]),
+                "note": "Files were written locally. Nothing was uploaded or deployed."}
 
     @r.get("/memories/export")
     def export():

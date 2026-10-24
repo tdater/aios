@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ApiError } from "../../core/client";
+import { collapseDiff, diffLines, diffStats } from "../../core/diff";
 import { useApp } from "../../ui/Context";
 import { useLoad } from "../../ui/hooks";
 import { Badge, Btn, Collapsible, Empty, ErrorBox, Loading, Notice, Untrusted, ago } from "../../ui/kit";
@@ -7,7 +8,7 @@ import { Badge, Btn, Collapsible, Empty, ErrorBox, Loading, Notice, Untrusted, a
 interface Cand { id: string; name: string; status: string; eval_status: string; content_sha256: string; created_at: string; decided_at: string | null; decision_note: string | null }
 interface Version { name: string; version: number; status: string; sha256: string; parent_version: number | null; deployed_at: string | null; note: string | null }
 interface Overview { candidates: Cand[]; versions: Version[] }
-interface Detail { id: string; name: string; status: string; eval_status: string; rationale: string; content: string; sha256: string; results: { case: string; passed: boolean; detail: string }[]; active_version: number | null }
+interface Detail { current_content?: string | null; id: string; name: string; status: string; eval_status: string; rationale: string; content: string; sha256: string; results: { case: string; passed: boolean; detail: string }[]; active_version: number | null }
 interface EvalOut { eval_status: string; failed_cases: string[]; regression_failures: string[]; not_executed: number; note: string }
 
 const EVAL_TONE: Record<string, string> = { passed: "approved", failed: "rejected", not_run: "pending" };
@@ -98,6 +99,8 @@ function CandidateReview({ id, busy, connected, act, onChanged }: { id: string; 
   const [sure, setSure] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [ran, setRan] = useState<EvalOut | null>(null);
+  const [full, setFull] = useState(false);
+  const ops = useMemo(() => (d.data?.current_content != null ? diffLines(d.data.current_content, d.data.content) : null), [d.data]);
   if (d.error && !d.data) return <ErrorBox msg={d.error} code={d.errorCode} />;
   if (!d.data) return <Loading what="Loading the proposed change" />;
   const c = d.data;
@@ -109,7 +112,8 @@ function CandidateReview({ id, busy, connected, act, onChanged }: { id: string; 
       <Untrusted text={c.rationale} max={2000} />
       <h4>Exact text that would be deployed {c.active_version ? `(replaces version ${c.active_version})` : "(new skill)"}</h4>
       <p className="muted small">Fingerprint <code>{c.sha256.slice(0, 16)}</code></p>
-      <Untrusted text={c.content} max={20000} />
+      {ops && !full ? <DiffView ops={ops} /> : <Untrusted text={c.content} max={20000} />}
+      {ops && <div className="row" style={{ justifyContent: "flex-start" }}><Btn kind="ghost" onClick={() => setFull(!full)}>{full ? "Show changes only" : "Show full text"}</Btn></div>}
       <h4>Checks</h4>
       {c.results.length === 0 ? <p className="muted small">Not run yet.</p> : (
         <ul className="linklist" aria-label="Check results">{c.results.map((r) => <li key={r.case}>{r.passed ? "✓" : "✗"} {r.case} <span className="muted small">{r.detail}</span></li>)}</ul>
@@ -142,6 +146,19 @@ function CandidateReview({ id, busy, connected, act, onChanged }: { id: string; 
         ) : <Btn kind="ghost" disabled={!connected} onClick={() => setRejecting(true)}>Reject…</Btn>}
       </div>
       {rejecting && !note.trim() && <p className="muted small">Write a short reason in the note first.</p>}
+    </div>
+  );
+}
+
+function DiffView({ ops }: { ops: ReturnType<typeof diffLines> }) {
+  const { added, removed } = diffStats(ops);
+  if (added === 0 && removed === 0) return <p className="muted small">Identical to the deployed text; nothing would change.</p>;
+  return (
+    <div role="group" aria-label="Changes from the deployed version">
+      <p className="small">{added} line{added === 1 ? "" : "s"} added, {removed} removed compared with the deployed text.</p>
+      <pre className="codeblock diff" tabIndex={0}>{collapseDiff(ops).map((o, i) => o.kind === "skip"
+        ? <span key={i} className="dskip">{`… ${o.count} unchanged line${o.count === 1 ? "" : "s"} …`}</span>
+        : <span key={i} className={`d${o.kind}`}>{`${o.kind === "add" ? "+ " : o.kind === "del" ? "- " : "  "}${o.text}`}</span>)}</pre>
     </div>
   );
 }

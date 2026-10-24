@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useApp } from "../../ui/Context";
 import { go, useLoad } from "../../ui/hooks";
-import { Btn, Empty, ErrorBox, Loading } from "../../ui/kit";
+import { Btn, Empty, ErrorBox, Loading, Notice } from "../../ui/kit";
 import { knowledgeQuery } from "../../ui/uiState";
 
 interface Published { items: { id: string; slug: string; title: string; type: string; tags: string[] }[]; skipped: { id: string; title: string; reason: string }[]; rule: string }
@@ -9,6 +10,17 @@ interface Published { items: { id: string; slug: string; title: string; type: st
 export function PublishSection() {
   const { client, connected } = useApp();
   const pub = useLoad(() => client.get<Published>("/published"), [client]);
+  const [ask, setAsk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<{ count: number; path: string; skipped: number } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const write = async () => {
+    if (busy) return;
+    setBusy(true); setErr(null); setDone(null);
+    try { setDone((await client.post<{ count: number; path: string; skipped: number }>("/published/export", {})).data); setAsk(false); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
   return (
     <section className="card" id="publish" aria-labelledby="publish-h">
       <h3 id="publish-h" style={{ marginTop: 0 }}>Publishing</h3>
@@ -37,7 +49,18 @@ export function PublishSection() {
           )}
         </>
       )}
-      <p className="small">To write the files to a folder outside the repository, run:</p>
+      {err && <ErrorBox msg={err} />}
+      {done && <Notice tone="ok">Wrote {done.count} note{done.count === 1 ? "" : "s"} to <code>{done.path}</code>{done.skipped ? ` (${done.skipped} held back)` : ""}. Nothing was uploaded or deployed.</Notice>}
+      {ask ? (
+        <Notice tone="warn">
+          Write {pub.data?.items.length ?? 0} note{pub.data?.items.length === 1 ? "" : "s"} as files into AIOS&rsquo;s private export folder? Files from an earlier export that are no longer published are removed from that folder.
+          <div className="row" style={{ marginTop: 8 }}>
+            <Btn busy={busy} disabled={!connected} onClick={() => void write()}>Yes, write files</Btn>
+            <Btn kind="ghost" onClick={() => setAsk(false)}>Cancel</Btn>
+          </div>
+        </Notice>
+      ) : <div className="row" style={{ justifyContent: "flex-start" }}><Btn disabled={!connected || !pub.data || pub.data.items.length === 0} onClick={() => setAsk(true)}>Write export files…</Btn></div>}
+      <p className="small">The same export from a terminal, to any folder outside the repository:</p>
       <pre className="codeblock" tabIndex={0}>{`.venv\\Scripts\\python.exe scripts\\export_published.py`}</pre>
     </section>
   );

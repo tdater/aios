@@ -538,6 +538,26 @@
         "title": "RunIn",
         "type": "object"
       },
+      "ScheduleIn": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "every_hours": {
+            "default": 24,
+            "maximum": 168.0,
+            "minimum": 1.0,
+            "title": "Every Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "ScheduleIn",
+        "type": "object"
+      },
       "SubmitIn": {
         "properties": {
           "content": {
@@ -1695,6 +1715,56 @@
         "summary": "Review Runs"
       }
     },
+    "/api/v1/history/schedule": {
+      "get": {
+        "operationId": "get_schedule_api_v1_history_schedule_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Schedule"
+      },
+      "put": {
+        "operationId": "put_schedule_api_v1_history_schedule_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Schedule"
+      }
+    },
     "/api/v1/history/search": {
       "get": {
         "operationId": "search_api_v1_history_search_get",
@@ -2459,6 +2529,23 @@
           }
         },
         "summary": "Published Preview"
+      }
+    },
+    "/api/v1/published/export": {
+      "post": {
+        "description": "Write the bundle to <state>/exports/published (inside private state, never the repo). Uploads nothing.",
+        "operationId": "published_export_api_v1_published_export_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Published Export"
       }
     },
     "/api/v1/runs": {

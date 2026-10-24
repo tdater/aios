@@ -155,7 +155,7 @@ def test_only_tagged_and_approved_notes_are_published_and_links_are_flattened(db
     assert "Secret Plans" not in json.dumps(out["skipped"])                  # unpublished notes are not even named
 
 
-def test_publish_endpoint_requires_auth_and_script_writes_bundle(app, client, tmp_path):
+def test_publish_endpoint_requires_auth_and_export_writes_bundle(app, client, tmp_path):
     from fastapi.testclient import TestClient
     with TestClient(app) as anon:
         assert anon.get(f"{V}/published").status_code in (401, 403)
@@ -163,9 +163,24 @@ def test_publish_endpoint_requires_auth_and_script_writes_bundle(app, client, tm
     assert r.status_code == 201
     got = client.get(f"{V}/published").json()
     assert [i["slug"] for i in got["items"]] == ["hello-world"]
+    r = client.post(f"{V}/published/export")
+    assert r.status_code == 200 and r.json()["count"] == 1 and "Nothing was uploaded" in r.json()["note"]
+    out = app.state.settings.state_dir / "exports" / "published"
+    assert (out / "hello-world.md").read_text(encoding="utf-8").startswith("---" + chr(10) + 'title: "Hello World"')
+    assert json.loads((out / "index.json").read_text())[0]["slug"] == "hello-world"
+    with TestClient(app) as anon:
+        assert anon.post(f"{V}/published/export").status_code in (401, 403)
+
+
+def test_export_script_writes_the_same_bundle_and_refuses_the_repo(tmp_path):
     import importlib.util
+    from aios.publish_export import write_bundle
+    items = {"items": [{"id": "m", "slug": "a-note", "title": "A \"quoted\" note", "type": "fact", "tags": ["x"], "created_at": "2026-01-02T00:00:00+00:00", "body": "hi"}], "skipped": []}
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "stale.md").write_text("old", encoding="utf-8")
+    write_bundle(items, tmp_path / "out")
+    assert not (tmp_path / "out" / "stale.md").exists()                              # folder mirrors the current set
+    assert 'title: "A \\"quoted\\" note"' in (tmp_path / "out" / "a-note.md").read_text(encoding="utf-8")
     spec = importlib.util.spec_from_file_location("export_published", "scripts/export_published.py")
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
-    files = mod.write_bundle(got, tmp_path / "out")
-    assert files[0].read_text(encoding="utf-8").startswith('---\ntitle: "Hello World"')
-    assert json.loads((tmp_path / "out" / "index.json").read_text())[0]["slug"] == "hello-world"
+    assert mod.main(["--out", "docs/should-not-exist"]) == 2

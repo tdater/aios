@@ -22,6 +22,7 @@ from .db import Database
 from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
 from .executors import audit, capture, demo, provider_task  # noqa: F401  (registers executors)
+from .history import schedule
 from .history_api import build_router
 from .skills_api import build_router as build_skills_router
 from .pagination import page
@@ -99,7 +100,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         idempotency.purge_old(db)
         threading.Thread(target=providers.discover, args=(db,), daemon=True).start()
         engine.start()
+        reviewer = schedule.Runner(db, settings, REPO_ROOT / ".claude" / "skills")
+        reviewer.start()
         yield
+        reviewer.stop()
         engine.stop()
 
     app = FastAPI(title="AIOS", version=__version__, lifespan=lifespan,

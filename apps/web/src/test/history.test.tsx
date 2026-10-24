@@ -16,6 +16,7 @@ const SRC = (o: object) => ({ id: "src_1", rel_path: "claude-code/proj/a.jsonl",
   date_start: "2026-01-02T00:00:00Z", date_end: "2026-01-04T00:00:00Z", secret_kinds: [], ...o });
 const base = (sources: object[]) => ({
   "GET /history/summary": () => ({ body: SUMMARY }),
+  "GET /history/schedule": () => ({ body: { enabled: false, every_hours: 24, last_attempt: null, last_status: null, next_due: null } }),
   "GET /history/sources": () => ({ body: { items: sources, next_cursor: null, limit: 200 } }),
 });
 
@@ -52,7 +53,7 @@ describe("history section", () => {
   });
 
   it("a busy review and server errors are reported, not hidden", async () => {
-    fakeServer({ ...base([]), "POST /history/review-new": () => err(409, "conflict", "a review is already running") });
+    fakeServer({ ...base([]), "POST /history/review-new": () => err(409, "review_busy", "a review is already running") });
     const c = ctxFor();
     render(<Wrap ctx={c.ctx}><HistorySection /></Wrap>);
     fireEvent.click(await screen.findByRole("button", { name: "Review new sessions" }));
@@ -71,6 +72,22 @@ describe("history section", () => {
     await screen.findByText(/2 proposals re-checked, 1 left without evidence, 1 note need another look, file deleted/);
     expect(srv.calls.find((x) => x.method === "POST" && x.path.endsWith("/delete"))!.query.get("delete_file")).toBe("true");
     expect(screen.getByText(/Existing backups are not rewritten/)).toBeTruthy();
+  });
+
+  it("automatic review is off by default; turning it on saves the choice and shows what it will and will not do", async () => {
+    let state = { enabled: false, every_hours: 24, last_attempt: null as string | null, last_status: null as string | null, next_due: null as string | null };
+    const srv = fakeServer({ ...base([]), "GET /history/schedule": () => ({ body: state }),
+      "PUT /history/schedule": (c) => { state = { ...state, ...(c.body as object) } as typeof state; return { body: state }; } });
+    const c = ctxFor();
+    render(<Wrap ctx={c.ctx}><HistorySection /></Wrap>);
+    const box = await screen.findByLabelText("Review new sessions automatically") as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(screen.queryByLabelText("How often to review automatically")).toBeNull();
+    fireEvent.click(box);
+    await screen.findByText(/makes no model calls, and stops at 200 files or 60 seconds/);
+    expect(srv.calls.find((x) => x.method === "PUT")!.body).toEqual({ enabled: true, every_hours: 24 });
+    fireEvent.change(screen.getByLabelText("How often to review automatically"), { target: { value: "6" } });
+    await waitFor(() => expect(srv.calls.filter((x) => x.method === "PUT").pop()!.body).toEqual({ enabled: true, every_hours: 6 }));
   });
 
   it("offline: review and removal are disabled", async () => {
@@ -103,6 +120,27 @@ describe("publishing section", () => {
     expect(screen.getByText(/Draft/)).toBeTruthy();
     expect(screen.getByText(/A note/)).toBeTruthy();
     expect(screen.getByText(/export_published\.py/)).toBeTruthy();
+  });
+  it("writing the export needs a confirmation, posts once, and reports where the files went", async () => {
+    const srv = fakeServer({ "GET /published": () => ({ body: { rule: "r", items: [{ id: "m", slug: "a", title: "A", type: "fact", tags: [] }], skipped: [] } }),
+      "POST /published/export": () => ({ body: { count: 1, path: "C:/state/exports/published", skipped: 0, note: "n" } }) });
+    const c = ctxFor();
+    render(<Wrap ctx={c.ctx}><PublishSection /></Wrap>);
+    fireEvent.click(await screen.findByRole("button", { name: "Write export files…" }));
+    expect(srv.count("POST", "/published/export")).toBe(0);
+    const yes = screen.getByRole("button", { name: "Yes, write files" });
+    fireEvent.click(yes);
+    fireEvent.click(yes);
+    await screen.findByText(/Wrote 1 note to/);
+    expect(srv.count("POST", "/published/export")).toBe(1);
+    expect(screen.getByText(/Nothing was uploaded or deployed/)).toBeTruthy();
+  });
+  it("the export button is disabled when there is nothing to export or offline", async () => {
+    fakeServer({ "GET /published": () => ({ body: { rule: "r", items: [], skipped: [] } }) });
+    const c = ctxFor();
+    render(<Wrap ctx={c.ctx}><PublishSection /></Wrap>);
+    await screen.findByText(/No notes would be exported/);
+    expect((screen.getByRole("button", { name: "Write export files…" }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("says so when nothing would be exported", async () => {
     fakeServer({ "GET /published": () => ({ body: { rule: "r", items: [], skipped: [] } }) });

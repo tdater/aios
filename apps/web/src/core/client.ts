@@ -102,6 +102,7 @@ export class AiosClient {
   get = <T,>(path: string, o?: ReqOpts) => this.request<T>("GET", path, o).then((r) => r.data);
   post = <T,>(path: string, body?: unknown, o: ReqOpts = {}) => this.request<T>("POST", path, { ...o, body: body ?? {} });
   patch = <T,>(path: string, body: unknown, o: ReqOpts = {}) => this.request<T>("PATCH", path, { ...o, body });
+  put = <T,>(path: string, body: unknown, o: ReqOpts = {}) => this.request<T>("PUT", path, { ...o, body });
 }
 
 /** Retry only when the failure was a network failure AND repeating is safe (read, or keyed write). */

@@ -46,6 +46,24 @@ describe("skill improvements review", () => {
     expect((screen.getByRole("button", { name: "Deploy skill" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("a change to an already-deployed skill is shown as a diff against the deployed text, with the full text one click away", async () => {
+    setup({ "GET /skills/candidates/skc_1": () => ({ body: DETAIL({ current_content: ["# adb-debug", "STEP ONE", "old line"].join("\n"), content: ["# adb-debug", "STEP ONE", "new line"].join("\n") }) }) });
+    await openIt();
+    const diff = await screen.findByRole("group", { name: "Changes from the deployed version" });
+    expect(diff.textContent).toContain("1 line added, 1 removed");
+    expect(diff.textContent).toContain("- old line");
+    expect(diff.textContent).toContain("+ new line");
+    fireEvent.click(screen.getByRole("button", { name: "Show full text" }));
+    expect(screen.queryByRole("group", { name: "Changes from the deployed version" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Show changes only" })).toBeTruthy();
+  });
+
+  it("an identical proposal says so, and a brand-new skill shows full text without a diff", async () => {
+    setup({ "GET /skills/candidates/skc_1": () => ({ body: DETAIL({ current_content: "same", content: "same" }) }) });
+    await openIt();
+    await screen.findByText(/Identical to the deployed text/);
+  });
+
   it("running checks reports failures and still blocks deployment", async () => {
     let ran = false;
     const srv = setup({ "POST /skills/candidates/skc_1/evaluate": () => { ran = true; return { body: { eval_status: "failed", failed_cases: ["no-unrestricted-shell"], regression_failures: ["other-skill"], not_executed: 4, note: "n" } }; },

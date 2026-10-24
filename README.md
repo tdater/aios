@@ -22,8 +22,8 @@ web/PWA/Android client. It runs on your own machine; it is not a hosted service 
   Obsidian-inspired UI: themes and accent colours, tabs (pin with Alt+P), Ctrl+K command palette, safe markdown notes with
   `[[wiki links]]`, `#tags`, callouts and backlinks, a vault explorer with search operators, a force-directed graph (colour by
   type or project, time-lapse of how the vault grew), daily notes (Ctrl+Alt+D), skill-change review, and an imported-history screen.
-- **Publishing preview**: only notes you tag `#publish` and approve can be exported (`scripts/export_published.py`, written
-  outside the repository; nothing is uploaded).
+- **Publishing**: only notes you tag `#publish` and approve can be exported (Settings button or `scripts/export_published.py`;
+  files are written locally; nothing is uploaded).
 - **Nine Claude skills** with a deterministic structural evaluator, a **fail-closed PreToolUse safety hook**, and an
   **evaluation-gated, versioned, reversible improvement loop** (no auto-promotion; the evaluator and safety files cannot be
   changed by the loop). The skills' behavioural cases are specifications; they are not executed automatically.

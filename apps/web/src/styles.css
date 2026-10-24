@@ -3,7 +3,7 @@
 :root {
   color-scheme: dark;
   --bg: #14141b; --bg2: #191922; --panel: #1f1f2b; --panel2: #282836; --hover: #2d2d3d; --line: #35354a; --line2: #44445e;
-  --text: #e7e7f1; --muted: #9b9bb3; --faint: #6f6f8a;
+  --text: #e7e7f1; --muted: #9b9bb3; --faint: #9191a7;
   --accent: #8b7cf6; --accent-ink: #120d2e;
   --ok: #5fd0a0; --warn: #e8b84f; --bad: #f2777f; --info: #6cb6ff;
   --shadow: 0 10px 40px rgb(0 0 0 / .45);
@@ -15,14 +15,14 @@
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) { color-scheme: light; --bg: #f5f5f9; --bg2: #ededf4; --panel: #ffffff; --panel2: #f0f0f7; --hover: #e6e6f0; --line: #d9d9e8; --line2: #c3c3d8;
-    --text: #1e1e2b; --muted: #5d5d78; --faint: #8a8aa3; --accent: #6a4fe0; --accent-ink: #ffffff; --ok: #12814f; --warn: #8a6204; --bad: #c0343e; --info: #1a64c7; --shadow: 0 10px 40px rgb(30 30 60 / .18); }
+    --text: #1e1e2b; --muted: #5d5d78; --faint: #67677d; --accent: #6a4fe0; --accent-ink: #ffffff; --ok: #12814f; --warn: #8a6204; --bad: #c0343e; --info: #1a64c7; --shadow: 0 10px 40px rgb(30 30 60 / .18); }
 }
 :root[data-theme="dark"] { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; --bg: #f5f5f9; --bg2: #ededf4; --panel: #ffffff; --panel2: #f0f0f7; --hover: #e6e6f0; --line: #d9d9e8; --line2: #c3c3d8;
-  --text: #1e1e2b; --muted: #5d5d78; --faint: #8a8aa3; --accent: #6a4fe0; --accent-ink: #ffffff; --ok: #12814f; --warn: #8a6204; --bad: #c0343e; --info: #1a64c7; --shadow: 0 10px 40px rgb(30 30 60 / .18); }
-:root[data-theme="midnight"] { color-scheme: dark; --bg: #000000; --bg2: #07070b; --panel: #0d0d14; --panel2: #14141d; --hover: #1a1a26; --line: #23232f; --line2: #33334a; --text: #e9e9f2; --muted: #9696ad; --faint: #6a6a82; }
+  --text: #1e1e2b; --muted: #5d5d78; --faint: #67677d; --accent: #6a4fe0; --accent-ink: #ffffff; --ok: #12814f; --warn: #8a6204; --bad: #c0343e; --info: #1a64c7; --shadow: 0 10px 40px rgb(30 30 60 / .18); }
+:root[data-theme="midnight"] { color-scheme: dark; --bg: #000000; --bg2: #07070b; --panel: #0d0d14; --panel2: #14141d; --hover: #1a1a26; --line: #23232f; --line2: #33334a; --text: #e9e9f2; --muted: #9696ad; --faint: #7e7e94; }
 :root[data-theme="paper"] { color-scheme: light; --bg: #f6f1e7; --bg2: #eee7d8; --panel: #fffcf5; --panel2: #f4eddc; --hover: #ebe2cd; --line: #ddd2b9; --line2: #c8bb9c;
-  --text: #2d2a22; --muted: #6a6354; --faint: #948b78; --accent: #8a4fd3; --accent-ink: #ffffff; --ok: #2c7a4b; --warn: #8a5a05; --bad: #b03a3a; --info: #2a63b0; --shadow: 0 10px 40px rgb(80 60 20 / .18);
+  --text: #2d2a22; --muted: #6a6354; --faint: #6d6657; --accent: #8a4fd3; --accent-ink: #ffffff; --ok: #2c7a4b; --warn: #8a5a05; --bad: #b03a3a; --info: #2a63b0; --shadow: 0 10px 40px rgb(80 60 20 / .18);
   --font-note: Georgia, "Iowan Old Style", "Palatino Linotype", serif; }
 :root[data-theme="contrast"] { color-scheme: dark; --bg: #000; --bg2: #000; --panel: #000; --panel2: #101010; --hover: #1f1f1f; --line: #ffffff; --line2: #ffffff;
   --text: #ffffff; --muted: #e0e0e0; --faint: #c8c8c8; --accent: #ffd400; --accent-ink: #000000; --ok: #4dff9a; --warn: #ffd400; --bad: #ff6b6b; --info: #63c4ff; }
@@ -225,3 +225,7 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .splitter { width: 1px; background: var(--line); }
 @media (max-width: 599px) { .md { max-width: none !important; } .titleinput { font-size: 1.4rem; } .noteh1 { font-size: 1.5rem; } .props { grid-template-columns: 1fr; gap: 2px; } .props dd { margin-bottom: 8px; } .editor.split { grid-template-columns: 1fr; } }
 .codeblock { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; font-family: var(--mono, ui-monospace, monospace); font-size: .82rem; overflow-x: auto; white-space: pre; margin: 6px 0 10px; }
+.codeblock.diff .dadd { background: color-mix(in srgb, var(--ok) 18%, transparent); display: block; }
+.codeblock.diff .ddel { background: color-mix(in srgb, var(--bad) 18%, transparent); display: block; }
+.codeblock.diff .dskip { color: var(--muted); display: block; }
+.codeblock.diff .dsame { display: block; }

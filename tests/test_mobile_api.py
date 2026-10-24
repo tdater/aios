@@ -331,7 +331,18 @@ def test_cancellation_view_reports_too_late(app):
 
 
 # ------------------------------------------------------------------ execution honesty
+def wait_discovery(app, timeout=90):
+    """Provider discovery runs on a background thread (it shells out to the real CLIs, which can be slow); wait for it."""
+    end = time.time() + timeout
+    while time.time() < end:
+        if len(app.state.db.query("SELECT provider FROM provider_caps")) >= 4:
+            return
+        time.sleep(0.2)
+    raise AssertionError("provider discovery did not finish")
+
+
 def test_display_states_distinguish_quota_provider_and_manual_session(client, app):
+    wait_discovery(app)
     q = client.post(f"{V}/tasks", json={"title": "q", "kind": "demo.quota", "start_run": True}).json()
     wait_state(client, q["run"]["id"], {"blocked"})
     r = client.get(f"{V}/runs/{q['run']['id']}").json()["run"]
@@ -379,7 +390,8 @@ def test_untrusted_artifact_content_is_returned_as_inert_json_text(client):
     assert "<script>" in r.json()["content"] and "sk-ant" not in r.json()["content"]
 
 
-def test_home_summarises_real_state(client):
+def test_home_summarises_real_state(client, app):
+    wait_discovery(app)
     q = client.post(f"{V}/tasks", json={"title": "q", "kind": "demo.quota", "start_run": True}).json()
     wait_state(client, q["run"]["id"], {"blocked"})
     h = client.get(f"{V}/home").json()

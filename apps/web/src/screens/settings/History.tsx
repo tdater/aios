@@ -7,6 +7,7 @@ import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago } from "../../ui/kit"
 interface Totals { discovered: number; parsed: number; quarantined: number; duplicate: number; unsupported: number; failed: number; deleted: number }
 interface Summary { totals: Totals; approved_dir: string; last_review: { id: string; status: string; started_at: string; finished_at: string | null } | null; candidate_counts: Record<string, number>; note: string }
 interface Source { id: string; rel_path: string; kind: string; provider: string | null; imported_at: string; status: string; status_detail: string; message_count: number; date_start: string | null; date_end: string | null; secret_kinds: string[] }
+interface Schedule { enabled: boolean; every_hours: number; last_attempt: string | null; last_status: string | null; next_due: string | null }
 interface ReviewResult { id: string; status: string; analysis?: unknown; totals?: Totals }
 interface Removal { candidates_recomputed: number; orphaned: string[]; memories_needing_review: unknown[]; file_removed: boolean; backup_note: string }
 
@@ -18,6 +19,7 @@ export function HistorySection() {
   const { client, connected } = useApp();
   const summary = useLoad(() => client.get<Summary>("/history/summary"), [client]);
   const sources = useLoad(() => client.get<{ items: Source[] }>("/history/sources", { query: { limit: 200 } }).then((r) => r.items), [client]);
+  const sched = useLoad(() => client.get<Schedule>("/history/schedule"), [client]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -32,7 +34,14 @@ export function HistorySection() {
       const r = (await client.post<ReviewResult>("/history/review-new", {})).data;
       setResult(REVIEW_TEXT[r.status] ?? `Review ${r.status}.`);
       reload();
-    } catch (e) { setErr(e instanceof ApiError && e.code === "conflict" ? "A review is already running." : e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setErr(e instanceof ApiError && e.code === "review_busy" ? "A review is already running." : e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+  const saveSchedule = async (enabled: boolean, every_hours: number) => {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    try { await client.put("/history/schedule", { enabled, every_hours }); sched.reload(); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
   const remove = async (s: Source, deleteFile: boolean) => {
@@ -67,6 +76,21 @@ export function HistorySection() {
           {!connected && <p className="muted small">Reviewing needs a connection.</p>}
           {result && <Notice tone={result.startsWith("Review failed") ? "bad" : "ok"}>{result}</Notice>}
         </>
+      )}
+      {sched.data && (
+        <div style={{ marginTop: 10 }}>
+          <label className="check"><input type="checkbox" checked={sched.data.enabled} disabled={!connected || busy} onChange={(e) => void saveSchedule(e.target.checked, sched.data!.every_hours)} /> Review new sessions automatically</label>
+          {sched.data.enabled && (
+            <>
+              <label className="field"><span>How often</span>
+                <select value={sched.data.every_hours} disabled={!connected || busy} aria-label="How often to review automatically" onChange={(e) => void saveSchedule(true, Number(e.target.value))}>
+                  {[[6, "Every 6 hours"], [12, "Every 12 hours"], [24, "Daily"], [72, "Every 3 days"], [168, "Weekly"]].map(([h, l]) => <option key={h} value={h}>{l}</option>)}
+                  {![6, 12, 24, 72, 168].includes(sched.data.every_hours) && <option value={sched.data.every_hours}>Every {sched.data.every_hours} hours</option>}
+                </select></label>
+              <p className="muted small">Only reads files already in the approved folder, makes no model calls, and stops at 200 files or 60 seconds. {sched.data.last_attempt ? `Last automatic review ${ago(sched.data.last_attempt)}: ${(sched.data.last_status ?? "unknown").replace(/_/g, " ")}.` : "Has not run yet."} It runs while the AIOS server is running.</p>
+            </>
+          )}
+        </div>
       )}
       {err && <ErrorBox msg={err} />}
       {removal && (

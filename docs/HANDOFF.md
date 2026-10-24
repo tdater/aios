@@ -51,12 +51,13 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Skill-change review UI (Inbox > Improvements: exact text, checks, deploy with explicit confirmation, reject with reason, rollback) | IMPLEMENTED+TESTED (vitest + pytest); never exercised with a real proposed skill |
 | Imported-history screen (Settings: status, review new sessions, per-source removal, secrets by kind only) + `scripts/stage_claude_sessions.py` (user-run; tested on fake folders only; I have not read your real Claude folder) | IMPLEMENTED+TESTED on synthetic data |
 | Pinned tabs, daily notes (Ctrl+Alt+D), graph colour-by-project and time-lapse, publish-tag export preview + `scripts/export_published.py` | IMPLEMENTED+TESTED |
-| Accessibility | Automated axe rules (no violations) on the explorer, note view, palette, graph, tab strip, history and improvements screens. **Not** done: screen-reader (TalkBack/NVDA) walkthrough, colour-contrast measurement |
+| Accessibility | Automated axe rules (no violations) on the explorer, note view, palette, graph, tab strip, history and improvements screens. Colour contrast is now **measured from the real stylesheet** for all 6 themes (WCAG AA: text 4.5:1, status colours 4.5:1, accent 3:1; the old `--faint` token failed and was fixed). **Not** done: a screen-reader (TalkBack/NVDA) walkthrough |
+| Skill review diff (deployed text vs proposal), publish export button (writes to `<state>/exports/published`, local only), opt-in scheduled review (off by default, bounded 200 files / 60 s, no model calls, records the attempt before running so failures cannot loop) | IMPLEMENTED+TESTED. The schedule runs only while the server runs; no push notifications (needs your approval) |
 | Schedules / bounded scheduled review, research-import UI | PLANNED |
 | Quota detection from real providers | PLANNED (state and UI exist; tested via a test executor) |
 
 ## Test status (last run 2026-10-24)
-- Backend `pytest`: **313 passed**. Web `vitest` + `tsc`: **198 passed**, typecheck clean. Production
+- Backend `pytest`: **326 passed**. Web `vitest` + `tsc`: **270 passed**, typecheck clean. Production
   build OK. Secret scan clean; `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
 - **GitHub Actions (public repo), commit 91631b5: all 4 jobs green** (secret scan, backend on Windows/py3.14, web, real-browser e2e 14/14).
   Earlier runs found real problems that are now fixed: an e2e timing race, a cancel-test race, and a service-worker first-install page
@@ -76,6 +77,7 @@ done (tests) | 10 skill candidate failing evaluation stays unpromoted: done (tes
 elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done | 15 UI against real backend: done (browser 14/14, emulator 11/11).
 
 ## Known issues
+- Provider discovery shells out to the real `claude` CLI and can take tens of seconds at startup; two backend tests used to race it and now wait for it. One web test failed once right after a heavy backend run and passed on 5 reruns (suspected load timing; not identified).
 - Emulator e2e flakes if the host is low on RAM (the emulator is software-rendered). Close heavy apps or use `-memory 2560`.
 - `docs/history-bootstrap.md` predates the full brief; ingestion is implemented but its real-data pilot has not happened.
 - No LICENSE file (owner decision).

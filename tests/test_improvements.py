@@ -187,12 +187,22 @@ def test_only_candidates_can_be_evaluated_or_promoted(db, st):
 def test_candidate_detail_gives_the_reviewer_the_exact_text_rationale_and_every_check(db, st):
     c = submit(db)
     imp.evaluate(db, st, c["id"])
-    d = imp.candidate_detail(db, c["id"])
+    d = imp.candidate_detail(db, st, c["id"])
     assert d["content"] == skill() and d["rationale"] == "recurring need" and d["active_version"] is None
     assert d["sha256"] == hashlib.sha256(skill().encode()).hexdigest()
     assert d["results"] and all({"case", "passed", "detail"} <= set(r) for r in d["results"])
     imp.promote(db, st, c["id"], confirm=True, approved_by="t")
-    assert imp.candidate_detail(db, c["id"])["active_version"] == 1
+    assert imp.candidate_detail(db, st, c["id"])["active_version"] == 1
     with pytest.raises(ApiError) as e:
-        imp.candidate_detail(db, "skc_missing")
+        imp.candidate_detail(db, st, "skc_missing")
     assert e.value.status == 404
+
+
+def test_candidate_detail_includes_the_currently_deployed_text_for_a_diff(db, st):
+    first = submit(db)
+    imp.evaluate(db, st, first["id"])
+    imp.promote(db, st, first["id"], confirm=True, approved_by="t")
+    second = submit(db, content=skill(marker="v2"))
+    d = imp.candidate_detail(db, st, second["id"])
+    assert d["current_content"] == skill() and d["content"] == skill(marker="v2")
+    assert imp.candidate_detail(db, st, submit(db, name="brand-new")["id"])["current_content"] is None
