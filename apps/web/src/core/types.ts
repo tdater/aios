@@ -85,7 +85,7 @@ export interface NoteLinks {
   unresolved: string[];
   unlinked_mentions: { id: string; title: string }[];
 }
-export interface GraphNode { id: string; kind: "memory" | "project" | "unresolved" | "tag" | "candidate"; label: string; degree: number; type?: string; status?: string; scope?: string }
+export interface GraphNode { id: string; kind: "memory" | "project" | "unresolved" | "tag" | "candidate"; label: string; degree: number; type?: string; status?: string; scope?: string; project_id?: string | null; created_at?: string }
 export interface GraphEdge { source: string; target: string; kind: "link" | "scope" | "supersedes" | "tagged" | "promoted_to" }
 export interface GraphData { nodes: GraphNode[]; edges: GraphEdge[]; truncated: boolean }
 

@@ -48,7 +48,41 @@ export function localGraphFromLinks(centre: { id: string; title: string }, links
   return { nodes: [...nodes.values()], edges, truncated: false };
 }
 
-/** Colour key for a node: notes by type, other kinds by kind. The renderer maps keys to theme colours. */
-export function colorKey(n: GraphNode): string {
-  return n.kind === "memory" ? `type:${n.type ?? "fact"}` : n.kind;
+export type ColorMode = "type" | "project";
+/** Colour key for a node: notes by type (or by project), other kinds by kind. The renderer maps keys to theme colours. */
+export function colorKey(n: GraphNode, mode: ColorMode = "type"): string {
+  if (n.kind !== "memory") return n.kind;
+  return mode === "project" ? `proj:${n.project_id ?? "none"}` : `type:${n.type ?? "fact"}`;
+}
+
+/** Stable colour slot for a project id (hash into a small palette so the same project always looks the same). */
+export function projectSlot(projectId: string, slots: number): number {
+  let h = 2166136261;
+  for (const ch of projectId) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return h % slots;
+}
+
+/** Creation-time range of the notes in the graph (ms since epoch), or null when no note has a usable timestamp. */
+export function timeRange(data: GraphData): [number, number] | null {
+  const ts = data.nodes.map((n) => (n.created_at ? Date.parse(n.created_at) : NaN)).filter((t) => Number.isFinite(t));
+  return ts.length ? [Math.min(...ts), Math.max(...ts)] : null;
+}
+
+/**
+ * Time-lapse: ids visible at time `t`. A note appears once it exists; any other node (project, tag, not-yet-created
+ * link, proposal) appears as soon as one of its neighbours does, so the graph grows the way the vault did.
+ */
+export function visibleAt(data: GraphData, t: number): Set<string> {
+  const seen = new Set<string>();
+  for (const n of data.nodes) {
+    if (n.kind === "memory") { const c = n.created_at ? Date.parse(n.created_at) : NaN; if (!Number.isFinite(c) || c <= t) seen.add(n.id); }
+  }
+  const kind = new Map(data.nodes.map((n) => [n.id, n.kind]));
+  const grown = new Set(seen);
+  for (const e of data.edges) {
+    for (const [a, b] of [[e.source, e.target], [e.target, e.source]] as const) {
+      if (kind.has(a) && kind.get(a) !== "memory" && grown.has(b)) seen.add(a);
+    }
+  }
+  return seen;
 }

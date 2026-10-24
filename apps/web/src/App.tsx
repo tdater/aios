@@ -7,6 +7,7 @@ import { ServerEntry } from "./core/servers";
 import { THEME_MODES } from "./core/settings";
 import { applyTheme } from "./core/theme";
 import { API_VERSION, Home as HomeData, Meta } from "./core/types";
+import { ensureDailyNote } from "./core/daily";
 import { isDocumentRoute } from "./core/workspace";
 import { getPlatform, Platform } from "./platform";
 import { registerServiceWorker, resetAppCaches, updateStore } from "./pwa/register";
@@ -183,10 +184,20 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
     const next = workspace.close(active, active);
     if (next) location.hash = next; else go({ tab: route.tab });
   };
+  const pinActiveTab = () => {
+    if (!workspace.store.get().tabs.some((t) => t.href === location.hash)) { toast("Open a note, run or graph first, then pin its tab"); return; }
+    toast(workspace.togglePin(location.hash) ? "Tab pinned" : "Tab unpinned");
+  };
+  const openDaily = () => {
+    if (!connected) { toast("Daily notes need a connection"); return; }
+    ensureDailyNote(phase.client, new Date()).then((id) => go({ tab: "knowledge", id }), (e) => toast(`Could not open the daily note: ${e instanceof Error ? e.message : "error"}`, 4000));
+  };
   const cycleTab = (dir: 1 | -1) => { const n = workspace.neighbour(location.hash, dir); if (n) location.hash = n; };
   const commands: Record<string, () => void> = {
     capture: () => { go({ tab: "home" }); setTimeout(() => (document.querySelector('form[aria-label="Quick capture"] textarea') as HTMLElement | null)?.focus(), 80); },
     "new-note": () => go({ tab: "knowledge", id: "new" }),
+    daily: openDaily,
+    "pin-tab": pinActiveTab,
     approvals: () => go({ tab: "inbox" }),
     theme: () => { const ids = THEME_MODES.map((t) => t.id); const next = ids[(ids.indexOf(settings.theme) + 1) % ids.length]; rt.settings.update({ theme: next }); toast(`Theme: ${THEME_MODES.find((t) => t.id === next)!.label}`); },
     explorer: () => setExplorer(!layoutPrefs.get().explorer),
@@ -202,6 +213,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
     "mod+k": () => (paletteStore.get().open ? closePalette() : openPalette()),
     "mod+o": () => openPalette(), "mod+p": () => openPalette(">"),
     "mod+\\": () => setExplorer(!layoutPrefs.get().explorer),
+    "mod+alt+d": openDaily, "alt+p": pinActiveTab,
     "alt+w": closeActiveTab, "alt+arrowright": () => cycleTab(1), "alt+arrowleft": () => cycleTab(-1),
     "?": () => helpStore.set(true), g: () => go({ tab: "graph" }),
   });

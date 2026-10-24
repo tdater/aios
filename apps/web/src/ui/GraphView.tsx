@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { adjacency, colorKey } from "../core/graph";
+import { adjacency, colorKey, ColorMode, projectSlot } from "../core/graph";
 import { Layout } from "../core/graphLayout";
 import { GraphData, GraphNode } from "../core/types";
 
@@ -9,6 +9,8 @@ export interface GraphViewProps {
   focusId?: string | null;
   highlight?: Set<string> | null;
   showLabels?: boolean;
+  colorMode?: ColorMode;                   // colour notes by type (default) or by project
+  visible?: Set<string> | null;            // time-lapse: only these nodes (and edges between them) are drawn; null = all
   compact?: boolean;                       // small static preview: no pan/zoom/drag, click opens
   onSelect?: (id: string | null) => void;
   onOpen?: (node: GraphNode) => void;
@@ -31,7 +33,10 @@ export const LEGEND: { key: string; label: string }[] = [
   { key: "type:preference", label: "Preference" }, { key: "type:fact", label: "Fact" }, { key: "type:decision", label: "Decision" }, { key: "type:lesson", label: "Lesson" },
   { key: "type:procedure", label: "Procedure" }, { key: "project", label: "Project" }, { key: "tag", label: "Tag" }, { key: "unresolved", label: "Not created" }, { key: "candidate", label: "Proposal" },
 ];
+const PROJECT_COLORS = ["#8b7cf6", "#2dd4bf", "#f472b6", "#e8b84f", "#6cb6ff", "#5fd0a0", "#fb923c", "#a3e635"];
+export const projectColor = (projectId: string) => PROJECT_COLORS[projectSlot(projectId, PROJECT_COLORS.length)];
 export function colorFor(key: string, p: Pal): string {
+  if (key.startsWith("proj:")) return key === "proj:none" ? p.muted : projectColor(key.slice(5));
   switch (key) {
     case "type:preference": return p.accent; case "type:fact": return p.info; case "type:decision": return p.warn; case "type:lesson": return p.ok;
     case "type:procedure": return "#f472b6"; case "project": return p.text; case "tag": return "#2dd4bf"; case "unresolved": return p.faint; case "candidate": return p.warn;
@@ -80,9 +85,10 @@ export function GraphView(props: GraphViewProps) {
       return 1;
     };
     ctx.lineCap = "round";
+    const vis = pr.visible;
     for (const e of data.edges) {
       const a = l.get(e.source), b = l.get(e.target);
-      if (!a || !b) continue;
+      if (!a || !b || (vis && !(vis.has(e.source) && vis.has(e.target)))) continue;
       const hot = active && (e.source === active || e.target === active);
       ctx.globalAlpha = hot ? 0.9 : Math.min(alphaOf(e.source), alphaOf(e.target)) * (active ? 0.5 : 0.38);
       ctx.strokeStyle = hot ? p.accent : p.line;
@@ -96,8 +102,8 @@ export function GraphView(props: GraphViewProps) {
     ctx.textAlign = "center";
     for (const n of l.nodes) {
       const g = byId.get(n.id);
-      if (!g) continue;
-      const key = colorKey(g);
+      if (!g || (vis && !vis.has(n.id))) continue;
+      const key = colorKey(g, pr.colorMode);
       const col = colorFor(key, p);
       const sel = n.id === pr.selectedId, foc = n.id === pr.focusId;
       ctx.globalAlpha = alphaOf(n.id);
@@ -165,7 +171,7 @@ export function GraphView(props: GraphViewProps) {
     layout.current = l;
     if (reduceMotion()) { l.settle(); fit(); } else { l.alpha = 1; kick(); fit(); }
   }, [relayoutSignal, data.nodes, data.edges, fit, kick]);
-  useEffect(() => { draw(); }, [selectedId, focusId, highlight, showLabels, draw]);
+  useEffect(() => { draw(); }, [selectedId, focusId, highlight, showLabels, props.colorMode, props.visible, draw]);
 
   // size + theme observers
   useEffect(() => {
@@ -192,7 +198,10 @@ export function GraphView(props: GraphViewProps) {
     const { w, h } = size.current;
     return { x: (cx - r.left - w / 2 - view.current.x) / view.current.k, y: (cy - r.top - h / 2 - view.current.y) / view.current.k };
   };
-  const nodeAt = (cx: number, cy: number) => { const p = toLayout(cx, cy); return layout.current?.hit(p.x, p.y, 5 / view.current.k) ?? null; };
+  const nodeAt = (cx: number, cy: number) => {
+    const p = toLayout(cx, cy), h = layout.current?.hit(p.x, p.y, 5 / view.current.k) ?? null;
+    return h && propsRef.current.visible && !propsRef.current.visible.has(h.id) ? null : h;
+  };
   const zoomAt = (cx: number, cy: number, factor: number) => {
     const v = view.current;
     const k = Math.min(5, Math.max(0.1, v.k * factor));

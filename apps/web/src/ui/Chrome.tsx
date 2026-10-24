@@ -1,4 +1,4 @@
-import { KeyboardEvent as RKeyboardEvent } from "react";
+import { Fragment, KeyboardEvent as RKeyboardEvent } from "react";
 import { hrefFor } from "../core/workspace";
 import { useApp } from "./Context";
 import { go, useRoute, useStore } from "./hooks";
@@ -15,6 +15,7 @@ export function TabStrip() {
   const active = hrefFor(route);
   if (!settings.tabs || tabs.length === 0) return <div className="tabstrip" role="tablist" aria-label="Open documents" />;
   const close = (href: string) => {
+    if (tabs.find((t) => t.href === href)?.pinned) return;          // unpin first; a pinned tab is a deliberate keep
     const next = workspace.close(href, active);
     if (href === active) {
       if (next) location.hash = next;
@@ -23,6 +24,7 @@ export function TabStrip() {
   };
   const onKey = (e: RKeyboardEvent, href: string) => {
     if (e.key === "Delete" || (e.key === "w" && e.altKey)) { e.preventDefault(); close(href); }
+    if (e.key === "p" && e.altKey) { e.preventDefault(); workspace.togglePin(href); }
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       const n = workspace.neighbour(href, e.key === "ArrowRight" ? 1 : -1);
       if (n) { e.preventDefault(); location.hash = n; }
@@ -31,15 +33,13 @@ export function TabStrip() {
   return (
     <div className="tabstrip" role="tablist" aria-label="Open documents">
       {tabs.map((t) => (
-        <div key={t.href} role="presentation" style={{ display: "contents" }}>
-          <button role="tab" aria-selected={t.href === active} tabIndex={t.href === active ? 0 : -1} className="tab-item" title={t.title}
-            onClick={() => { location.hash = t.href; }} onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); close(t.href); } }}
-            onKeyDown={(e) => onKey(e, t.href)}>
+        <div key={t.href} role="presentation" className={`tab-wrap ${t.href === active ? "sel" : ""} ${t.pinned ? "pinned" : ""}`}>
+          <button role="tab" aria-selected={t.href === active} tabIndex={t.href === active ? 0 : -1} className="tab-item" title={t.pinned ? `${t.title} (pinned)` : t.title}
+            onClick={() => { location.hash = t.href; }} onDoubleClick={() => workspace.togglePin(t.href)}
+            onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); close(t.href); } }} onKeyDown={(e) => onKey(e, t.href)}>
+            {t.pinned && <span className="pinmark"><Icon name="pin" size={12} /></span>}
             <span className="tt">{t.title}</span>
-            <span className="x" role="button" tabIndex={0} aria-label={`Close ${t.title}`} onClick={(e) => { e.stopPropagation(); close(t.href); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); close(t.href); } }}>
-              <Icon name="x" size={13} />
-            </span>
+            {!t.pinned && <span className="x" aria-hidden="true" title="Close (Alt+W)" onClick={(e) => { e.stopPropagation(); close(t.href); }}><Icon name="x" size={13} /></span>}
           </button>
         </div>
       ))}
@@ -80,7 +80,7 @@ export function Toast() {
 
 const SHORTCUTS: [string, string][] = [
   [`${modLabel()}+K`, "Quick switcher and command palette"], [`${modLabel()}+O`, "Quick switcher (notes, projects, runs)"], [`${modLabel()}+P`, "Command palette"],
-  ["Alt+W", "Close the current tab"], ["Alt+→ / Alt+←", "Next / previous tab"], [`${modLabel()}+\\`, "Show or hide the vault explorer"],
+  [`${modLabel()}+Alt+D`, "Open today's daily note"], ["Alt+P", "Pin or unpin the current tab"], ["Alt+W", "Close the current tab"], ["Alt+→ / Alt+←", "Next / previous tab"], [`${modLabel()}+\\`, "Show or hide the vault explorer"],
   ["/", "Focus search in the Knowledge screen"], ["E", "Toggle reading / editing in a note"], ["G", "Open the graph view"], ["?", "This help"], ["Esc", "Close dialogs and palette"],
 ];
 export function ShortcutsHelp() {
@@ -90,7 +90,7 @@ export function ShortcutsHelp() {
     <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) helpStore.set(false); }}>
       <div className="palette" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" style={{ padding: 18 }}>
         <div className="row"><h2>Keyboard shortcuts</h2><button className="iconbtn" aria-label="Close" onClick={() => helpStore.set(false)}><Icon name="x" /></button></div>
-        <div className="helpgrid">{SHORTCUTS.map(([k, d]) => (<><div key={k}><kbd>{k}</kbd></div><div key={d}>{d}</div></>))}</div>
+        <div className="helpgrid">{SHORTCUTS.map(([k, d]) => (<Fragment key={k}><div><kbd>{k}</kbd></div><div>{d}</div></Fragment>))}</div>
         <p className="muted small">Shortcuts without Ctrl/Alt are ignored while you are typing in a field.</p>
       </div>
     </div>

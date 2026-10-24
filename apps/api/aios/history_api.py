@@ -239,6 +239,11 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
         return redact_obj(memory.graph(db, settings, include_tags=tags, include_candidates=candidates,
                                        include_unresolved=unresolved, limit=limit))
 
+    @r.get("/published")
+    def published_preview():
+        """What `scripts/export_published.py` would write: only notes tagged `publish` and approved, redacted."""
+        return redact_obj(memory.published(db, settings))
+
     @r.get("/memories/export")
     def export():
         return redact_obj({"items": memory.export_all(db, settings)})

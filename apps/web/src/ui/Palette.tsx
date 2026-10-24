@@ -34,11 +34,13 @@ const GO: { id: string; label: string; icon: IconName; route: { tab: "home" | "p
 ];
 const COMMANDS: { id: string; label: string; icon: IconName; keywords?: string }[] = [
   { id: "capture", label: "Quick capture an idea", icon: "plus", keywords: "new note task" },
+  { id: "daily", label: "Open today's daily note", icon: "calendar", keywords: "journal today" },
   { id: "new-note", label: "Create a new note", icon: "edit", keywords: "write memory" },
   { id: "approvals", label: "Review pending approvals", icon: "shield", keywords: "inbox" },
   { id: "theme", label: "Cycle colour theme", icon: "moon", keywords: "dark light appearance" },
   { id: "explorer", label: "Toggle vault explorer", icon: "sidebar", keywords: "sidebar files" },
   { id: "tabs", label: "Toggle tab strip", icon: "columns" },
+  { id: "pin-tab", label: "Pin or unpin current tab", icon: "pin", keywords: "keep" },
   { id: "close-tab", label: "Close current tab", icon: "x" },
   { id: "history", label: "Review imported history", icon: "history", keywords: "sessions sources" },
   { id: "pair", label: "Pair another device", icon: "link", keywords: "phone qr code" },

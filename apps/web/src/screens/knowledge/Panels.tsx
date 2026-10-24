@@ -35,12 +35,12 @@ export function Panels({ memory, links, loading, outline, onJump }: { memory: Me
           <nav className="outline" aria-label="Outline">{outline.map((o) => <a key={o.id} href={`#md-${o.id}`} className={`l${Math.min(o.level, 4)}`} onClick={(e) => { e.preventDefault(); onJump(o.id); }}>{o.text}</a>)}</nav>
       ) : loading && !links ? <Loading /> : !links ? <Empty>Links are unavailable right now.</Empty> : (
         <>
-          <h3>Backlinks <span className="muted">({links.backlinks.length})</span></h3>
+          <h2 className="subh">Backlinks <span className="muted">({links.backlinks.length})</span></h2>
           {links.backlinks.length === 0 ? <p className="muted small">No other note links here yet.</p> : (
             <ul className="linklist">{links.backlinks.map((b) => (
               <li key={b.id}><button onClick={() => open(b.id)}><Icon name="file" size={13} /> {b.title}{b.excerpt && <span className="ctx">{b.excerpt}</span>}</button></li>))}</ul>
           )}
-          <h3>Outgoing links <span className="muted">({links.outgoing.length})</span></h3>
+          <h2 className="subh">Outgoing links <span className="muted">({links.outgoing.length})</span></h2>
           {links.outgoing.length === 0 && links.unresolved.length === 0 ? <p className="muted small">This note does not link to others.</p> : (
             <ul className="linklist">
               {links.outgoing.map((o) => <li key={o.id}><button onClick={() => open(o.id)}><Icon name="link" size={13} /> {o.title}</button></li>)}
@@ -49,7 +49,7 @@ export function Panels({ memory, links, loading, outline, onJump }: { memory: Me
           )}
           {links.unlinked_mentions.length > 0 && (
             <>
-              <h3>Unlinked mentions <span className="muted">({links.unlinked_mentions.length})</span></h3>
+              <h2 className="subh">Unlinked mentions <span className="muted">({links.unlinked_mentions.length})</span></h2>
               <p className="muted small">These notes mention this title without linking to it.</p>
               <ul className="linklist">{links.unlinked_mentions.map((u) => <li key={u.id}><button onClick={() => open(u.id)}><Icon name="file" size={13} /> {u.title}</button></li>)}</ul>
             </>

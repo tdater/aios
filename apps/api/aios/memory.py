@@ -19,6 +19,7 @@ FIELDS = ("id", "scope", "project_id", "type", "basis", "title", "confidence", "
 # ---- Obsidian-style tags and [[wiki links]] (derived from the canonical markdown) ----
 _FENCE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 _INLINE_TAG = re.compile(r"(?<![\w&/#])#([A-Za-z][\w/-]{0,39})")
+_WIKI_FULL = re.compile(r"\[\[([^\[\]|#\n]{1,120})(#[^\[\]|\n]*)?(?:\|([^\[\]\n]*))?\]\]")
 _WIKI = re.compile(r"\[\[([^\[\]|#\n]{1,120})(?:#[^\[\]|\n]*)?(?:\|[^\[\]\n]*)?\]\]")
 _HEXISH = re.compile(r"^[0-9a-fA-F]{3,8}$")
 MAX_TAGS = 30
@@ -312,7 +313,8 @@ def graph(db: Database, settings: Settings, *, include_tags: bool = False, inclu
 
     projects = {p["id"]: p["name"] for p in db.query("SELECT id, name FROM projects")}
     for nid, n in notes.items():
-        node(nid, "memory", n["title"], type=n["type"], status=n["status"], scope=n["scope"])
+        node(nid, "memory", n["title"], type=n["type"], status=n["status"], scope=n["scope"],
+             project_id=n["project_id"] if n["project_id"] in projects else None, created_at=n["created_at"])
         if n["project_id"] in projects:
             node(f"project:{n['project_id']}", "project", projects[n["project_id"]])
             edges.append({"source": nid, "target": f"project:{n['project_id']}", "kind": "scope"})
@@ -351,3 +353,49 @@ def graph(db: Database, settings: Settings, *, include_tags: bool = False, inclu
     for nid, n in nodes.items():
         n["degree"] = degree.get(nid, 0)
     return {"nodes": sorted(nodes.values(), key=lambda n: n["id"]), "edges": edges, "truncated": truncated}
+
+
+PUBLISH_TAG = "publish"
+_SLUG_RX = re.compile(r"[^a-z0-9]+")
+
+
+def _slug(title: str, used: set[str]) -> str:
+    base = _SLUG_RX.sub("-", title.casefold()).strip("-")[:60] or "note"
+    slug, n = base, 2
+    while slug in used:
+        slug, n = f"{base}-{n}", n + 1
+    used.add(slug)
+    return slug
+
+
+def published(db: Database, settings: Settings) -> dict:
+    """Notes the owner explicitly marked for publication: tag `publish` AND status `approved`.
+
+    Nothing else is ever included. Notes whose text still trips the secret scanner are skipped (and reported by
+    reason only). Wiki links to notes that are not published are flattened to plain text so private titles do not leak.
+    """
+    notes = _notes(db, settings)
+    chosen, skipped = {}, []
+    for nid, n in notes.items():
+        if PUBLISH_TAG not in json.loads(n["tags_json"] or "[]") and PUBLISH_TAG not in inline_tags(n["body"]):
+            continue
+        if n["status"] != "approved":
+            skipped.append({"id": nid, "title": n["title"], "reason": f"status is {n['status']}, not approved"})
+        elif "[REDACTED:" in n["body"] + n["title"] or n["title"] != redact(n["title"]) or n["body"] != redact(n["body"]):
+            skipped.append({"id": nid, "title": "(withheld)", "reason": "contains something that looks like a secret"})
+        else:
+            chosen[nid] = n
+    used: set[str] = set()
+    slugs = {nid: _slug(n["title"], used) for nid, n in chosen.items()}
+    titles = _title_index(chosen)
+    items = []
+    for nid, n in chosen.items():
+        def flatten(m):
+            target, alias = m.group(1).strip(), m.group(3)
+            rid = _resolve(target, chosen, titles)
+            return f"[[{target}|{alias}]]" if rid and alias else f"[[{target}]]" if rid else (alias or target)
+        body = _WIKI_FULL.sub(flatten, n["body"])
+        tags = [t for t in json.loads(n["tags_json"] or "[]") if t != PUBLISH_TAG]
+        items.append({"id": nid, "slug": slugs[nid], "title": n["title"], "type": n["type"], "tags": tags,
+                      "created_at": n["created_at"], "body": body})
+    return {"items": items, "skipped": skipped, "rule": f"tag '{PUBLISH_TAG}' + status approved; links to unpublished notes are flattened"}

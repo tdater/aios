@@ -44,6 +44,10 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     def overview():
         return redact_obj(improvements.overview(db))
 
+    @r.get("/skills/candidates/{cid}")
+    def candidate(cid: str):
+        return redact_obj(improvements.candidate_detail(db, cid))
+
     @r.post("/skills/candidates", status_code=201)
     def submit(body: SubmitIn):
         return redact_obj(improvements.submit(db, name=body.name, content=body.content, evals=body.evals,

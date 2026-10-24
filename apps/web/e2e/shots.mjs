@@ -64,6 +64,7 @@ const SHOTS = [
   ["07-desktop-settings", 1440, 1200, "#/settings"], ["08-palette", 1440, 900, "PALETTE"], ["09-palette-query", 1440, 900, "PALETTE:grad"],
   ["10-tablet-note", 834, 1112, "NOTE:Android build checklist"], ["11-phone-home", 390, 844, "#/home"], ["12-phone-note", 390, 844, "NOTE:Emulator setup"],
   ["13-phone-graph", 390, 844, "#/graph"], ["14-phone-knowledge", 390, 844, "#/knowledge"], ["15-light-note", 1440, 900, "NOTE:Gradle caching", "light"], ["16-paper-note", 1440, 900, "NOTE:Gradle caching", "paper"],
+  ["17-settings-history", 1440, 1000, "#/settings/history"], ["18-improvements", 1440, 900, "#/inbox/improvements"], ["19-phone-history", 390, 844, "#/settings/history"],
 ];
 
 try {

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { filterGraph, matchNodes, neighborhood } from "../core/graph";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ColorMode, filterGraph, matchNodes, neighborhood, timeRange, visibleAt } from "../core/graph";
 import { GraphData, GraphNode } from "../core/types";
 import { useApp } from "../ui/Context";
-import { GraphView, LEGEND, colorFor } from "../ui/GraphView";
+import { GraphView, LEGEND, colorFor, projectColor } from "../ui/GraphView";
 import { go, useLoad } from "../ui/hooks";
 import { Icon } from "../ui/icons";
 import { Btn, Empty, ErrorBox, Loading } from "../ui/kit";
@@ -33,6 +33,9 @@ export function GraphScreen({ id }: { id?: string }) {
   const [mode, setMode] = useState<"graph" | "list">("graph");
   const [fit, setFit] = useState(0);
   const [relayout, setRelayout] = useState(0);
+  const [colorMode, setColorMode] = useState<ColorMode>("type");
+  const [t, setT] = useState<number | null>(null);          // time-lapse position (ms); null = the vault as it is now
+  const [playing, setPlaying] = useState(false);
   const g = useLoad(() => client.get<GraphData>("/graph", { query: { tags, candidates: cands, unresolved: ghosts, limit: 400 } }), [client, tags, cands, ghosts]);
   useEffect(() => { setSelected(null); }, [id]);
 
@@ -42,6 +45,28 @@ export function GraphScreen({ id }: { id?: string }) {
     const base = local ?? full;
     return base ? filterGraph(base, { orphans: orphans || !!local, kinds: new Set(KINDS) }) : null;
   }, [local, full, orphans]);
+  const range = useMemo(() => (shown && !local ? timeRange(shown) : null), [shown, local]);
+  const visible = useMemo(() => (shown && t != null && range && t < range[1] ? visibleAt(shown, t) : null), [shown, t, range]);
+  const rangeRef = useRef(range);
+  rangeRef.current = range;
+  useEffect(() => {                                           // play = step through the vault's history in ~8 seconds
+    if (!playing) return;
+    const timer = setInterval(() => {
+      const r = rangeRef.current;
+      if (!r) { setPlaying(false); return; }
+      setT((cur) => {
+        const next = (cur ?? r[0]) + (r[1] - r[0]) / 80;
+        if (next >= r[1]) { setPlaying(false); return null; }
+        return next;
+      });
+    }, 100);
+    return () => clearInterval(timer);
+  }, [playing]);
+  const togglePlay = () => {
+    if (playing) { setPlaying(false); return; }
+    if (range && (t == null || t >= range[1])) setT(range[0]);
+    setPlaying(true);
+  };
   const highlight = useMemo(() => (shown ? matchNodes(shown.nodes, q) : null), [shown, q]);
   const byId = useMemo(() => new Map((full?.nodes ?? []).map((n) => [n.id, n])), [full]);
   const sel = selected ? byId.get(selected) ?? null : null;
@@ -74,6 +99,8 @@ export function GraphScreen({ id }: { id?: string }) {
             <label className="check"><input type="checkbox" checked={cands} onChange={(e) => setCands(e.target.checked)} /> Show proposals</label>
             <label className="check"><input type="checkbox" checked={ghosts} onChange={(e) => setGhosts(e.target.checked)} /> Show not-yet-created notes</label>
             <label className="check"><input type="checkbox" checked={orphans} onChange={(e) => setOrphans(e.target.checked)} disabled={!!id} /> Show orphans (no links)</label>
+            <label className="field"><span>Colour notes by</span>
+              <select value={colorMode} onChange={(e) => setColorMode(e.target.value as ColorMode)} aria-label="Colour notes by"><option value="type">Type</option><option value="project">Project</option></select></label>
             <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Show labels</label>
             {id && <label className="field"><span>Depth: {depth}</span><input type="range" min={1} max={4} value={depth} onChange={(e) => setDepth(Number(e.target.value))} aria-label="Neighbourhood depth" /></label>}
           </div>
@@ -95,11 +122,22 @@ export function GraphScreen({ id }: { id?: string }) {
             ) : (
               <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                 <GraphView data={shown} selectedId={selected} focusId={id ?? null} highlight={highlight} showLabels={labels} onSelect={setSelected} onOpen={openNode}
-                  ariaLabel={id ? `Neighbourhood graph of ${focus?.label ?? "the note"}` : "Knowledge graph"} fitSignal={fit} relayoutSignal={relayout} />
+                  colorMode={colorMode} visible={visible} ariaLabel={id ? `Neighbourhood graph of ${focus?.label ?? "the note"}` : "Knowledge graph"} fitSignal={fit} relayoutSignal={relayout} />
                 <div className="graphlegend" aria-hidden="true">
-                  {LEGEND.filter((l) => l.key.startsWith("type:") || shown.nodes.some((n) => (n.kind === l.key))).map((l) => (
+                  {colorMode === "project" ? (<>
+                    {shown.nodes.filter((n) => n.kind === "project").map((n) => <span key={n.id}><i style={{ background: projectColor(n.id.replace(/^project:/, "")) }} />{n.label}</span>)}
+                    <span><i style={{ background: "var(--muted)" }} />No project</span>
+                  </>) : LEGEND.filter((l) => l.key.startsWith("type:") || shown.nodes.some((n) => (n.kind === l.key))).map((l) => (
                     <span key={l.key}><i style={{ background: colorFor(l.key, { accent: "var(--accent)", info: "var(--info)", warn: "var(--warn)", ok: "var(--ok)", text: "var(--text)", faint: "var(--faint)", muted: "var(--muted)" }) }} />{l.label}</span>))}
                 </div>
+                {range && range[1] > range[0] && (
+                  <div className="timelapse" role="group" aria-label="Time-lapse of the vault">
+                    <button className="iconbtn" onClick={togglePlay} aria-label={playing ? "Pause time-lapse" : "Play time-lapse"} title={playing ? "Pause" : "Replay how the vault grew"}><Icon name={playing ? "pause" : "play"} size={15} /></button>
+                    <input type="range" min={range[0]} max={range[1]} step={Math.max(1, Math.round((range[1] - range[0]) / 400))} value={t ?? range[1]} aria-label="Show the vault as of"
+                      aria-valuetext={new Date(t ?? range[1]).toLocaleDateString()} onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }} />
+                    <span className="small muted" aria-live="off">{visible ? `${[...visible].filter((id) => byId.get(id)?.kind === "memory").length} notes · ` : ""}{new Date(t ?? range[1]).toLocaleDateString()}</span>
+                  </div>
+                )}
                 {sel && (
                   <div className="graphinfo" role="dialog" aria-label={`Details for ${sel.label}`}>
                     <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}><strong style={{ overflowWrap: "anywhere" }}>{sel.label}</strong>

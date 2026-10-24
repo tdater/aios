@@ -129,3 +129,43 @@ def test_knowledge_endpoints_need_a_session_and_text_stays_text(app, client):
     g = client.get(f"{V}/graph").json()
     assert evil in {n["label"] for n in g["nodes"]}                     # returned verbatim as data; the client renders text only
     assert client.get(f"{V}/graph").headers["content-type"].startswith("application/json")
+
+
+# ------------------------------------------------------------------ graph metadata + publishing
+def test_graph_memory_nodes_carry_project_and_creation_time(db, settings):
+    mk(db, settings, "Solo")
+    node = next(n for n in memory.graph(db, settings)["nodes"] if n["label"] == "Solo")
+    assert node["project_id"] is None and node["created_at"]
+
+
+def test_only_tagged_and_approved_notes_are_published_and_links_are_flattened(db, settings):
+    pub = mk(db, settings, "Public Post", "See [[Other Public]], [[Secret Plans|my plans]] and [[Secret Plans#h]].", tags=["publish", "web"])
+    mk(db, settings, "Other Public", "hello", tags=["publish"])
+    mk(db, settings, "Secret Plans", "do not leak", tags=["private"])
+    mk(db, settings, "Draft", "unfinished", tags=["publish"], status="candidate")
+    mk(db, settings, "Leaky", "token ghp_" + "a" * 36, tags=["publish"])
+    out = memory.published(db, settings)
+    titles = {i["title"] for i in out["items"]}
+    assert titles == {"Public Post", "Other Public"}
+    body = next(i for i in out["items"] if i["id"] == pub)["body"]
+    assert "[[Other Public]]" in body and "[[Secret" not in body and "my plans" in body
+    assert "publish" not in next(i for i in out["items"] if i["id"] == pub)["tags"]
+    reasons = {s["title"]: s["reason"] for s in out["skipped"]}
+    assert "not approved" in reasons["Draft"] and "secret" in reasons["(withheld)"]
+    assert "Secret Plans" not in json.dumps(out["skipped"])                  # unpublished notes are not even named
+
+
+def test_publish_endpoint_requires_auth_and_script_writes_bundle(app, client, tmp_path):
+    from fastapi.testclient import TestClient
+    with TestClient(app) as anon:
+        assert anon.get(f"{V}/published").status_code in (401, 403)
+    r = client.post(f"{V}/memories", json={"scope": "global", "type": "fact", "title": "Hello World", "body": "hi #publish"})
+    assert r.status_code == 201
+    got = client.get(f"{V}/published").json()
+    assert [i["slug"] for i in got["items"]] == ["hello-world"]
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("export_published", "scripts/export_published.py")
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    files = mod.write_bundle(got, tmp_path / "out")
+    assert files[0].read_text(encoding="utf-8").startswith('---\ntitle: "Hello World"')
+    assert json.loads((tmp_path / "out" / "index.json").read_text())[0]["slug"] == "hello-world"

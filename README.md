@@ -19,6 +19,11 @@ web/PWA/Android client. It runs on your own machine; it is not a hosted service 
 - **Authenticated API v1** (device pairing; HttpOnly cookie + CSRF for browsers, bearer token for the Android app), structured
   errors, pagination, record versions, idempotency keys, reconnectable run monitoring.
 - **Client**: responsive React/TypeScript app, installable PWA, and a Capacitor 8 Android shell (tested on an emulator).
+  Obsidian-inspired UI: themes and accent colours, tabs (pin with Alt+P), Ctrl+K command palette, safe markdown notes with
+  `[[wiki links]]`, `#tags`, callouts and backlinks, a vault explorer with search operators, a force-directed graph (colour by
+  type or project, time-lapse of how the vault grew), daily notes (Ctrl+Alt+D), skill-change review, and an imported-history screen.
+- **Publishing preview**: only notes you tag `#publish` and approve can be exported (`scripts/export_published.py`, written
+  outside the repository; nothing is uploaded).
 - **Nine Claude skills** with a deterministic structural evaluator, a **fail-closed PreToolUse safety hook**, and an
   **evaluation-gated, versioned, reversible improvement loop** (no auto-promotion; the evaluator and safety files cannot be
   changed by the loop). The skills' behavioural cases are specifications; they are not executed automatically.
@@ -50,7 +55,7 @@ and are never committed.
 Start with `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
 
 ## Known limitations
-No push notifications or SSE yet; no scheduled jobs; the skill/evaluation/rollback loop is not built; Gemini is unsupported;
+No push notifications or SSE yet; no scheduled jobs; Gemini is unsupported;
 the Android app has not been tested on a physical phone; Windows is the only supported host; the history parsers are unvalidated
 against real exports.
 

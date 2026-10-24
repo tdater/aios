@@ -36,7 +36,8 @@ endpoint set drifts). Everything below is **implemented and covered by `tests/te
 | Projects/tasks | `GET/POST /projects` · `GET /projects/{id}` · `GET/POST /tasks` · `GET /tasks/{id}` |
 | Runs | `GET/POST /runs` · `GET /runs/{id}` (**snapshot**, includes `last_event_id`) · `GET /runs/{id}/events?after=<id>` · `POST /runs/{id}/cancel` · `/resume` · `/import-result` · `GET /artifacts/{id}` |
 | Approvals | `GET /approvals` · `GET /approvals/{id}` · `POST /approvals/{id}/decide` |
-| Knowledge | `GET/POST /memories` · `GET/PATCH /memories/{id}` · `POST /memories/{id}/forget` · `GET /memories/export` · `POST /memories/rebuild-index` · `GET /history/search` |
+| Knowledge | `GET/POST /memories` · `GET/PATCH /memories/{id}` · `POST /memories/{id}/forget` · `GET /memories/export` · `POST /memories/rebuild-index` · `GET /history/search` · `GET /memories/tags` · `GET /memories/{id}/links` (outgoing, backlinks, unresolved, unlinked mentions) · `GET /graph` (nodes carry `project_id` and `created_at`) · `GET /published` (only notes tagged `publish` and approved) |
+| Skills | `GET /skills` · `GET /skills/candidates/{id}` (exact text, rationale, check results) · `POST /skills/candidates` · `/skills/candidates/{id}/evaluate|reject|promote` · `POST /skills/{name}/rollback` |
 | Review | `GET /candidates` · `/candidates/shortlist` · `/candidates/{id}` · `POST /candidates/{id}/approve|reject|defer|edit|merge|supersede` · `GET /history/summary|sources|review-runs` · `POST /history/review-new` · `POST /history/sources/{id}/delete` |
 
 ## Run state, execution honesty

@@ -1,19 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ACCENTS, THEME_MODES } from "../core/settings";
 import { APP_VERSION, API_VERSION, Provider, SessionInfo } from "../core/types";
 import { useApp } from "../ui/Context";
 import { Icon } from "../ui/icons";
 import { useLoad } from "../ui/hooks";
+import { HistorySection } from "./settings/History";
+import { PublishSection } from "./settings/Publish";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } from "../ui/kit";
 
 interface Health { version: string; db: string; schema: string[]; run_counts: Record<string, number>; disk_free_gb: number; backup_status: string; billable_env: Record<string, string[]> }
 
 export function Settings({ section }: { section?: string }) {
-  void section;   // "history" opens the history section (added with the History screen)
+  useEffect(() => {                           // #/settings/history jumps straight to the history section
+    if (section) setTimeout(() => document.getElementById(section)?.scrollIntoView?.({ block: "start" }), 60);
+  }, [section]);
   return (
     <div className="screen">
       <h2>Settings</h2>
       <AppearanceSection />
+      <HistorySection />
+      <PublishSection />
       <ServerSection />
       <SessionSection />
       <PrivacySection />

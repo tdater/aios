@@ -48,18 +48,22 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | 9 Claude skills (`.claude/skills/*`, each with purpose/trigger, inputs, preconditions, allowed actions, verification, stop conditions, example, eval cases) + regression cases in `evals/skills/` | IMPLEMENTED; **structure** is machine-checked by `scripts/skill_eval.py` (tests). The behavioural cases are specifications and are **not executed** automatically; the skills have never been run by a model against them |
 | Safety guard hook (`scripts/claude_guard.py` wired in `.claude/settings.json`, fail-closed): denies force-push, public exposure (`tailscale funnel`), Azure CLI, curl-to-shell, credential/keystore/private-state access, deleting state or `.git`; asks before GitHub repo changes, firewall changes, destructive git, and edits to the evaluator/guard/settings/CI | IMPLEMENTED+TESTED (pytest, plus a live refusal observed in-session). Pattern-based, not a sandbox |
 | Improvement loop: candidate → executable evaluation + regression set → human confirmation → versioned deploy → exact rollback; evaluator/safety files untouchable; no auto-promotion; rejected ideas not re-proposed | IMPLEMENTED+TESTED (pytest + HTTP). The loop is skill-focused; workflow/memory improvements are not covered |
+| Skill-change review UI (Inbox > Improvements: exact text, checks, deploy with explicit confirmation, reject with reason, rollback) | IMPLEMENTED+TESTED (vitest + pytest); never exercised with a real proposed skill |
+| Imported-history screen (Settings: status, review new sessions, per-source removal, secrets by kind only) + `scripts/stage_claude_sessions.py` (user-run; tested on fake folders only; I have not read your real Claude folder) | IMPLEMENTED+TESTED on synthetic data |
+| Pinned tabs, daily notes (Ctrl+Alt+D), graph colour-by-project and time-lapse, publish-tag export preview + `scripts/export_published.py` | IMPLEMENTED+TESTED |
+| Accessibility | Automated axe rules (no violations) on the explorer, note view, palette, graph, tab strip, history and improvements screens. **Not** done: screen-reader (TalkBack/NVDA) walkthrough, colour-contrast measurement |
 | Schedules / bounded scheduled review, research-import UI | PLANNED |
 | Quota detection from real providers | PLANNED (state and UI exist; tested via a test executor) |
 
 ## Test status (last run 2026-10-24)
-- Backend `pytest`: **297 passed**. Web `vitest` + `tsc`: **160 passed**, typecheck clean. Production
+- Backend `pytest`: **313 passed**. Web `vitest` + `tsc`: **198 passed**, typecheck clean. Production
   build OK. Secret scan clean; `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
 - **GitHub Actions (public repo), commit 91631b5: all 4 jobs green** (secret scan, backend on Windows/py3.14, web, real-browser e2e 14/14).
   Earlier runs found real problems that are now fixed: an e2e timing race, a cancel-test race, and a service-worker first-install page
   reload that wiped the pairing form (product bug).
 - Clean-room check (anonymous clone of the public repo → `scripts\setup.ps1` → tests): setup 101 s, backend + web tests pass. It also
   exposed that `start.ps1` polled an endpoint that had become authenticated; fixed and verified (start → pair → 401 without auth → stop).
-- Real-browser e2e (`apps/web/e2e/mobile.e2e.mjs`, Edge, phone viewport, real server): **15/15** on the new UI (local run; CI not yet run on it).
+- Real-browser e2e (`apps/web/e2e/mobile.e2e.mjs`, Edge, phone viewport, real server): **16/16** on the new UI (local run; CI not yet run on it).
   That run caught a real bug: an unsaved draft from one note leaked into the next note opened (fixed by keying the note view by id; regression test added).
 - Android emulator e2e (`apps/web/e2e/android-emulator.e2e.mjs`, real WebView): **11/11** on the last run, after two earlier
   runs failed from emulator overload (system ANR dialogs) and a script locator bug. It is sensitive to host memory pressure.
@@ -83,8 +87,7 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
 3. Physical-phone pass using the checklist in `docs/mobile-android.md`; real Tailscale Serve test (user runs the commands in
    `docs/mobile-remote-access.md`).
 4. Create a release keystore (user), build/sign the release APK, install on the phone.
-5. Remaining planned work: run the skills' behavioural cases with a model-driven evaluation (they are specs today), a UI for the
-   skill candidate/versions review (API exists), a History screen (source inventory, review-new, per-source delete) and `scripts/stage_claude_sessions.py` (user-run helper that copies chosen sessions into the approved folder), schedules, SSE, research-import UI, `setup.ps1` clean-room run,
+5. Remaining planned work: run the skills' behavioural cases with a model-driven evaluation (they are specs today), schedules, SSE, research-import UI, `setup.ps1` clean-room run,
    TalkBack/keyboard accessibility audit.
 
 ## Provider sources (checked 2026-10-24)

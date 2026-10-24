@@ -34,7 +34,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: var(--fs)/1.5
 h1, h2, h3, h4, p, li, dd, dt, label, summary, .card-btn, .badge { overflow-wrap: anywhere; min-width: 0; }
 h1, h2, h3, h4 { margin: 0 0 8px; line-height: 1.25; }
 h2 { font-size: 1.35rem; font-weight: 650; letter-spacing: -.01em; }
-h3 { font-size: .78rem; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; margin-top: 20px; font-weight: 650; }
+h3, h2.subh { font-size: .78rem; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; margin-top: 20px; font-weight: 650; }
 .muted { color: var(--muted); } .small { font-size: .85rem; } .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 code { font-family: var(--mono); font-size: .9em; overflow-wrap: anywhere; background: color-mix(in srgb, var(--accent) 10%, transparent); padding: .1em .35em; border-radius: 4px; }
 a, .link { color: var(--accent); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
@@ -83,10 +83,12 @@ kbd { font: .75rem var(--mono); background: var(--panel2); border: 1px solid var
   .searchbtn .label { display: inline; min-width: 150px; text-align: left; }
   .tabstrip { display: flex; background: var(--bg2); border-bottom: 1px solid var(--line); overflow-x: auto; min-height: 36px; scrollbar-width: thin; }
   .tabstrip:empty { display: none; }
-  .tab-item { display: flex; align-items: center; gap: 6px; max-width: 220px; min-width: 110px; padding: 0 6px 0 12px; border-right: 1px solid var(--line); color: var(--muted); cursor: pointer; font-size: .86rem; background: transparent; border-top: 0; border-left: 0; border-bottom: 0; font-family: inherit; position: relative; }
-  .tab-item:hover { background: var(--hover); color: var(--text); }
-  .tab-item[aria-selected="true"] { background: var(--bg); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
-  .tab-item .tt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; } .tab-item .x { width: 22px; height: 22px; min-width: 22px; border-radius: 5px; border: 0; background: transparent; color: var(--faint); cursor: pointer; display: grid; place-items: center; padding: 0; }
+  .tab-wrap { display: flex; align-items: stretch; max-width: 220px; min-width: 110px; border-right: 1px solid var(--line); color: var(--muted); font-size: .86rem; position: relative; }
+  .tab-wrap:hover { background: var(--hover); color: var(--text); }
+  .tab-wrap.sel { background: var(--bg); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
+  .tab-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 12px; color: inherit; cursor: pointer; background: transparent; border: 0; font: inherit; }
+  .tab-item .tt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .tab-item .x { width: 22px; height: 22px; min-width: 22px; border-radius: 5px; border: 0; background: transparent; color: var(--faint); cursor: pointer; display: grid; place-items: center; padding: 0; }
   .tab-item .x:hover { background: var(--panel2); color: var(--text); }
   .statusbar { display: flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 8px; background: var(--bg2); border-top: 1px solid var(--line); color: var(--muted); font-size: .76rem; }
   .statusbar .grow { flex: 1; } .statusbar button, .statusbar span.si { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: default; }
@@ -209,6 +211,10 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .graphbody { position: relative; flex: 1; min-height: 240px; background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--accent) 7%, var(--bg)) 0, var(--bg) 70%); overflow: hidden; touch-action: none; }
 .graphbody canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; } .graphbody canvas.dragging { cursor: grabbing; }
 .graphlegend { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 10px; border-radius: var(--r); background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); font-size: .76rem; color: var(--muted); max-width: 90%; }
+.timelapse { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; align-items: center; gap: 10px; padding: 4px 10px; border-radius: var(--r); background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); max-width: 560px; }
+.timelapse input[type=range] { flex: 1; min-width: 80px; }
+.tab-wrap.pinned { max-width: 150px; min-width: 90px; }
+.tab-item .pinmark { display: inline-flex; color: var(--accent); margin-right: 4px; }
 .graphlegend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
 .graphinfo { position: absolute; right: 10px; top: 10px; max-width: min(300px, 70%); padding: 10px 12px; border-radius: var(--r); background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line2); box-shadow: var(--shadow); font-size: .86rem; }
 .graphlist { padding: var(--pad); overflow: auto; flex: 1; }
@@ -218,3 +224,4 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .helpgrid { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; align-items: center; margin: 8px 0; } .helpgrid > div:nth-child(odd) { text-align: right; }
 .splitter { width: 1px; background: var(--line); }
 @media (max-width: 599px) { .md { max-width: none !important; } .titleinput { font-size: 1.4rem; } .noteh1 { font-size: 1.5rem; } .props { grid-template-columns: 1fr; gap: 2px; } .props dd { margin-bottom: 8px; } .editor.split { grid-template-columns: 1fr; } }
+.codeblock { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; font-family: var(--mono, ui-monospace, monospace); font-size: .82rem; overflow-x: auto; white-space: pre; margin: 6px 0 10px; }

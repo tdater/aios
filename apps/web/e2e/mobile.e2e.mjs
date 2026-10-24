@@ -41,6 +41,15 @@ async function step(name, fn) {
   }
 }
 let dbgPage = null;
+/** Poll a page-side predicate with page.evaluate (no eval of strings, so the app's strict CSP is irrelevant). */
+async function until(page, fn, arg, ms = 15000) {
+  const end = Date.now() + ms;
+  for (;;) {
+    if (await page.evaluate(fn, arg)) return;
+    if (Date.now() > end) throw new Error(`condition not met within ${ms}ms: ${fn}`);
+    await sleep(150);
+  }
+}
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 let browser;
@@ -208,6 +217,23 @@ try {
     await page.goto(`${BASE}/#/graph`);
     await page.locator("canvas").first().waitFor();
     await page.getByRole("img", { name: /Knowledge graph\. \d+ nodes/ }).waitFor();
+  });
+  await step("daily note via Ctrl+Alt+D is created once and reused; pinned tab survives; settings shows history and publishing", async () => {
+    await page.goto(`${BASE}/#/home`);
+    await page.getByText("Quick capture").waitFor();
+    await page.keyboard.press("Control+Alt+d");
+    await until(page, (p) => location.hash.startsWith(p), "#/knowledge/mem_");
+    const first = await page.evaluate(() => location.hash);
+    await page.goto(`${BASE}/#/home`);
+    await page.keyboard.press("Control+Alt+d");
+    await until(page, (h) => location.hash === h, first);
+    const today = (await api("GET", "/memories?tag=daily&limit=50")).body.items;
+    expect(today.length === 1, `expected exactly one daily note, got ${today.length}`);
+    await page.keyboard.press("Alt+p");                                               // pin the open note's tab
+    await until(page, (w) => JSON.stringify(Object.entries(localStorage)).includes(w), "pinned");
+    await page.goto(`${BASE}/#/settings/history`);
+    await page.getByRole("heading", { name: "Imported history" }).waitFor();
+    await page.getByRole("heading", { name: "Publishing" }).waitFor();
   });
   await step("offline: capture becomes a local draft; reconnect does not auto-send; explicit send creates exactly one task", async () => {
     await page.goto(`${BASE}/#/home`);

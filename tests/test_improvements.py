@@ -182,3 +182,17 @@ def test_only_candidates_can_be_evaluated_or_promoted(db, st):
         with pytest.raises(ApiError) as e:
             fn()
         assert e.value.code == "not_a_candidate"
+
+
+def test_candidate_detail_gives_the_reviewer_the_exact_text_rationale_and_every_check(db, st):
+    c = submit(db)
+    imp.evaluate(db, st, c["id"])
+    d = imp.candidate_detail(db, c["id"])
+    assert d["content"] == skill() and d["rationale"] == "recurring need" and d["active_version"] is None
+    assert d["sha256"] == hashlib.sha256(skill().encode()).hexdigest()
+    assert d["results"] and all({"case", "passed", "detail"} <= set(r) for r in d["results"])
+    imp.promote(db, st, c["id"], confirm=True, approved_by="t")
+    assert imp.candidate_detail(db, c["id"])["active_version"] == 1
+    with pytest.raises(ApiError) as e:
+        imp.candidate_detail(db, "skc_missing")
+    assert e.value.status == 404

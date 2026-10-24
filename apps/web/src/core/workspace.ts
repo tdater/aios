@@ -2,7 +2,7 @@ import { Store } from "./connection";
 import { KV, readJson, writeJson } from "./storage";
 
 /** Obsidian-style open "documents". Only detail routes (a note, a run, an approval...) become tabs. */
-export interface Tab { href: string; title: string; kind: string }
+export interface Tab { href: string; title: string; kind: string; pinned?: boolean }
 export interface WorkspaceState { tabs: Tab[] }
 const MAX_TABS = 12;
 const KEY = "aios.workspace.v1.";
@@ -21,7 +21,17 @@ export function defaultTitle(r: RouteLike): string {
   const short = (r.id ?? "").replace(/^[a-z]+_/, "").slice(0, 8);
   return short ? `${label} ${short}` : label;
 }
-export const isDocumentRoute = (r: RouteLike) => !!r.id || r.tab === "graph";
+export const isDocumentRoute = (r: RouteLike) => (!!r.id && r.tab !== "settings") || r.tab === "graph";   // #/settings/history is a section anchor, not a document
+
+/** Over the limit, drop the oldest unpinned tabs first (pinned ones only go if everything is pinned). */
+function evict(tabs: Tab[]): Tab[] {
+  let out = tabs;
+  while (out.length > MAX_TABS) {
+    const i = out.findIndex((t) => !t.pinned);
+    out = out.filter((_, j) => j !== (i < 0 ? 0 : i));
+  }
+  return out;
+}
 
 export class Workspace {
   readonly store: Store<WorkspaceState>;
@@ -29,7 +39,7 @@ export class Workspace {
     const saved = readJson<WorkspaceState>(kv, KEY + partition, { tabs: [] });
     this.store = new Store<WorkspaceState>({
       tabs: (saved.tabs ?? []).filter((t) => t && typeof t.href === "string" && t.href.startsWith("#/") && typeof t.title === "string")
-        .map((t) => ({ href: t.href, title: t.title.slice(0, 80), kind: String(t.kind ?? "") })).slice(0, MAX_TABS),
+        .map((t) => ({ href: t.href, title: t.title.slice(0, 80), kind: String(t.kind ?? ""), ...(t.pinned === true ? { pinned: true } : {}) })).slice(0, MAX_TABS),
     });
   }
   private commit(tabs: Tab[]) {
@@ -47,7 +57,17 @@ export class Workspace {
       return;
     }
     const next = [...tabs, { href, title: (title ?? defaultTitle(r)).slice(0, 80), kind: r.tab }];
-    this.commit(next.length > MAX_TABS ? next.slice(next.length - MAX_TABS) : next);
+    this.commit(evict(next));
+  }
+  /** Pinned tabs sit first, survive "close others/all" and are never evicted by the tab limit. */
+  togglePin(href: string): boolean {
+    const tabs = this.store.get().tabs;
+    const t = tabs.find((x) => x.href === href);
+    if (!t) return false;
+    const pinned = !t.pinned;
+    const flipped = tabs.map((x) => (x.href === href ? (pinned ? { ...x, pinned: true } : { href: x.href, title: x.title, kind: x.kind }) : x));
+    this.commit([...flipped.filter((x) => x.pinned), ...flipped.filter((x) => !x.pinned)]);
+    return pinned;
   }
   setTitle(href: string, title: string): void {
     const t = title.trim().slice(0, 80);
@@ -67,10 +87,10 @@ export class Workspace {
     return rest.length ? rest[Math.min(i, rest.length - 1)].href : null;
   }
   closeOthers(href: string): void {
-    this.commit(this.store.get().tabs.filter((t) => t.href === href));
+    this.commit(this.store.get().tabs.filter((t) => t.href === href || t.pinned));
   }
   closeAll(): void {
-    this.commit([]);
+    this.commit(this.store.get().tabs.filter((t) => t.pinned));
   }
   /** Cycle: +1 next, -1 previous. */
   neighbour(activeHref: string, dir: 1 | -1): string | null {

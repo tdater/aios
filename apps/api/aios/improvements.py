@@ -208,6 +208,18 @@ def rollback(db: Database, settings: Settings, name: str, *, approved_by: str, t
     return {"skill": name, "restored_version": None, "removed": True}
 
 
+def candidate_detail(db: Database, cid: str) -> dict:
+    """Everything a human needs to decide on a candidate: the exact text that would be deployed, why, and every check result."""
+    c = _cand(db, cid)
+    results = db.query("SELECT r.passed, r.detail, c.description FROM eval_results r JOIN eval_cases c ON c.id = r.case_id "
+                       "WHERE r.subject=? ORDER BY r.created_at, r.id", (cid,))
+    active = _active_version(db, c["name"])
+    return {"id": c["id"], "name": c["name"], "status": c["status"], "eval_status": c["eval_status"], "rationale": c["rationale"],
+            "content": c["content"] or "", "sha256": c["content_sha256"], "decision_note": c["decision_note"],
+            "results": [{"case": r["description"], "passed": bool(r["passed"]), "detail": r["detail"]} for r in results],
+            "active_version": active["version"] if active else None}
+
+
 def overview(db: Database) -> dict:
     return {
         "candidates": db.query("SELECT id,name,status,eval_status,content_sha256,created_at,decided_at,decision_note FROM skill_candidates ORDER BY created_at DESC LIMIT 100"),

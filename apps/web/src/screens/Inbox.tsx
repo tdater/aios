@@ -3,6 +3,7 @@ import { ApiError } from "../core/client";
 import { Approval, Candidate, Paged } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad, useViewport } from "../ui/hooks";
+import { Improvements } from "./inbox/Improvements";
 import { Badge, Btn, Collapsible, Empty, ErrorBox, Loading, Notice, Untrusted, ago, fmtDuration, fmtLocal, useOnce } from "../ui/kit";
 
 type Seg = "approvals" | "proposals" | "improvements";
@@ -20,7 +21,7 @@ export function Inbox({ sub, id }: { sub?: string; id?: string }) {
       </div>
       {seg === "approvals" && <ApprovalList selected={sub === "approval" ? id : undefined} />}
       {seg === "proposals" && <CandidateList selected={sub === "candidate" ? id : undefined} />}
-      {seg === "improvements" && <Empty>No improvement proposals exist yet. The improvement loop (evaluation, review, rollback) is not built; nothing is shown because nothing exists.</Empty>}
+      {seg === "improvements" && <Improvements />}
     </div>
   );
   const detail = sub === "approval" && id ? <ApprovalDetail id={id} /> : sub === "candidate" && id ? <CandidateDetail id={id} /> : null;
