@@ -1,24 +1,21 @@
 import { useState } from "react";
+import { ACCENTS, THEME_MODES } from "../core/settings";
 import { APP_VERSION, API_VERSION, Provider, SessionInfo } from "../core/types";
 import { useApp } from "../ui/Context";
+import { Icon } from "../ui/icons";
 import { useLoad } from "../ui/hooks";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } from "../ui/kit";
 
 interface Health { version: string; db: string; schema: string[]; run_counts: Record<string, number>; disk_free_gb: number; backup_status: string; billable_env: Record<string, string[]> }
 
-export function Settings() {
-  const app = useApp();
+export function Settings({ section }: { section?: string }) {
+  void section;   // "history" opens the history section (added with the History screen)
   return (
     <div className="screen">
       <h2>Settings</h2>
+      <AppearanceSection />
       <ServerSection />
       <SessionSection />
-      <section className="card">
-        <h3>Appearance</h3>
-        <label className="field"><span>Theme</span>
-          <select value={app.settings.theme} onChange={(e) => app.updateSettings({ theme: e.target.value as "system" | "dark" | "light" })}>
-            <option value="system">Follow system</option><option value="dark">Dark</option><option value="light">Light</option></select></label>
-      </section>
       <PrivacySection />
       <section className="card">
         <h3>Notifications</h3>
@@ -26,6 +23,48 @@ export function Settings() {
       </section>
       <Diagnostics />
     </div>
+  );
+}
+
+function AppearanceSection() {
+  const { settings, updateSettings } = useApp();
+  const custom = settings.accent !== "default" && !ACCENTS.some((a) => a.hex.toLowerCase() === settings.accent.toLowerCase());
+  return (
+    <section className="card" aria-labelledby="appearance-h">
+      <h3 id="appearance-h">Appearance</h3>
+      <div className="field"><span>Theme</span>
+        <div className="themegrid" role="group" aria-label="Theme">
+          {THEME_MODES.map((t) => (
+            <button key={t.id} className="themecard" aria-pressed={settings.theme === t.id} onClick={() => updateSettings({ theme: t.id })}>
+              <strong>{t.label}</strong><small>{t.hint}</small>
+            </button>))}
+        </div>
+      </div>
+      <div className="field"><span>Accent colour</span>
+        <div className="swatches" role="group" aria-label="Accent colour">
+          <button className="swatch" style={{ background: "var(--accent)", backgroundImage: "linear-gradient(135deg, transparent 45%, var(--bg) 45% 55%, transparent 55%)" }}
+            aria-pressed={settings.accent === "default"} aria-label="Theme default accent" title="Theme default" onClick={() => updateSettings({ accent: "default" })} />
+          {ACCENTS.map((a) => (
+            <button key={a.id} className="swatch" style={{ background: a.hex }} aria-pressed={settings.accent.toLowerCase() === a.hex.toLowerCase()} aria-label={a.label} title={a.label}
+              onClick={() => updateSettings({ accent: a.hex })} />))}
+          <label className="swatch" style={{ display: "grid", placeItems: "center", background: custom ? settings.accent : "var(--panel2)", overflow: "hidden", position: "relative" }} title="Custom colour">
+            <span className="sr">Custom accent colour</span>
+            <input type="color" value={/^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : "#8b7cf6"} onChange={(e) => updateSettings({ accent: e.target.value })}
+              style={{ opacity: 0, position: "absolute", inset: 0, width: "100%", height: "100%", cursor: "pointer" }} />
+            {!custom && <Icon name="plus" size={16} />}
+          </label>
+        </div>
+      </div>
+      <label className="field"><span>Text size: {settings.fontSize}px</span>
+        <input type="range" min={14} max={20} step={1} value={settings.fontSize} onChange={(e) => updateSettings({ fontSize: Number(e.target.value) })} aria-label="Text size" /></label>
+      <label className="field"><span>Note font</span>
+        <select value={settings.noteFont} onChange={(e) => updateSettings({ noteFont: e.target.value as "sans" | "serif" })}>
+          <option value="sans">Sans-serif (interface font)</option><option value="serif">Serif (book-like)</option></select></label>
+      <label className="check"><input type="checkbox" checked={settings.readableLine} onChange={(e) => updateSettings({ readableLine: e.target.checked })} /> Readable line length in notes</label>
+      <label className="check"><input type="checkbox" checked={settings.tabs} onChange={(e) => updateSettings({ tabs: e.target.checked })} /> Show document tabs (tablet and desktop)</label>
+      <label className="check"><input type="checkbox" checked={settings.statusBar} onChange={(e) => updateSettings({ statusBar: e.target.checked })} /> Show status bar (tablet and desktop)</label>
+      <label className="check"><input type="checkbox" checked={settings.reduceMotion === "on"} onChange={(e) => updateSettings({ reduceMotion: e.target.checked ? "on" : "system" })} /> Reduce motion (otherwise follows your device)</label>
+    </section>
   );
 }
 

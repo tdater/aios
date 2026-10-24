@@ -60,11 +60,16 @@ class MemoryIn(BaseModel):
     body: str = Field(min_length=1, max_length=50_000)
     project_id: str | None = None
     confidence: float = Field(default=0.5, ge=0, le=1)
+    tags: list[str] = Field(default_factory=list, max_length=30)
+    # A note written by the signed-in user is their own statement, so it defaults to approved. Machine-derived notes never
+    # come through this endpoint (they stay `candidate` via the review queue).
+    status: str = Field(default="approved", pattern="^(candidate|approved)$")
 
 
 class MemoryPatch(BaseModel):
     title: str | None = None
     body: str | None = None
+    tags: list[str] | None = Field(default=None, max_length=30)
     confidence: float | None = Field(default=None, ge=0, le=1)
     status: str | None = Field(default=None, pattern="^(candidate|approved|superseded|rejected)$")
     expected_version: int | None = None
@@ -197,24 +202,42 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     # ---- memory ----
     @r.get("/memories")
     def memories(q: str = "", scope: str | None = None, type: str | None = None, status: str | None = None,
-                 limit: int | None = Query(None, ge=1, le=200), cursor: str | None = None):
+                 tag: str | None = None, limit: int | None = Query(None, ge=1, le=200), cursor: str | None = None):
         if q:
-            return redact_obj({"items": memory.search(db, q, scope=scope, type=type, status=status),
+            return redact_obj({"items": memory.search(db, q, scope=scope, type=type, status=status, tag=tag),
                                "next_cursor": None})
         where, params = [], []
         for col, val in (("scope", scope), ("type", type), ("status", status)):
             if val:
                 where.append(f"{col}=?")
                 params.append(val)
-        return redact_obj(page(db, "SELECT id,title,scope,project_id,type,status,basis,confidence,sensitivity,"
-                                   "created_at,last_reviewed_at,version FROM memories", where, params,
-                               sort="created_at", limit=limit, cursor=cursor))
+        t = memory.normalize_tag(tag) if tag else None
+        if t:
+            where.append("tags_json LIKE ?")
+            params.append(f'%"{t}"%')
+        res = page(db, "SELECT id,title,scope,project_id,type,status,basis,confidence,sensitivity,"
+                       "created_at,last_reviewed_at,version,tags_json FROM memories", where, params,
+                   sort="created_at", limit=limit, cursor=cursor)
+        for row in res["items"]:
+            row["tags"] = json.loads(row.pop("tags_json") or "[]")
+        return redact_obj(res)
 
     @r.post("/memories", status_code=201)
     def add_memory(m: MemoryIn):
         mid = memory.create(db, settings, scope=m.scope, type=m.type, title=m.title, body=m.body,
-                            project_id=m.project_id, confidence=m.confidence, basis="observation")
+                            project_id=m.project_id, confidence=m.confidence, basis="observation", tags=m.tags,
+                            status=m.status)
         return redact_obj(memory.get(db, settings, mid))
+
+    @r.get("/memories/tags")
+    def memory_tags():
+        return {"items": memory.all_tags(db)}
+
+    @r.get("/graph")
+    def knowledge_graph(tags: bool = False, candidates: bool = False, unresolved: bool = True,
+                        limit: int = Query(400, ge=10, le=1000)):
+        return redact_obj(memory.graph(db, settings, include_tags=tags, include_candidates=candidates,
+                                       include_unresolved=unresolved, limit=limit))
 
     @r.get("/memories/export")
     def export():
@@ -230,6 +253,13 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
         if not m:
             raise not_found("memory")
         return redact_obj(m)
+
+    @r.get("/memories/{mid}/links")
+    def memory_links(mid: str):
+        try:
+            return redact_obj(memory.links(db, settings, mid))
+        except KeyError:
+            raise not_found("memory")
 
     @r.patch("/memories/{mid}")
     def patch_memory(mid: str, p: MemoryPatch):

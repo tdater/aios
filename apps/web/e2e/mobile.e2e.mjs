@@ -186,8 +186,28 @@ try {
     await page.getByRole("button", { name: "Edit" }).click();
     await api("PATCH", `/memories/${m.body.id}`, { title: "Changed elsewhere", expected_version: m.body.version });   // another device wins
     await page.getByLabel("Title").fill("My phone edit");
-    await page.getByRole("button", { name: "Save correction" }).click();
-    await page.getByText(/Your edit was NOT saved/).waitFor();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByText(/were NOT saved/).waitFor();
+    expect((await api("GET", `/memories/${m.body.id}`)).body.title === "Changed elsewhere", "stale edit must not overwrite the newer version");
+  });
+  await step("vault: wiki links resolve and navigate, backlinks show, palette (Ctrl+K) opens a note, graph renders", async () => {
+    const a = await api("POST", "/memories", { scope: "global", type: "fact", title: "Zeta alpha note", body: "Points at [[Zeta beta note]] and [[Zeta ghost]] #zeta" });
+    const b = await api("POST", "/memories", { scope: "global", type: "fact", title: "Zeta beta note", body: "Plain body" });
+    await page.goto(`${BASE}/#/knowledge/${a.body.id}`);
+    await page.reload();                                                              // the vault index polls every 25 s; notes made behind the UI's back need a fresh load
+    await page.locator(".md button.wikilink:not(.ghost)", { hasText: "Zeta beta note" }).click();
+    await page.waitForFunction((id) => location.hash.endsWith(id), b.body.id);
+    await page.getByText(/Points at/).first().waitFor({ state: "visible" });         // backlink excerpt from the first note
+    await page.keyboard.press("Control+k");
+    const box = page.getByRole("combobox", { name: "Search" });
+    await box.waitFor();
+    await box.fill("zeta alpha");
+    await page.getByRole("option").first().waitFor();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction((id) => location.hash.endsWith(id), a.body.id);
+    await page.goto(`${BASE}/#/graph`);
+    await page.locator("canvas").first().waitFor();
+    await page.getByRole("img", { name: /Knowledge graph\. \d+ nodes/ }).waitFor();
   });
   await step("offline: capture becomes a local draft; reconnect does not auto-send; explicit send creates exactly one task", async () => {
     await page.goto(`${BASE}/#/home`);

@@ -4,19 +4,29 @@ import { ConnectionMonitor } from "./core/connection";
 import { createRuntime, Runtime } from "./core/runtime";
 import { tokenKey } from "./core/secure";
 import { ServerEntry } from "./core/servers";
-import { API_VERSION, Meta } from "./core/types";
+import { THEME_MODES } from "./core/settings";
+import { applyTheme } from "./core/theme";
+import { API_VERSION, Home as HomeData, Meta } from "./core/types";
+import { isDocumentRoute } from "./core/workspace";
 import { getPlatform, Platform } from "./platform";
 import { registerServiceWorker, resetAppCaches, updateStore } from "./pwa/register";
 import { Frame, Incompatible, Pair, ServerChanged, SetupServer, Unreachable } from "./screens/Boot";
+import { GraphScreen } from "./screens/Graph";
 import { Home } from "./screens/Home";
 import { Inbox } from "./screens/Inbox";
 import { Knowledge } from "./screens/Knowledge";
 import { Projects } from "./screens/Projects";
 import { Runs } from "./screens/Runs";
 import { Settings } from "./screens/Settings";
+import { ShortcutsHelp, StatusBar, TabStrip, Toast } from "./ui/Chrome";
 import { AppContext, AppCtx } from "./ui/Context";
 import { go, Route, useRoute, useStore, useViewport } from "./ui/hooks";
+import { useHotkeys } from "./ui/hotkeys";
+import { Icon, IconName } from "./ui/icons";
 import { Btn, Notice } from "./ui/kit";
+import { invalidatePaletteIndex, Palette } from "./ui/Palette";
+import { closePalette, helpStore, layoutPrefs, openPalette, paletteStore, setExplorer, summaryStore, toast } from "./ui/uiState";
+import { modLabel } from "./ui/hotkeys";
 
 type Phase =
   | { kind: "loading" }
@@ -38,12 +48,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
   const reinit = useCallback(() => setGen((g) => g + 1), []);
 
   useEffect(() => { void registerServiceWorker(pf.isNative); }, [pf.isNative]);
-
-  // theme: "system" leaves the attribute off so prefers-color-scheme applies
-  useEffect(() => {
-    const el = document.documentElement;
-    if (settings.theme === "system") el.removeAttribute("data-theme"); else el.dataset.theme = settings.theme;
-  }, [settings.theme]);
+  useEffect(() => { applyTheme(settings); }, [settings]);       // theme, accent, font size, reading width, motion
 
   useEffect(() => {
     let cancelled = false;
@@ -115,23 +120,47 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
   return <Shell key={phase.server.id} phase={phase} rt={rt} pf={pf} reinit={reinit} />;
 }
 
+const NAV: { tab: Route["tab"]; label: string; icon: IconName; wideOnly?: boolean }[] = [
+  { tab: "home", label: "Home", icon: "home" }, { tab: "projects", label: "Projects", icon: "folder" }, { tab: "runs", label: "Runs", icon: "play" },
+  { tab: "inbox", label: "Inbox", icon: "inbox" }, { tab: "knowledge", label: "Knowledge", icon: "book" }, { tab: "graph", label: "Graph", icon: "graph", wideOnly: true },
+  { tab: "settings", label: "Settings", icon: "settings" },
+];
+
 function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready" }>; rt: Runtime; pf: Platform; reinit: () => void }) {
   const conn = useStore(phase.monitor.store);
   const settings = useStore(rt.settings.store);
   const update = useStore(updateStore);
+  const summary = useStore(summaryStore);
   const route = useRoute();
   const vp = useViewport();
   const partition = rt.partitionOf(phase.server);
+  const workspace = useMemo(() => rt.workspaceFor(partition), [rt, partition]);
   const connected = conn.state === "connected";
+  const wide = vp.w >= 600;
+
+  // open documents become tabs
+  useEffect(() => { if (isDocumentRoute(route)) workspace.visit(route); }, [route, workspace]);
+
+  // live counts for the ribbon badge and status bar (polite: only while connected, every 15 s)
+  useEffect(() => {
+    if (!connected) return;
+    let alive = true;
+    const load = () => phase.client.get<HomeData>("/home").then((h) => alive && summaryStore.set({
+      approvals: h.counts.pending_approvals, running: h.counts.active_runs, blocked: h.counts.blocked_runs, candidates: h.counts.pending_candidates })).catch(() => {});
+    void load();
+    const t = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, [connected, phase.client]);
 
   useEffect(() => pf.onBack(() => {
+    if (paletteStore.get().open) { closePalette(); return true; }
     if (route.id) { history.back(); return true; }
     if (route.tab !== "home") { go({ tab: "home" }); return true; }
     return false;
   }), [pf, route]);
 
   const ctx: AppCtx = {
-    client: phase.client, server: phase.server, registry: rt.registry, conn, connected, partition, cache: rt.cache, drafts: rt.drafts,
+    client: phase.client, server: phase.server, registry: rt.registry, conn, connected, partition, cache: rt.cache, drafts: rt.drafts, workspace,
     settings, updateSettings: rt.settings.update, isNative: pf.isNative,
     signOut: async () => {
       try { await phase.client.post("/auth/logout"); } catch { /* server unreachable: still drop the local credential */ }
@@ -149,12 +178,45 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
   };
 
   const pending = rt.drafts.pendingCount(partition);
-  const tabs: [Route["tab"], string, string][] = [["home", "Home", "⌂"], ["projects", "Projects", "▤"], ["runs", "Runs", "▶"], ["inbox", "Inbox", "✉"], ["knowledge", "Knowledge", "☰"], ["settings", "Settings", "⚙"]];
+  const closeActiveTab = () => {
+    const active = location.hash;
+    const next = workspace.close(active, active);
+    if (next) location.hash = next; else go({ tab: route.tab });
+  };
+  const cycleTab = (dir: 1 | -1) => { const n = workspace.neighbour(location.hash, dir); if (n) location.hash = n; };
+  const commands: Record<string, () => void> = {
+    capture: () => { go({ tab: "home" }); setTimeout(() => (document.querySelector('form[aria-label="Quick capture"] textarea') as HTMLElement | null)?.focus(), 80); },
+    "new-note": () => go({ tab: "knowledge", id: "new" }),
+    approvals: () => go({ tab: "inbox" }),
+    theme: () => { const ids = THEME_MODES.map((t) => t.id); const next = ids[(ids.indexOf(settings.theme) + 1) % ids.length]; rt.settings.update({ theme: next }); toast(`Theme: ${THEME_MODES.find((t) => t.id === next)!.label}`); },
+    explorer: () => setExplorer(!layoutPrefs.get().explorer),
+    tabs: () => rt.settings.update({ tabs: !settings.tabs }),
+    "close-tab": closeActiveTab,
+    history: () => go({ tab: "settings", id: "history" }),
+    pair: () => go({ tab: "settings" }),
+    help: () => helpStore.set(true),
+    refresh: () => { invalidatePaletteIndex(); toast("Search index will refresh"); },
+    signout: () => void ctx.signOut(),
+  };
+  useHotkeys({
+    "mod+k": () => (paletteStore.get().open ? closePalette() : openPalette()),
+    "mod+o": () => openPalette(), "mod+p": () => openPalette(">"),
+    "mod+\\": () => setExplorer(!layoutPrefs.get().explorer),
+    "alt+w": closeActiveTab, "alt+arrowright": () => cycleTab(1), "alt+arrowleft": () => cycleTab(-1),
+    "?": () => helpStore.set(true), g: () => go({ tab: "graph" }),
+  });
+
+  const badge = summary?.approvals ?? 0;
+  const flush = route.tab === "graph" || route.tab === "knowledge";
   return (
     <AppContext.Provider value={ctx}>
       <div className={`shell ${vp.mode} ${vp.landscape ? "landscape" : "portrait"}`} data-layout={vp.mode}>
         <header className="top">
           <span className="brand">AIOS</span>
+          <span className="grow" />
+          <button className="searchbtn" onClick={() => openPalette()} aria-label="Search and commands">
+            <Icon name="search" size={16} /><span className="label">Search or run a command…</span>{wide && <kbd>{modLabel()} K</kbd>}
+          </button>
           <span className={`pill ${conn.state}`} role="status" aria-live="polite">● {conn.state}</span>
           {pending > 0 && <span className="pill warn" title="Local drafts not yet sent">{pending} pending sync</span>}
         </header>
@@ -163,19 +225,33 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
           <Notice tone="warn">{conn.state === "unauthenticated" ? "Signed out." : conn.state === "stale" ? "Connection is stale." : "Disconnected."} What you see may be out of date, and approvals and other changes are disabled until you reconnect.</Notice>
         )}
         <nav className="nav" aria-label="Main">
-          {tabs.map(([t, label, icon]) => (
-            <button key={t} className={route.tab === t ? "on" : ""} aria-current={route.tab === t ? "page" : undefined} onClick={() => go({ tab: t })}>
-              <span aria-hidden="true">{icon}</span><span>{label}</span>
-            </button>))}
+          {NAV.map((n) => (
+            <span key={n.tab} style={{ display: "contents" }}>
+              {n.tab === "settings" && <span className="spacer" />}
+              <button className={`${route.tab === n.tab ? "on" : ""} ${n.wideOnly ? "only-wide" : ""}`} aria-current={route.tab === n.tab ? "page" : undefined}
+                title={n.label} onClick={() => go({ tab: n.tab })}>
+                <Icon name={n.icon} size={wide ? 20 : 22} /><span className="navlabel">{n.label}</span>
+                {n.tab === "inbox" && badge > 0 && <span className="badgecount" aria-label={`${badge} waiting`}>{badge > 99 ? "99+" : badge}</span>}
+              </button>
+            </span>
+          ))}
         </nav>
-        <main className="content" id="main">
-          {route.tab === "home" && <Home />}
-          {route.tab === "projects" && <Projects id={route.id} />}
-          {route.tab === "runs" && <Runs id={route.id} />}
-          {route.tab === "inbox" && <Inbox sub={route.sub} id={route.id} />}
-          {route.tab === "knowledge" && <Knowledge id={route.id} />}
-          {route.tab === "settings" && <Settings />}
-        </main>
+        <div className="workspace">
+          <TabStrip />
+          <main className={`content ${flush ? "flush" : ""}`} id="main">
+            {route.tab === "home" && <Home />}
+            {route.tab === "projects" && <Projects id={route.id} />}
+            {route.tab === "runs" && <Runs id={route.id} />}
+            {route.tab === "inbox" && <Inbox sub={route.sub} id={route.id} />}
+            {route.tab === "knowledge" && <Knowledge id={route.id} />}
+            {route.tab === "graph" && <GraphScreen id={route.id} />}
+            {route.tab === "settings" && <Settings section={route.id} />}
+          </main>
+        </div>
+        {wide && <StatusBar pendingDrafts={pending} />}
+        <Palette commands={commands} />
+        <ShortcutsHelp />
+        <Toast />
       </div>
     </AppContext.Provider>
   );

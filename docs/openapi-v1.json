@@ -226,6 +226,14 @@
             "title": "Scope",
             "type": "string"
           },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Tags",
+            "type": "array"
+          },
           "title": {
             "maxLength": 200,
             "minLength": 1,
@@ -295,6 +303,21 @@
               }
             ],
             "title": "Status"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
           },
           "title": {
             "anyOf": [
@@ -719,7 +742,7 @@
   },
   "info": {
     "title": "AIOS",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1528,6 +1551,76 @@
         "summary": "Supersede"
       }
     },
+    "/api/v1/graph": {
+      "get": {
+        "operationId": "knowledge_graph_api_v1_graph_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tags",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Tags",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "candidates",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Candidates",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unresolved",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Unresolved",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 400,
+              "maximum": 1000,
+              "minimum": 10,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Knowledge Graph"
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "health_api_v1_health_get",
@@ -1838,6 +1931,22 @@
           },
           {
             "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -1960,6 +2069,22 @@
         "summary": "Rebuild"
       }
     },
+    "/api/v1/memories/tags": {
+      "get": {
+        "operationId": "memory_tags_api_v1_memories_tags_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Memory Tags"
+      }
+    },
     "/api/v1/memories/{mid}": {
       "get": {
         "operationId": "get_memory_api_v1_memories__mid__get",
@@ -2077,6 +2202,43 @@
           }
         },
         "summary": "Forget"
+      }
+    },
+    "/api/v1/memories/{mid}/links": {
+      "get": {
+        "operationId": "memory_links_api_v1_memories__mid__links_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mid",
+            "required": true,
+            "schema": {
+              "title": "Mid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Links"
       }
     },
     "/api/v1/meta": {

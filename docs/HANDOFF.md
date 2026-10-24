@@ -41,6 +41,7 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Gemini execution | BLOCKED (not installed; official status uncertain, see architecture.md) |
 | Backup + restore to a separate directory | IMPLEMENTED+TESTED |
 | Web/PWA client (6 screens, offline drafts, opt-in summary cache, service worker) | IMPLEMENTED+TESTED (see mobile-handoff) |
+| Obsidian-style UI (v0.2.0): themes/accent/font settings, icon ribbon, tabs, status bar, Ctrl+K command palette (`>` commands, `#` tags), safe markdown notes with callouts/tasks/wiki links, vault explorer with search operators, backlinks/outline/local graph panels, whole-vault graph with list view, tags + wiki links + graph APIs | IMPLEMENTED+TESTED (vitest + real-browser e2e). Canvas drawing itself is only checked by screenshots; layout/logic are unit-tested. No physical-device pass yet |
 | Android app (Capacitor 8, debug build) | IMPLEMENTED+TESTED **on an emulator** (11/11). Physical phone: **not tested** |
 | Android release build / signing | Build configured; see mobile-handoff for what was verified. No signing key exists (user creates it) |
 | Push notifications, SSE, background sync | PLANNED (documented, deliberately absent) |
@@ -51,14 +52,15 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Quota detection from real providers | PLANNED (state and UI exist; tested via a test executor) |
 
 ## Test status (last run 2026-10-24)
-- Backend `pytest`: **288 tests, all passing** at the last full run. Web `vitest` + `tsc`: **66 passed**, typecheck clean. Production
+- Backend `pytest`: **297 passed**. Web `vitest` + `tsc`: **160 passed**, typecheck clean. Production
   build OK. Secret scan clean; `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
 - **GitHub Actions (public repo), commit 91631b5: all 4 jobs green** (secret scan, backend on Windows/py3.14, web, real-browser e2e 14/14).
   Earlier runs found real problems that are now fixed: an e2e timing race, a cancel-test race, and a service-worker first-install page
   reload that wiped the pairing form (product bug).
 - Clean-room check (anonymous clone of the public repo → `scripts\setup.ps1` → tests): setup 101 s, backend + web tests pass. It also
   exposed that `start.ps1` polled an endpoint that had become authenticated; fixed and verified (start → pair → 401 without auth → stop).
-- Real-browser e2e (`apps/web/e2e/mobile.e2e.mjs`, Edge, phone viewport, real server): **14/14**.
+- Real-browser e2e (`apps/web/e2e/mobile.e2e.mjs`, Edge, phone viewport, real server): **15/15** on the new UI (local run; CI not yet run on it).
+  That run caught a real bug: an unsaved draft from one note leaked into the next note opened (fixed by keying the note view by id; regression test added).
 - Android emulator e2e (`apps/web/e2e/android-emulator.e2e.mjs`, real WebView): **11/11** on the last run, after two earlier
   runs failed from emulator overload (system ANR dialogs) and a script locator bug. It is sensitive to host memory pressure.
 
@@ -71,7 +73,6 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
 
 ## Known issues
 - Emulator e2e flakes if the host is low on RAM (the emulator is software-rendered). Close heavy apps or use `-memory 2560`.
-- Server `__version__` is still 0.1.0 while the client reports 0.2.0 (cosmetic; bump together at release).
 - `docs/history-bootstrap.md` predates the full brief; ingestion is implemented but its real-data pilot has not happened.
 - No LICENSE file (owner decision).
 
@@ -83,7 +84,7 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
    `docs/mobile-remote-access.md`).
 4. Create a release keystore (user), build/sign the release APK, install on the phone.
 5. Remaining planned work: run the skills' behavioural cases with a model-driven evaluation (they are specs today), a UI for the
-   skill candidate/versions review (API exists), schedules, SSE, research-import UI, `setup.ps1` clean-room run,
+   skill candidate/versions review (API exists), a History screen (source inventory, review-new, per-source delete) and `scripts/stage_claude_sessions.py` (user-run helper that copies chosen sessions into the approved folder), schedules, SSE, research-import UI, `setup.ps1` clean-room run,
    TalkBack/keyboard accessibility audit.
 
 ## Provider sources (checked 2026-10-24)

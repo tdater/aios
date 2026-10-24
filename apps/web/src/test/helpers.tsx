@@ -28,7 +28,7 @@ export function ctxFor(over: { connected?: boolean; cacheEnabled?: boolean; part
   const conn: ConnSnapshot = { state: over.connected === false ? "disconnected" : "connected", lastOkAt: new Date().toISOString(), meta: META as never };
   const ctx: AppCtx = {
     client: new AiosClient("", { mode: "bearer", token: "t" }), server, registry: rt.registry, conn, connected: over.connected !== false,
-    partition, cache: rt.cache, drafts: rt.drafts, settings: rt.settings.store.get(), updateSettings: rt.settings.update, isNative: false,
+    partition, cache: rt.cache, drafts: rt.drafts, workspace: rt.workspaceFor(partition), settings: rt.settings.store.get(), updateSettings: rt.settings.update, isNative: false,
     signOut: async () => {}, switchServer: () => {}, removeServer: async () => {}, clearLocalData: () => {},
   };
   return { ctx, rt };

@@ -5,6 +5,8 @@ import { SummaryCache } from "../core/cache";
 import { DraftStore } from "../core/drafts";
 import { ServerEntry, ServerRegistry } from "../core/servers";
 import { Settings } from "../core/settings";
+import { Workspace } from "../core/workspace";
+// (Knowledge screen state lives in screens/knowledge/vaultContext.tsx)
 
 export interface AppCtx {
   client: AiosClient;
@@ -16,6 +18,7 @@ export interface AppCtx {
   partition: string;          // server identity; cache + drafts are namespaced by it
   cache: SummaryCache;
   drafts: DraftStore;
+  workspace: Workspace;       // open document tabs (per server)
   settings: Settings;
   updateSettings: (p: Partial<Settings>) => void;
   isNative: boolean;

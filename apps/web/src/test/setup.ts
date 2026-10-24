@@ -14,6 +14,14 @@ class Mem implements Storage {
 Object.defineProperty(globalThis, "localStorage", { value: new Mem(), configurable: true });
 Object.defineProperty(window, "localStorage", { value: globalThis.localStorage, configurable: true });
 
+// jsdom lacks these browser APIs; the app feature-detects some of them but the graph view uses them directly.
+class RO { observe() {} unobserve() {} disconnect() {} }
+(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = RO;
+Object.defineProperty(window, "matchMedia", { configurable: true, value: (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false, onchange: null }) });
+HTMLCanvasElement.prototype.getContext = (() => null) as never;       // the canvas draw path is skipped; layout/logic are unit-tested separately
+Element.prototype.scrollIntoView = () => {};
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => {} } });
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

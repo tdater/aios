@@ -76,7 +76,18 @@ export interface Memory {
   id: string; title: string; scope: string; type: string; status: string; basis?: string; confidence: number;
   version: number; created_at?: string; last_reviewed_at?: string | null; body?: string;
   evidence?: { source: string }[]; excerpt?: string;
+  tags?: string[]; explicit_tags?: string[]; sensitivity?: string; project_id?: string | null;
 }
+export interface NoteLinks {
+  id: string;
+  outgoing: { target: string; id: string; title: string }[];
+  backlinks: { id: string; title: string; excerpt: string }[];
+  unresolved: string[];
+  unlinked_mentions: { id: string; title: string }[];
+}
+export interface GraphNode { id: string; kind: "memory" | "project" | "unresolved" | "tag" | "candidate"; label: string; degree: number; type?: string; status?: string; scope?: string }
+export interface GraphEdge { source: string; target: string; kind: "link" | "scope" | "supersedes" | "tagged" | "promoted_to" }
+export interface GraphData { nodes: GraphNode[]; edges: GraphEdge[]; truncated: boolean }
 
 export interface Provider { provider: string; mode: string; billing: string; detail: Record<string, unknown>; checked_at: string }
 export interface SessionInfo { id: string; device_name: string; kind: string; created_at: string; last_seen_at: string; expires_at: string; revoked_at: string | null; current: boolean }

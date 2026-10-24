@@ -27,6 +27,16 @@ export function fakeServer(routes: Record<string, Handler>) {
 export const err = (status: number, code: string, message = code, details: Record<string, unknown> = {}) =>
   ({ status, body: { error: { code, message, details }, request_id: "req1" } });
 
+export interface FakeNote { id: string; title: string; type?: string; status?: string; tags?: string[]; body?: string; scope?: string; version?: number; created_at?: string; project_id?: string | null }
+export const noteRow = (n: FakeNote) => ({ id: n.id, title: n.title, type: n.type ?? "fact", status: n.status ?? "approved", scope: n.scope ?? "global", confidence: 0.5, version: n.version ?? 1,
+  tags: n.tags ?? [], project_id: n.project_id ?? null, created_at: n.created_at ?? `2026-01-01T00:00:0${n.id.length % 10}+00:00`, last_reviewed_at: null });
+export const noteFull = (n: FakeNote) => ({ ...noteRow(n), body: n.body ?? "", explicit_tags: n.tags ?? [], basis: "observation", sensitivity: "private", evidence: [] });
+export const NOTES: FakeNote[] = [
+  { id: "mem_a", title: "Gradle caching", type: "fact", tags: ["build", "android/build"], body: "# Gradle caching\n\nSee [[Android build checklist]] and [[Missing note]] #android\n\n> [!tip] Keep it on\n> yes" },
+  { id: "mem_b", title: "Android build checklist", type: "procedure", tags: ["android"], body: "- [x] tests\n- [ ] sign\n\nLinks back: [[Gradle caching]]" },
+  { id: "mem_c", title: "No force push", type: "preference", status: "candidate", tags: [], body: "Never force push." },
+];
+
 export const META = { api_version: 1, min_client_api: 1, server_version: "0.2.0", server_id: "srv_test1", time: "2026-01-01T00:00:00+00:00", auth: { required: true }, capabilities: {} };
 export const HOME = {
   server_time: "2026-01-01T00:00:00+00:00",
