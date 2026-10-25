@@ -327,3 +327,15 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .flightfiles li.flash { animation: flightflash .7s ease-out; }
 @keyframes flightflash { from { background: color-mix(in srgb, var(--accent) 45%, transparent); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .flightfiles li.flash { animation: none; } }
+
+/* The Bench */
+.bench { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 12px; background: var(--panel); }
+.benchrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; position: relative; padding-bottom: 14px; }
+.seat { display: grid; gap: 2px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); }
+.seat.s-working { border-color: var(--accent); } .seat.s-done { border-color: var(--ok); }
+.patchmark { position: absolute; bottom: -4px; left: 6%; font-size: 1.4rem; transition: left .6s ease; }
+.patchmark[data-stage=travelling] { left: 48%; } .patchmark[data-stage=reviewer] { left: 86%; } .patchmark[data-stage=none] { display: none; }
+.pinned { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; } .pinned li { overflow-wrap: anywhere; }
+.stamp { display: inline-block; margin-top: 6px; padding: 3px 12px; border: 2px solid var(--border); border-radius: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; transform: rotate(-2deg); }
+.stamp.v-ready { border-color: var(--ok); color: var(--ok); } .stamp.v-not_ready { border-color: var(--bad); color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .patchmark { transition: none; } }

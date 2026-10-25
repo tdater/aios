@@ -8,6 +8,7 @@ import {
 } from "../../core/work";
 import { sealOfChanges } from "../../core/seal";
 import { useApp } from "../../ui/Context";
+import { Bench } from "../../ui/Bench";
 import { FlightRecorder } from "../../ui/FlightRecorder";
 import { useLoad } from "../../ui/hooks";
 import { ProofSeal } from "../../ui/Seal";
@@ -267,6 +268,7 @@ export function OutcomePanel({ v, reload, sendFindings }: { v: ConversationView;
   const seal = sealOfChanges(v.changes);
   return (
     <div>
+      {hasChange && <Bench v={v} />}
       <div className="verdictrow">
         {seal.show && <ProofSeal hash={seal.hash} view={seal.view} size={96} />}
         <div className={`verdict ${!hasChange ? "none" : r.ready ? "ready" : "notready"}`} role="status">
