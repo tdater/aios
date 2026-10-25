@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ConversationScreen } from "../screens/work/Conversation";
+import { HOLD_MS } from "../ui/VaultDoor";
 import { WorkPicker } from "../screens/work/Picker";
 import { err, fakeServer, Handler } from "./fakeServer";
 import { ctxFor, resetRoute, setWidth, Wrap } from "./helpers";
@@ -208,7 +209,12 @@ describe("tests and approval", () => {
     expect(approve.disabled).toBe(true);                                                         // not until acknowledged
     fireEvent.click(screen.getByLabelText(/I understand this runs code that Claude just wrote/));
     expect(approve.disabled).toBe(false);
-    fireEvent.click(approve);
+    fireEvent.click(approve);                                                                    // one press only arms the heavy door
+    expect(approve.textContent).toContain("Press again to open");
+    expect(srv.count("POST", "/approvals/apr_1/decide")).toBe(0);
+    fireEvent.pointerDown(approve);                                                              // holding it is what opens it
+    await act(async () => { await new Promise((r) => setTimeout(r, HOLD_MS + 250)); });
+    fireEvent.pointerUp(approve);
     await waitFor(() => expect(srv.count("POST", "/approvals/apr_1/decide")).toBe(1));
     expect(srv.calls.find((c) => c.path === "/approvals/apr_1/decide")!.body).toEqual(
       { approve: true, expected_version: 4, action_hash: "h".repeat(64), confirm_destructive: true });
@@ -297,6 +303,43 @@ describe("outcome and review", () => {
     expect(box.value).not.toContain("Naming nit");
     expect((screen.getByLabelText(/Make changes/) as HTMLInputElement).checked).toBe(true);
     expect(srv.count("POST", "/conversations/cnv_1/messages")).toBe(0);                          // a person reads it and presses Send
+  });
+});
+
+describe("proof seal", () => {
+  it("shows an honest seal in the header and the outcome: rings are checks that passed", async () => {
+    await open(view());
+    const header = screen.getAllByRole("img", { name: /Proof seal/ });
+    expect(header.length).toBe(1);
+    expect(header[0].getAttribute("class")).toContain("ready");
+    expect(header[0].getAttribute("aria-label")).toContain("revision cccccccc");
+    expect(header[0].getAttribute("aria-label")).toContain("2 of 3 checks");                    // approved + tests; no review yet
+    tab(/^Outcome/);
+    const seals = screen.getAllByRole("img", { name: /Proof seal/ });
+    expect(seals.length).toBe(2);
+    expect(seals[1].querySelectorAll("circle.ring").length).toBe(2);
+    expect(screen.getByText(/each ring is a check that really passed \(2 of 3\)/)).toBeTruthy();
+  });
+
+  it("cracks when AIOS says NOT READY, even though the tests passed", async () => {
+    const lazy = view({}, {
+      review: msg(6, { author_kind: "provider", kind: "review", role: "assistant", author: "claude-code 2.1.310 (claude-opus-5-5), independent reviewer", content: "x",
+        meta: { review: { reviewed_revision: "c".repeat(40), findings: [], counts: { high: 1, medium: 0, low: 0 }, summary: "s", model: "m", separate_session: true } } }),
+      readiness: { ready: false, verified: true, reviewed: true, high_findings: 1, reasons: ["1 high-severity finding(s) in the review of this revision"], head_revision: "c".repeat(40) },
+    });
+    await open(lazy);
+    const seal = screen.getByRole("img", { name: /Proof seal/ });
+    expect(seal.getAttribute("class")).toContain("cracked");
+    expect(seal.querySelector("path.crack")).toBeTruthy();
+    expect(seal.getAttribute("aria-label")).toContain("independent review found a high-severity problem");
+  });
+
+  it("is hollow when nothing has been verified, and absent when there is no change", async () => {
+    await open(view({}, { verification: null, readiness: { ready: false, verified: null, reviewed: false, high_findings: 0, reasons: ["not verified: no verification has run"], head_revision: "c".repeat(40) } }));
+    expect(screen.getByRole("img", { name: /Proof seal/ }).getAttribute("class")).toContain("hollow");
+    cleanup();
+    await open(view({}, { patch: null, verification: null, readiness: { ready: false, verified: null, reviewed: false, high_findings: 0, reasons: [], head_revision: null } }));
+    expect(screen.queryByRole("img", { name: /Proof seal/ })).toBeNull();
   });
 });
 

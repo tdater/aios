@@ -6,8 +6,11 @@ import {
   ACTIVE_RUN_STATES, MODEL_CHOICES, UDiffFile, argvToText, commandToArgv, diffTotals, locationText, parseUnifiedDiff, quotaBars,
   sevTone, shortRev, showCommand, sortFindings,
 } from "../../core/work";
+import { sealOfChanges } from "../../core/seal";
 import { useApp } from "../../ui/Context";
 import { useLoad } from "../../ui/hooks";
+import { ProofSeal } from "../../ui/Seal";
+import { VaultDoor } from "../../ui/VaultDoor";
 import { Badge, Btn, Collapsible, Empty, ErrorBox, Loading, Notice, Untrusted, ago, fmtDuration, fmtLocal, useOnce } from "../../ui/kit";
 import { CancelPanel, ResumeButton } from "../Runs";
 import { ContextUsed } from "./Thread";
@@ -191,7 +194,9 @@ export function InlineApproval({ id, onDone }: { id: string; onDone: () => void 
       {d.destructive && <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I understand this runs code that Claude just wrote, on my computer, with my account&apos;s permissions.</label>}
       {!connected && <Notice tone="warn">You are offline. Approvals are never queued: reconnect to decide.</Notice>}
       <div className="row">
-        <Btn busy={decide.busy} disabled={!connected || (d.destructive && !ack)} onClick={() => void decide.run(true)}>Approve and run the tests</Btn>
+        <VaultDoor heavy={d.destructive} label="Approve and run the tests" busy={decide.busy} disabled={!connected || (d.destructive && !ack)}
+          hint="This is a heavy door: hold it for about a second. With a keyboard or screen reader, press once to arm it and press again within five seconds to confirm."
+          onOpen={() => void decide.run(true)} />
         <Btn kind="danger" busy={decide.busy} disabled={!connected} onClick={() => void decide.run(false)}>Reject</Btn>
       </div>
     </div>
@@ -242,11 +247,16 @@ export function OutcomePanel({ v, reload, sendFindings }: { v: ConversationView;
   const current = !!reviewMeta && reviewMeta.reviewed_revision === r.head_revision;
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const chosen = findings.filter((f) => picked.has(f.id));
+  const seal = sealOfChanges(v.changes);
   return (
     <div>
-      <div className={`verdict ${!hasChange ? "none" : r.ready ? "ready" : "notready"}`} role="status">
-        <strong>{!hasChange ? "Nothing to check yet" : r.ready ? "READY" : "NOT READY"}</strong>
-        <span className="muted small"> · decided by AIOS from the facts below, not by Claude</span>
+      <div className="verdictrow">
+        {seal.show && <ProofSeal hash={seal.hash} view={seal.view} size={96} />}
+        <div className={`verdict ${!hasChange ? "none" : r.ready ? "ready" : "notready"}`} role="status">
+          <strong>{!hasChange ? "Nothing to check yet" : r.ready ? "READY" : "NOT READY"}</strong>
+          <span className="muted small"> · decided by AIOS from the facts below, not by Claude</span>
+          {seal.show && <div className="muted small">The seal: its shape is this change&apos;s fingerprint; each ring is a check that really passed ({seal.view.strength} of 3).</div>}
+        </div>
       </div>
       <dl className="facts">
         <dt>Tests</dt><dd>{r.verified === true ? "passed on this revision" : r.verified === false ? "FAILED on this revision" : "not run on this revision"}</dd>

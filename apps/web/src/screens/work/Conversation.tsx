@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ConversationView, Finding } from "../../core/types";
+import { sealOfChanges } from "../../core/seal";
 import { ACTIVE_RUN_STATES, findingsPrompt } from "../../core/work";
+import { ProofSeal } from "../../ui/Seal";
 import { useApp } from "../../ui/Context";
 import { go, useLoad, useViewport } from "../../ui/hooks";
 import { Badge, Btn, ErrorBox, Loading, Notice } from "../../ui/kit";
@@ -34,6 +36,7 @@ export function ConversationScreen({ id }: { id: string }) {
     );
   }
   const r = v.changes.readiness;
+  const seal = sealOfChanges(v.changes);
   const pending = v.status.pending_approvals.length;
   const tabs = (twoPane ? ["activity", "changes", "tests", "outcome", "status"] : ["chat", "activity", "changes", "tests", "outcome", "status"]) as PanelId[];
   const mark = (p: PanelId) =>
@@ -52,6 +55,7 @@ export function ConversationScreen({ id }: { id: string }) {
     <div className="screen work">
       <Btn kind="ghost" onClick={() => go({ tab: "work" })}>← Workspace</Btn>
       <div className="row">
+        {seal.show && <ProofSeal hash={seal.hash} view={seal.view} size={38} />}
         <h2>{v.conversation.title}</h2>
         {run && <Badge s={run.display_state} />}
         {r.head_revision && <Badge s={r.ready ? "completed" : "failed"} label={r.ready ? "ready" : "not ready"} />}

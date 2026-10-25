@@ -139,7 +139,13 @@ try {
     expect(await approve.isDisabled(), "approve must be disabled until the risk is acknowledged");
     await page.getByLabel(/I understand this runs code that Claude just wrote/).check();
     await shot("05-approval");
-    await approve.click();
+    await approve.click();                                           // a plain click only arms the heavy door
+    expect((await approve.innerText()).includes("Press again"), "a single press must not open a heavy door");
+    expect(!(await panel("Tests").getByText("tests passed").isVisible().catch(() => false)), "tests must not have run yet");
+    await approve.hover();                                           // holding it is what opens it
+    await page.mouse.down();
+    await sleep(1600);
+    await page.mouse.up();
     await panel("Tests").getByText("tests passed").waitFor({ timeout: 120000 });
     await panel("Tests").getByText(/run by AIOS, not by Claude/).waitFor();
     await shot("06-tests-passed");
