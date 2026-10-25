@@ -30,6 +30,20 @@ def describe(action: dict) -> dict:
                                  "Completed writes are not undone by cancelling the run"],
                 "content_preview": redact(str(action.get("content", "")))[:2000],
                 "destructive": exists}
+    if t == "run_verification":
+        argv = [str(a) for a in action.get("argv", [])]
+        rev = str(action.get("head_revision", ""))[:12]
+        keep = ("argv", "cwd", "head_revision", "patch_sha256", "timeout_s")
+        return {"type": t, "target": str(action.get("cwd", "")),
+                "side_effects": [f"Runs this command on your computer: {' '.join(argv)}",
+                                 f"It runs in an isolated worktree holding code an AI wrote or changed "
+                                 f"(revision {rev})",
+                                 "That code runs with your Windows account's rights. This is not a sandbox: "
+                                 "the command can do anything your account can",
+                                 "Your project folder is not changed, but nothing the command does outside "
+                                 "the worktree is undone by cancelling"],
+                "content_preview": redact(canonical_json({k: action.get(k) for k in keep}))[:2000],
+                "destructive": True}
     return {"type": t, "target": str(action.get("target", "")),
             "side_effects": ["Unknown action type: assume it changes state and cannot be undone"],
             "content_preview": redact(canonical_json(action))[:2000], "destructive": True}

@@ -8,7 +8,7 @@ from aios import services
 from aios.config import Settings
 from aios.db import Database
 from aios.engine import Engine
-from aios.executors import audit, capture, demo, provider_task  # noqa: F401
+from aios.executors import audit, capture, claude_turn, demo, provider_task  # noqa: F401
 
 
 @pytest.fixture()

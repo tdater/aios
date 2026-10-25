@@ -42,10 +42,10 @@ def _claude() -> dict:
                     detail={"reason": "claude CLI not found on PATH"})
     _, ver = _run([exe, "--version"])
     detail: dict = {"version": ver.strip(), "usage": "unknown",
-                    "integration": "aios/claude_code.py starts the official CLI in print mode with "
-                                   "your own subscription login (supported: see "
-                                   "docs/integration-findings.md). Not yet wired into the run "
-                                   "engine; proven only by scripts/demo_claude_connection.py."}
+                    "integration": "Conversations start the official CLI in print mode with your "
+                                   "own subscription login (supported: see "
+                                   "docs/integration-findings.md). Read and edit tools only, no "
+                                   "shell, edits in an isolated git worktree."}
     rc, out = _run([exe, "auth", "status"])
     logged_in, plan = None, None
     try:  # keep only non-secret fields
