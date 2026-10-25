@@ -59,6 +59,10 @@ def _pinned_env(repo: Path) -> dict[str, str]:
     explicitly, so provider-written files can never choose which config git reads."""
     pin = _pin_file(repo)
     if not pin.is_file():
+        # A linked worktree has a `.git` *file* (a normal repository has a directory). Without a
+        # recorded git dir there is nothing to compare it with, so do not trust it.
+        if (Path(repo) / ".git").is_file():
+            raise GitError("this linked worktree has no recorded git dir, so AIOS will not run git in it")
         return {}
     gitdir = pin.read_text(encoding="utf-8").strip()
     try:

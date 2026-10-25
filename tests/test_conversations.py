@@ -439,3 +439,13 @@ def test_an_untouched_worktree_still_commits_through_the_pinned_git_dir(repo, tm
     assert worktrees.commit_all(wt, "m", tmp_path / "nohooks")
     assert worktrees.remove_worktree(repo, wt)
     assert not worktrees._pin_file(wt).exists()
+
+
+def test_a_linked_worktree_without_a_recorded_git_dir_is_refused(repo, tmp_path):
+    wt = tmp_path / "wts" / "w3"
+    worktrees.create_worktree(repo, wt, "aios/pin-missing")
+    worktrees._pin_file(wt).unlink()
+    (wt / "z.txt").write_text("hi")
+    with pytest.raises(worktrees.GitError, match="no recorded git dir"):
+        worktrees.commit_all(wt, "m", tmp_path / "nohooks")
+    assert worktrees.worktree_ok(wt) is False
