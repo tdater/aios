@@ -78,9 +78,9 @@ def _antigravity() -> dict:
     if not exe:
         return dict(provider="antigravity", mode="unavailable", billing="n/a", detail={
             "reason": "Antigravity CLI (agy) not found on PATH", "note": ANTIGRAVITY_NOTE})
-    _, ver = _run([exe, "--version"])
+    # Presence check only. AIOS never starts agy, not even for --version (docs/integration-findings.md).
     return dict(provider="antigravity", mode="manual_handoff", billing="unknown (manual)",
-                detail={"version": ver.strip(), "usage": "unknown", "note": ANTIGRAVITY_NOTE})
+                detail={"found": True, "version": "not queried", "usage": "unknown", "note": ANTIGRAVITY_NOTE})
 
 
 def _perplexity() -> dict:
