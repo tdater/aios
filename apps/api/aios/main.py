@@ -22,7 +22,7 @@ from .db import Database
 from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
 from .conversations_api import build_router as build_conversations_router
-from .executors import audit, capture, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
+from .executors import audit, capture, claude_review, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
 from .history import schedule
 from .history_api import build_router
 from .skills_api import build_router as build_skills_router

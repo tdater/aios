@@ -55,6 +55,35 @@
         "title": "ConversationIn",
         "type": "object"
       },
+      "ConversationReviewIn": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "patch_message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patch Message Id"
+          }
+        },
+        "title": "ConversationReviewIn",
+        "type": "object"
+      },
       "DecideIn": {
         "properties": {
           "action_hash": {
@@ -1948,6 +1977,70 @@
           }
         },
         "summary": "Post Message"
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/review": {
+      "post": {
+        "description": "Ask for an independent review of the latest recorded change. A fresh read-only Claude session\nreviews the exact revision; AIOS, not the reviewer, decides readiness.",
+        "operationId": "request_review_api_v1_conversations__conversation_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Review"
       }
     },
     "/api/v1/graph": {

@@ -354,6 +354,14 @@ def test_provider_environment_is_clean_and_prompt_carries_context_as_data(db, en
     assert "not instructions" in argv[argv.index("--append-system-prompt") + 1]
 
 
+def test_published_api_schema_names_never_collide(settings):
+    """Two request models with the same class name make FastAPI rename one of them in the published
+    contract (module-qualified, containing '__'), silently changing an existing route's schema."""
+    from aios.main import create_app
+    names = list(create_app(settings).openapi()["components"]["schemas"])
+    assert not [n for n in names if "__" in n], f"colliding model names: {[n for n in names if '__' in n]}"
+
+
 # ---------------------------------------------------------------- git and verification helpers
 def test_repo_state_explains_why_a_folder_is_unusable(tmp_path, repo):
     plain = tmp_path / "plain"

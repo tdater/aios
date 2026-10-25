@@ -113,6 +113,28 @@ def create_worktree(repo: Path, dest: Path, branch: str) -> dict:
             "dirty_source": st["dirty"], "source_branch": st["branch"]}
 
 
+def create_detached(repo: Path, dest: Path, rev: str) -> str:
+    """A read-only-by-convention checkout of exactly `rev` (no branch), for an independent reviewer.
+    Returns the revision actually checked out."""
+    repo, dest = Path(repo), Path(dest)
+    if dest.exists():
+        raise GitError(f"review path already exists: {dest}")
+    _git(repo, "cat-file", "-e", f"{rev}^{{commit}}")          # the revision must exist
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _git(repo, "worktree", "add", "--quiet", "--detach", str(dest), rev)
+    return head(dest)
+
+
+def remove_worktree(repo: Path, dest: Path) -> bool:
+    """Best-effort removal of a temporary worktree. Returns False (never raises) if it lingers."""
+    try:
+        _git(Path(repo), "worktree", "remove", "--force", str(dest))
+        _git(Path(repo), "worktree", "prune", check=False)
+        return not Path(dest).exists()
+    except GitError:
+        return False
+
+
 def worktree_ok(path: str | Path | None) -> bool:
     if not path or not Path(path).is_dir():
         return False

@@ -85,6 +85,20 @@ def test_isolation_is_checked_against_what_claude_reports(fake, tmp_path, cfg, f
     assert r.summary()[field]
 
 
+def test_structured_output_tool_is_expected_only_when_a_schema_was_requested(fake, tmp_path):
+    """Observed on the real CLI: --json-schema makes Claude Code report a synthetic StructuredOutput tool."""
+    schema = {"type": "object", "properties": {}}
+    with_schema = claude_code.run(tmp_path, "hello", exe=FAKE, json_schema=schema)
+    assert "StructuredOutput" in with_schema.tools and with_schema.isolated
+    assert with_schema.structured_output == {"summary": "Looks correct.", "findings": []}
+    fake(extra_tools=["StructuredOutput"])                       # reported although no schema was requested
+    without = claude_code.run(tmp_path, "hello", exe=FAKE)
+    assert without.unexpected_tools == ["StructuredOutput"] and not without.isolated
+    fake(extra_tools=["Bash"])                                   # a schema never excuses anything else
+    still_bad = claude_code.run(tmp_path, "hello", exe=FAKE, json_schema=schema)
+    assert still_bad.unexpected_tools == ["Bash"] and not still_bad.isolated
+
+
 def test_a_faulty_event_callback_never_orphans_or_aborts_the_run(fake, tmp_path):
     def boom(_ev):
         raise RuntimeError("logging bug")

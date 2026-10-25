@@ -110,6 +110,7 @@ class RunResult:
     permission_mode: str | None = None
     client_version: str | None = None
     rate_limit: dict | None = None                       # last rate_limit_event, compacted
+    structured_output: dict | None = None                # only when a json_schema was requested
     events: list[dict] = field(default_factory=list)
     stderr: str = ""
     timed_out: bool = False
@@ -251,7 +252,7 @@ def preflight(exe: list[str] | None = None, env: dict | None = None) -> Prefligh
 
 def build_command(exe: list[str], prompt: str, *, mode: str = "read", max_turns: int = 10,
                   resume: str | None = None, append_system_prompt: str | None = None,
-                  model: str | None = None) -> list[str]:
+                  model: str | None = None, json_schema: dict | None = None) -> list[str]:
     if mode not in MODES:
         raise ValueError(f"mode must be one of {sorted(MODES)}")
     if not prompt.strip():
@@ -273,6 +274,8 @@ def build_command(exe: list[str], prompt: str, *, mode: str = "read", max_turns:
         cmd += ["--model", model]
     if append_system_prompt:
         cmd += ["--append-system-prompt", append_system_prompt]
+    if json_schema is not None:   # verified on 2.1.310: arrives as `structured_output` in the result event
+        cmd += ["--json-schema", json.dumps(json_schema, separators=(",", ":"))]
     # "--" ends options so a prompt that starts with "-" is never read as a flag.
     cmd += ["--", prompt]
     return cmd
@@ -304,7 +307,7 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
         append_system_prompt: str | None = None, model: str | None = None,
         env: dict | None = None, on_event: Callable[[dict], None] | None = None,
         transcript: Path | None = None, should_cancel: Callable[[], bool] | None = None,
-        poll_s: float = 1.0) -> RunResult:
+        poll_s: float = 1.0, json_schema: dict | None = None) -> RunResult:
     """Runs one Claude Code turn in `workspace`. Call preflight() first and pass its exe.
 
     `should_cancel` is polled every `poll_s` seconds from a watchdog thread, independent of the
@@ -314,7 +317,8 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
     if not workspace.is_dir():
         raise ValueError(f"workspace does not exist: {workspace}")
     cmd = build_command(exe or default_exe(), prompt, mode=mode, max_turns=max_turns,
-                        resume=resume, append_system_prompt=append_system_prompt, model=model)
+                        resume=resume, append_system_prompt=append_system_prompt, model=model,
+                        json_schema=json_schema)
     proc = subprocess.Popen(cmd, cwd=workspace, env=child_env(env), stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                             encoding="utf-8", errors="replace")
@@ -387,11 +391,14 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
         plugins=list(init.get("plugins") or []),
         mcp_servers=list(init.get("mcp_servers") or []),
         tools=[t for t in (init.get("tools") or []) if isinstance(t, str)],
-        allowed_tools=list(MODES[mode]),
+        # Claude Code 2.1.310 adds a synthetic `StructuredOutput` tool, and only when --json-schema is
+        # used: it is how the schema is enforced, not a capability. Expected then, unexpected otherwise.
+        allowed_tools=list(MODES[mode]) + (["StructuredOutput"] if json_schema is not None else []),
         api_key_source=init.get("apiKeySource"),
         permission_mode=init.get("permissionMode"),
         client_version=init.get("claude_code_version"),
         rate_limit=rate,
+        structured_output=res.get("structured_output") if isinstance(res.get("structured_output"), dict) else None,
         events=events,
         stderr=redact(stderr)[-4000:],
         timed_out=timed_out,

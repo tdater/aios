@@ -101,31 +101,18 @@ def _ensure_worktree(ctx: RunContext, conv: dict, repo: Path) -> dict:
     return {**info, "created": True}
 
 
-def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack, pf) -> dict:
-    db, settings = ctx.db, ctx.settings
-    stream_dir = settings.runs_dir / ctx.run_id
-    stream_dir.mkdir(parents=True, exist_ok=True)
-    stream = stream_dir / "claude-stream.jsonl"
-
-    def probe() -> bool:                       # runs every second on a watchdog thread
-        db.execute("UPDATE runs SET updated_at=? WHERE id=? AND state='running'", (now(), ctx.run_id))
-        row = db.one("SELECT cancel_requested_at FROM runs WHERE id=?", (ctx.run_id,))
+def make_probe(ctx: RunContext):
+    """Watchdog callback for claude_code.run: heartbeat the run and report a cancel request. It runs
+    every second on its own thread, so a silent provider is still stopped and the run never looks stalled."""
+    def probe() -> bool:
+        ctx.db.execute("UPDATE runs SET updated_at=? WHERE id=? AND state='running'", (now(), ctx.run_id))
+        row = ctx.db.one("SELECT cancel_requested_at FROM runs WHERE id=?", (ctx.run_id,))
         return bool(row and row["cancel_requested_at"])
+    return probe
 
-    timeout = max(60, min(int(ctx.spec.get("timeout_s", 1200)), ctx.run["deadline_s"] - 90))
-    res = claude_code.run(
-        cwd, context_pack.wrap_prompt(pack, msg["content"]), exe=pf.exe, mode=mode,
-        max_turns=int(ctx.spec.get("max_turns", 20)), timeout_s=timeout, resume=conv["session_id"],
-        append_system_prompt=context_pack.OPERATING_RULES, model=conv["model"],
-        on_event=make_activity(ctx, cwd), transcript=stream, should_cancel=probe)
 
-    ctx.add_artifact("claude_transcript", "claude-transcript.jsonl",
-                     stream.read_text(encoding="utf-8", errors="replace") if stream.exists() else "",
-                     provenance=f"claude-code {res.client_version or pf.version}, stream-json, secrets redacted")
-    conversations.set_session(db, conv["id"], res.session_id)
-
-    summary = res.summary()
-    text = summary.pop("result")
+def isolation_problems(res, summary: dict) -> list[str]:
+    """Why a provider run cannot be trusted, judged from what Claude Code itself reported at startup."""
     problems = []
     if res.unexpected_tools:
         problems.append(f"Claude reported tools AIOS did not allow: {', '.join(res.unexpected_tools)}")
@@ -135,15 +122,42 @@ def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack
         problems.append("MCP servers loaded: " + ", ".join(map(str, summary["mcp_servers"])))
     if res.api_key_source not in (None, "none"):
         problems.append(f"API key source was '{res.api_key_source}', not the subscription login")
+    return problems
 
-    why = None
+
+def failure_reason(res, timeout: int) -> str | None:
     if res.cancelled:
-        why = "you cancelled it"
-    elif res.timed_out:
-        why = f"it timed out after {timeout}s"
-    elif not res.ok:
-        why = (f"Claude Code ended with '{res.subtype or 'no result'}' (exit code {res.exit_code})"
-               + (f": {redact(res.stderr).strip()[-300:]}" if res.stderr.strip() else ""))
+        return "you cancelled it"
+    if res.timed_out:
+        return f"it timed out after {timeout}s"
+    if not res.ok:
+        return (f"Claude Code ended with '{res.subtype or 'no result'}' (exit code {res.exit_code})"
+                + (f": {redact(res.stderr).strip()[-300:]}" if res.stderr.strip() else ""))
+    return None
+
+
+def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack, pf) -> dict:
+    db, settings = ctx.db, ctx.settings
+    stream_dir = settings.runs_dir / ctx.run_id
+    stream_dir.mkdir(parents=True, exist_ok=True)
+    stream = stream_dir / "claude-stream.jsonl"
+
+    timeout = max(60, min(int(ctx.spec.get("timeout_s", 1200)), ctx.run["deadline_s"] - 90))
+    res = claude_code.run(
+        cwd, context_pack.wrap_prompt(pack, msg["content"]), exe=pf.exe, mode=mode,
+        max_turns=int(ctx.spec.get("max_turns", 20)), timeout_s=timeout, resume=conv["session_id"],
+        append_system_prompt=context_pack.OPERATING_RULES, model=conv["model"],
+        on_event=make_activity(ctx, cwd), transcript=stream, should_cancel=make_probe(ctx))
+
+    ctx.add_artifact("claude_transcript", "claude-transcript.jsonl",
+                     stream.read_text(encoding="utf-8", errors="replace") if stream.exists() else "",
+                     provenance=f"claude-code {res.client_version or pf.version}, stream-json, secrets redacted")
+    conversations.set_session(db, conv["id"], res.session_id)
+
+    summary = res.summary()
+    text = summary.pop("result")
+    problems = isolation_problems(res, summary)
+    why = failure_reason(res, timeout)
 
     turn_meta = {"turn": summary, "mode": mode, "context_items": len(pack.items)}
     author = f"claude-code {res.client_version or pf.version} ({res.model or 'default model'})"

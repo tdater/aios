@@ -11,7 +11,7 @@ import json
 import re
 from typing import TYPE_CHECKING
 
-from . import claude_code, context_pack, providers, verification, worktrees
+from . import claude_code, context_pack, providers, reviewer, verification, worktrees
 from .config import Settings
 from .db import Database
 from .errors import ApiError, not_found
@@ -154,9 +154,10 @@ def set_verify_command(db: Database, project_id: str, argv) -> list[str] | None:
 
 # ---------------------------------------------------------------- turns
 def active_turn(db: Database, conversation_id: str) -> dict | None:
+    """The unfinished run (a turn or a review) attached to this conversation, if any."""
     marks = ",".join("?" * len(ACTIVE_STATES))
-    return db.one(f"SELECT r.* FROM runs r JOIN conversation_messages m ON m.run_id=r.id "
-                  f"WHERE m.conversation_id=? AND m.role='user' AND r.state IN ({marks}) "
+    return db.one(f"SELECT DISTINCT r.* FROM runs r JOIN conversation_messages m ON m.run_id=r.id "
+                  f"WHERE m.conversation_id=? AND r.state IN ({marks}) "
                   f"ORDER BY r.created_at DESC LIMIT 1", (conversation_id, *ACTIVE_STATES))
 
 
@@ -194,6 +195,43 @@ def post_user_message(db: Database, engine: "Engine", conversation_id: str, cont
     db.execute("UPDATE conversation_messages SET run_id=? WHERE id=?", (run["id"], msg["id"]))
     return {"message": db.one("SELECT * FROM conversation_messages WHERE id=?", (msg["id"],)),
             "task": task, "run": services.decorate_run(db, run)}
+
+
+def request_review(db: Database, engine: "Engine", conversation_id: str, *, model: str | None = None,
+                   patch_message_id: str | None = None) -> dict:
+    """Start an independent review of a recorded patch (the latest one unless told otherwise)."""
+    from . import services
+    from .executors.claude_review import default_reviewer_model
+    conv = require(db, conversation_id)
+    if model is not None and not MODEL_RE.match(model):
+        raise ApiError(422, "bad_model", "model names use letters, digits and . _ - [ ] : only")
+    if patch_message_id:
+        patch = db.one("SELECT * FROM conversation_messages WHERE id=? AND conversation_id=? AND kind='patch'",
+                       (patch_message_id, conversation_id))
+    else:
+        patch = db.one("SELECT * FROM conversation_messages WHERE conversation_id=? AND kind='patch' "
+                       "AND meta_json LIKE '%\"changed\":true%' ORDER BY seq DESC LIMIT 1", (conversation_id,))
+    pmeta = json.loads(patch["meta_json"]) if patch and patch["meta_json"] else {}
+    if not patch or not pmeta.get("changed"):
+        raise ApiError(409, "nothing_to_review", "there is no recorded change to review yet")
+    busy = active_turn(db, conversation_id)
+    if busy:
+        raise ApiError(409, "turn_in_progress", "wait for the current run to finish first",
+                       {"run_id": busy["id"], "state": busy["state"]})
+    use = model or default_reviewer_model(conv["model"])
+    head = pmeta["head_revision"]
+    task = services.create_task(db, title=f"Review revision {head[:12]}", kind="claude.review",
+                                project_id=conv["project_id"],
+                                spec={"conversation_id": conversation_id, "patch_message_id": patch["id"],
+                                      "model": use},
+                                acceptance=[{"type": "artifact_kind", "kind": "claude_transcript"}])
+    run = engine.create_run(task["id"], deadline_s=TURN_DEADLINE_S, max_attempts=1)
+    msg = add_message(db, conversation_id, role="system", author_kind="aios", author="aios", kind="status",
+                      run_id=run["id"], meta={"review_of": head, "model": use},
+                      content=f"Independent review requested for revision {head[:12]} using model {use}. "
+                              "The reviewer starts a fresh Claude session in a read-only checkout of that revision "
+                              "and sees only your request, the diff and the test result, not Claude's replies.")
+    return {"message": msg, "task": task, "run": services.decorate_run(db, run)}
 
 
 # ---------------------------------------------------------------- honest status
@@ -262,7 +300,10 @@ def changes(db: Database, conversation_id: str) -> dict:
             return None
         row["meta"] = json.loads(row.pop("meta_json")) if row.get("meta_json") else None
         return row
-    return {"patch": latest("patch"), "verification": latest("verification")}
+    patch, ver, rev = latest("patch"), latest("verification"), latest("review")
+    return {"patch": patch, "verification": ver, "review": rev,
+            "readiness": reviewer.readiness((patch or {}).get("meta"), (ver or {}).get("meta") or None,
+                                            ((rev or {}).get("meta") or {}).get("review"))}
 
 
 def view(db: Database, conversation_id: str) -> dict:

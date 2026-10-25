@@ -24,6 +24,11 @@ class MessageIn(BaseModel):
     mode: str = "read"
 
 
+class ConversationReviewIn(BaseModel):    # not "ReviewIn": history_api already publishes a schema by that name
+    model: str | None = Field(default=None, max_length=64)
+    patch_message_id: str | None = None
+
+
 class VerifyCommandIn(BaseModel):
     argv: list[str] | None = None
 
@@ -66,6 +71,22 @@ def build_router(db: Database, engine, settings: Settings, require_auth) -> APIR
         status, out, replay = idempotency.run_idempotent(
             db, "POST /conversations/messages", idempotency_key,
             {"conversation": conversation_id, **body.model_dump()}, create)
+        response.status_code = 200 if replay else status
+        if replay:
+            response.headers["Idempotent-Replay"] = "true"
+        return out
+
+    @r.post("/conversations/{conversation_id}/review", status_code=201)
+    def request_review(conversation_id: str, body: ConversationReviewIn, response: Response,
+                       idempotency_key: str | None = Header(default=None)):
+        """Ask for an independent review of the latest recorded change. A fresh read-only Claude session
+        reviews the exact revision; AIOS, not the reviewer, decides readiness."""
+        def create() -> tuple[int, dict]:
+            return 201, redact_obj(conversations.request_review(db, engine, conversation_id, model=body.model,
+                                                                patch_message_id=body.patch_message_id))
+        status, out, replay = idempotency.run_idempotent(
+            db, "POST /conversations/review", idempotency_key, {"conversation": conversation_id, **body.model_dump()},
+            create)
         response.status_code = 200 if replay else status
         if replay:
             response.headers["Idempotent-Replay"] = "true"

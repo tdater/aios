@@ -9,6 +9,8 @@ Behaviour is set by the FAKE_CLAUDE_CONFIG env var (JSON):
   api_key_source           reported apiKeySource (default "none")
   plugins, rate_limit      reported plugins; set rate_limit false to omit the rate-limit event
   reply                    final result text
+  review                   {"summary", "findings"} returned as structured_output when --json-schema is given
+  no_structured_output     omit structured_output even when --json-schema is given
   log                      path to append argv/env facts to
 It mirrors the stream-json shapes observed from Claude Code 2.1.310 (init, assistant text and
 tool_use blocks, rate_limit_event, result), so tests exercise AIOS's parsing, not Claude itself.
@@ -54,6 +56,8 @@ if "-p" in args:
     if outcome == "hang":
         time.sleep(60)
     tools = [t for t in (arg("--tools") or "").split(",") if t] + list(cfg.get("extra_tools", []))
+    if "--json-schema" in args:
+        tools.append("StructuredOutput")   # Claude Code 2.1.310 injects this tool whenever a schema is requested
     print(json.dumps({"type": "system", "subtype": "init", "session_id": sid,
                       "model": "fake-model", "cwd": os.getcwd(), "tools": tools,
                       "plugins": cfg.get("plugins", []), "mcp_servers": [],
@@ -86,12 +90,15 @@ if "-p" in args:
                 "seven_day": {"utilization": 0.02, "resetsAt": 1793484000, "status": "allowed"}}}}),
               flush=True)
     is_error = outcome == "error"
-    print(json.dumps({"type": "result", "subtype": "error_max_turns" if is_error else "success",
-                      "is_error": is_error, "result": cfg.get("reply", "Changed add to use +."),
-                      "session_id": sid, "num_turns": 3, "duration_ms": 1200,
-                      "total_cost_usd": 0.01,
-                      "permission_denials": [{"tool_name": "Bash"}] if is_error else []}),
-          flush=True)
+    result = {"type": "result", "subtype": "error_max_turns" if is_error else "success",
+              "is_error": is_error, "result": cfg.get("reply", "Changed add to use +."),
+              "session_id": sid, "num_turns": 3, "duration_ms": 1200, "total_cost_usd": 0.01,
+              "permission_denials": [{"tool_name": "Bash"}] if is_error else []}
+    if "--json-schema" in args and not cfg.get("no_structured_output"):   # as Claude Code 2.1.310 does
+        structured = cfg.get("review", {"summary": "Looks correct.", "findings": []})
+        result["structured_output"] = structured
+        result["result"] = json.dumps(structured)
+    print(json.dumps(result), flush=True)
     sys.exit(1 if is_error else 0)
 
 print(f"fake claude: unexpected args {args}", file=sys.stderr)
