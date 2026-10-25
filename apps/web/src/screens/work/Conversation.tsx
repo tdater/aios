@@ -6,7 +6,7 @@ import { go, useLoad, useViewport } from "../../ui/hooks";
 import { Badge, Btn, ErrorBox, Loading, Notice } from "../../ui/kit";
 import { useTabTitle } from "../../ui/useTabTitle";
 import { ActivityPanel, ChangesPanel, OutcomePanel, StatusPanel, TestsPanel } from "./Panels";
-import { Composer, MessageList, PanelId } from "./Thread";
+import { Busy, Composer, MessageList, PanelId } from "./Thread";
 
 const TAB_LABEL: Record<PanelId, string> = { chat: "Chat", activity: "Activity", changes: "Changes", tests: "Tests", outcome: "Outcome", status: "Status" };
 
@@ -17,6 +17,7 @@ export function ConversationScreen({ id }: { id: string }) {
   const v = view.data;
   const run = v?.status.run ?? null;
   const active = !!run && ACTIVE_RUN_STATES.has(run.state);
+  const busy: Busy = !active ? null : run!.state === "awaiting_approval" ? "approval" : ["blocked", "interrupted"].includes(run!.state) ? "stopped" : "working";
   useEffect(() => {      // quick while Claude is working, relaxed otherwise
     const t = setInterval(() => void view.reload(), active ? 2000 : 10000);
     return () => clearInterval(t);
@@ -41,7 +42,7 @@ export function ConversationScreen({ id }: { id: string }) {
   const chat = (
     <div className="chatcol">
       <MessageList messages={v.messages} open={setPanel} />
-      <Composer conversationId={id} busy={active} seed={seed} onSent={() => { setPanel("activity"); void view.reload(); }} />
+      <Composer conversationId={id} busy={busy} seed={seed} onSent={() => { setPanel("activity"); void view.reload(); }} />
     </div>
   );
   const body = shown === "chat" ? chat : shown === "activity" ? <ActivityPanel v={v} reload={view.reload} />

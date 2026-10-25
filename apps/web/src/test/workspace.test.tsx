@@ -120,6 +120,17 @@ describe("composer", () => {
     expect(box.value).toBe("again");
   });
 
+  it("says it is waiting for YOU, not that Claude is busy, when an approval is pending", async () => {
+    const waiting = view({}, {}, { run: RUN({ state: "awaiting_approval", display_state: "awaiting_approval" }), pending_approvals: [{ id: "apr_1", summary: "x", requested_at: T0, expires_at: T0 }] });
+    await open(waiting);
+    expect(screen.getByText(/waiting for your approval to run the tests/)).toBeTruthy();
+    expect(screen.queryByText(/Claude is working/)).toBeNull();
+    expect((screen.getByLabelText("Your message") as HTMLTextAreaElement).disabled).toBe(true);
+    cleanup();
+    await open(view({}, {}, { run: RUN({ state: "blocked", display_state: "blocked", block_code: "provider_unavailable", state_reason: "not signed in" }) }));
+    expect(screen.getByText(/stopped before it finished/)).toBeTruthy();
+  });
+
   it("is disabled while Claude is working and while offline", async () => {
     const working = view({}, {}, { run: RUN({ state: "running", display_state: "running" }) });
     await open(working);

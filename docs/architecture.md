@@ -37,6 +37,25 @@ Crash rule: steps flagged `side_effect` that were `started` when the process die
 Approvals bind to `sha256(canonical action JSON)`, are single use, are spent *before* the effect, and stop
 matching if the action changes.
 
+## Conversations, worktrees and verification
+
+| Data | Owner | Notes |
+|---|---|---|
+| Conversations, messages (`author_kind` user, provider or aios), context supplied per run | SQLite (`0006_conversations.sql`) | Provider and AIOS text is redacted on write |
+| Per-conversation git worktree and branch `aios/<conversation id>` | `state/worktrees/` (private state, never in Git) | The project folder is never written by a provider run |
+| Patch, verification report, transcripts, reviewer input | artifacts, like every other run output | The patch is stored byte-faithful so it still applies |
+| The project's verification command | `projects.verify_json`, set only by the owner's explicit API call | Providers cannot set or change it |
+
+A turn is a `claude.turn` run made of resume-safe steps (worktree, context, claude, patch, verification). The provider step
+and the verification step have side effects, so after a crash they are never replayed automatically. A review is a
+`claude.review` run in its own detached checkout. Routes are in `docs/api-v1.md`.
+
+Added to the threat model: running the verification command executes code an AI just wrote, with the owner's Windows
+rights. It is gated by an approval bound to the exact command, worktree, revision and patch hash, it runs without a shell
+and without credentials in its environment, and a program found inside the worktree is refused, but it is **not an OS
+sandbox**. Claude Code itself is not sandboxed by AIOS either: its read and edit tools are limited to the working directory
+by Claude Code's own permission system and by the tool allowlist AIOS passes it.
+
 ## Threat model (what is and is not protected)
 
 Protected, with tests:

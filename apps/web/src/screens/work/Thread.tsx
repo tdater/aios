@@ -64,7 +64,14 @@ const ERR_HELP: Record<string, string> = {
   empty_message: "Write a message first.",
 };
 
-export function Composer({ conversationId, busy, onSent, seed }: { conversationId: string; busy: boolean; onSent: () => void; seed?: { text: string; mode: "read" | "edit"; n: number } | null }) {
+export type Busy = null | "working" | "approval" | "stopped";
+const BUSY_TEXT: Record<Exclude<Busy, null>, string> = {
+  working: "Claude is working. You can send the next message when it finishes.",
+  approval: "This message is waiting for your approval to run the tests (see the Tests tab). You can send the next message after you decide.",
+  stopped: "The last message stopped before it finished (see the Activity tab). Resume or cancel it before sending the next one.",
+};
+
+export function Composer({ conversationId, busy, onSent, seed }: { conversationId: string; busy: Busy; onSent: () => void; seed?: { text: string; mode: "read" | "edit"; n: number } | null }) {
   const { client, connected } = useApp();
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"read" | "edit">("read");
@@ -81,12 +88,12 @@ export function Composer({ conversationId, busy, onSent, seed }: { conversationI
       else setErr(`${(e as Error).message} The message may have arrived; check the conversation before sending it again.`);
     }
   });
-  const can = connected && !busy && text.trim().length > 0;
+  const can = connected && busy === null && text.trim().length > 0;
   return (
     <form className="composer card" onSubmit={(e) => { e.preventDefault(); if (can) void send.run(); }} aria-label="Message Claude">
       <ErrorBox msg={err} />
       <label className="field"><span>Your message</span>
-        <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
+        <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} disabled={busy !== null}
           placeholder={mode === "edit" ? "Describe the change you want…" : "Ask a question about this project…"}
           onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && can) { e.preventDefault(); void send.run(); } }} />
       </label>
@@ -100,7 +107,7 @@ export function Composer({ conversationId, busy, onSent, seed }: { conversationI
           <span><strong>Make changes</strong><span className="muted small"> Claude edits a separate copy. You review it before anything touches your real files.</span></span>
         </label>
       </div>
-      {busy && <Notice tone="info">Claude is working. You can send the next message when it finishes.</Notice>}
+      {busy && <Notice tone={busy === "working" ? "info" : "warn"}>{BUSY_TEXT[busy]}</Notice>}
       {!connected && <Notice tone="warn">You are offline, so messages cannot be sent.</Notice>}
       <Btn type="submit" busy={send.busy} disabled={!can}>{mode === "edit" ? "Send and make changes" : "Send"}</Btn>
       <span className="muted small"> Ctrl+Enter sends.</span>

@@ -35,7 +35,7 @@ endpoint set drifts). Everything below is **implemented and covered by `tests/te
 | Overview | `GET /home` (counts, current + blocked runs, provider modes) · `GET /health` · `GET /providers` · `POST /providers/refresh` |
 | Projects/tasks | `GET/POST /projects` · `GET /projects/{id}` · `GET/POST /tasks` · `GET /tasks/{id}` |
 | Runs | `GET/POST /runs` · `GET /runs/{id}` (**snapshot**, includes `last_event_id`) · `GET /runs/{id}/events?after=<id>` · `POST /runs/{id}/cancel` · `/resume` · `/import-result` · `GET /artifacts/{id}` |
-| Conversations | `GET/POST /conversations` · `GET /conversations/{id}` (messages, honest provider/session/permission **status**, changes, context supplied per run) · `GET/POST /conversations/{id}/messages` (poll with `after_seq`; POST starts a turn, idempotent) · `GET /conversations/{id}/changes` (latest patch + verification) · `GET/PUT /projects/{id}/verify-command` (owner-set argv list) |
+| Conversations | `GET/POST /conversations` · `GET /conversations/{id}` (messages, honest provider/session/permission **status**, changes, context supplied per run) · `GET/POST /conversations/{id}/messages` (poll with `after_seq`; POST starts a turn, idempotent) · `GET /conversations/{id}/changes` (latest patch, verification and review, plus AIOS-computed `readiness`) · `POST /conversations/{id}/review` (independent review of the latest recorded change; idempotent) · `GET/PUT /projects/{id}/verify-command` (owner-set argv list) |
 | Approvals | `GET /approvals` · `GET /approvals/{id}` · `POST /approvals/{id}/decide` |
 | Knowledge | `GET/POST /memories` · `GET/PATCH /memories/{id}` · `POST /memories/{id}/forget` · `GET /memories/export` · `POST /memories/rebuild-index` · `GET /history/search` · `GET /memories/tags` · `GET /memories/{id}/links` (outgoing, backlinks, unresolved, unlinked mentions) · `GET /graph` (nodes carry `project_id` and `created_at`) · `GET /published` (only notes tagged `publish` and approved) · `POST /published/export` (writes files under the state folder) |
 | Skills | `GET /skills` · `GET /skills/candidates/{id}` (exact text, rationale, check results) · `POST /skills/candidates` · `/skills/candidates/{id}/evaluate|reject|promote` · `POST /skills/{name}/rollback` |
@@ -63,8 +63,16 @@ needs an approval for that exact command, worktree path, revision and patch hash
 `GET /conversations/{id}` → `status`: `provider` (mode, billing, client version, plan, login method), `session`
 (id, resumable, model), `permissions` (tools per mode, shell and network denied, no settings files, no CLAUDE.md or
 auto memory, edits isolated, verification approval-gated), `workspace` (worktree, branch, base and head revision),
-`last_turn` (tools Claude reported, `unexpected_tools`, API key source, plugins, MCP servers, permission denials),
-`quota` (the last turn's 5-hour and 7-day subscription usage; not live) and `pending_approvals`.
+`last_turn` and `last_review_turn` (what Claude Code itself reported for the writer and for the independent reviewer:
+tools, `unexpected_tools`, API key source, plugins, MCP servers, permission denials), `quota` (the newest report of
+5-hour and 7-day subscription usage; not live) and `pending_approvals`.
+
+`POST /conversations/{id}/review {model?, patch_message_id?}` starts an independent review of the latest recorded change
+(409 `nothing_to_review` or `turn_in_progress`). A fresh read-only Claude session reviews the exact revision and sees only
+the owner's request, the diff and the recorded verification. `GET /conversations/{id}/changes` and the conversation view
+include `review` (findings with an AIOS-computed `grounded` flag) and `readiness`
+(`ready`, `verified`, `reviewed`, `high_findings`, `reasons`), which AIOS computes from recorded facts: ready means a
+passing verification of exactly this revision and no high-severity finding in a review of it. A review is optional.
 
 ## Run state, execution honesty
 `state` is the machine contract (`queued, running, awaiting_approval, blocked, interrupted, succeeded, failed,
