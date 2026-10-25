@@ -10,11 +10,12 @@ The product goal changed: see `docs/product-goal.md`. Steps 1 and 2 are done (`d
   `scripts/demo_claude_connection.py` on the Windows PC three times, all PASS (fix, scope check: only calc.py,
   AIOS's own test re-run green, resumed session). Those runs loaded the owner's user settings, and a personal
   Stop hook ran pytest in the workspace; since then no settings files load in AIOS runs (`--setting-sources ""`)
-  and the demo has an isolation step. **That isolation change has not yet been run on Windows.**
+  and the demo has an isolation step. Windows run 2026-10-25 15:22 confirmed the hook no longer fires; isolation
+  reported FAIL only because built-in plugins counted, now fixed. **The built-in exemption has not yet been run on Windows.**
 - Antigravity is D for AIOS-started runs (Google consumer terms), C via manual handoff. Gemini CLI removed.
 - Steps 3-5 (conversation workspace, reviewer, worktrees, memory in execution) are NOT started. They wait on the
   demo result and on the reviewer decision in `docs/integration-findings.md`.
-- The Linux sandbox that wrote this ran the backend suite: 339 passed, 1 skipped, 3 failed. The 3 failures are
+- The Linux sandbox that wrote this ran the backend suite: 344 passed, 1 skipped, 3 failed. The 3 failures are
   Windows-path tests (`test_claude_guard` backslash case, `test_core` workspace roots and `resolve_within`) that
   cannot pass on Linux and were failing before this change. Windows CI is the reference.
 

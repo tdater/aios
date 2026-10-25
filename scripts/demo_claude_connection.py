@@ -8,7 +8,7 @@ What it does, in order:
  4. Starts Claude Code in print mode inside that repository, allowed to read and edit files only
     (no shell, web, or MCP, and no settings files, so neither your personal hooks and plugins nor
     the repository's load), and asks it to fix the bug without touching the tests. Checks that no
-    plugins or MCP servers loaded.
+    plugins other than those built into Claude Code, and no MCP servers, loaded.
  5. Records the real patch (git diff), refuses the result if anything besides calc.py changed.
  6. Runs the same tests again. AIOS decides pass/fail, not the model.
  7. Resumes the same Claude session, read-only, to prove the conversation continues.
@@ -157,10 +157,13 @@ def main() -> int:
     fix = claude_code.run(repo, FIX_PROMPT, exe=pf.exe, mode="edit", max_turns=a.max_turns,
                           timeout_s=a.timeout, transcript=evidence / "claude-fix.jsonl")
     step("claude_fix", fix.summary())
-    # No personal or repository plugins/MCP servers may load into an AIOS run.
-    step("isolation", {"ok": not fix.plugins and not fix.mcp_servers,
-                       "plugins_loaded": fix.summary()["plugins_loaded"],
-                       "mcp_servers": fix.summary()["mcp_servers"],
+    # No personal, repository, or marketplace plugins and no MCP servers may load into an AIOS
+    # run. Plugins shipped inside the Claude Code binary are recorded but allowed.
+    s = fix.summary()
+    step("isolation", {"ok": fix.isolated,
+                       "external_plugins": s["external_plugins"],
+                       "builtin_plugins": s["builtin_plugins"],
+                       "mcp_servers": s["mcp_servers"],
                        "setting_sources": "none (managed policy only)"})
     if fix.stderr:
         (evidence / "claude-fix.stderr.txt").write_text(fix.stderr, encoding="utf-8")

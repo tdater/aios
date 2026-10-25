@@ -168,7 +168,41 @@ def test_demo_fails_isolation_when_a_plugin_loads(fake, tmp_path, monkeypatch):
     assert demo.main() == 1
     summary = json.loads((ev / "summary.json").read_text(encoding="utf-8"))
     assert summary["steps"]["isolation"]["ok"] is False
-    assert summary["steps"]["isolation"]["plugins_loaded"] == ["personal-hooks"]
+    assert summary["steps"]["isolation"]["external_plugins"] == ["personal-hooks"]
+
+
+BUILTIN = {"name": "cc-plugin-telemetry", "path": "builtin", "source": "cc-plugin-telemetry@builtin"}
+
+
+def test_builtin_plugins_pass_isolation_but_are_recorded(fake, tmp_path, monkeypatch):
+    """Shape observed in Claude Code 2.1.310 on Windows, 2026-10-25."""
+    fake(edit=True, plugins=[BUILTIN, {**BUILTIN, "name": "cc-plugin-agents-md",
+                                       "source": "cc-plugin-agents-md@builtin"}])
+    monkeypatch.setattr(claude_code, "default_exe", lambda: FAKE)
+    spec = importlib.util.spec_from_file_location("demo4", ROOT / "scripts" / "demo_claude_connection.py")
+    demo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(demo)
+    ev = tmp_path / "evidence"
+    monkeypatch.setattr(sys, "argv", ["demo", "--workspace", str(tmp_path / "repo"), "--evidence", str(ev)])
+    assert demo.main() == 0
+    iso = json.loads((ev / "summary.json").read_text(encoding="utf-8"))["steps"]["isolation"]
+    assert iso["ok"] is True and iso["external_plugins"] == []
+    assert iso["builtin_plugins"] == ["cc-plugin-telemetry", "cc-plugin-agents-md"]
+
+
+@pytest.mark.parametrize("plugin", [
+    {"name": "x", "path": "builtin", "source": "x@my-marketplace"},     # source not built in
+    {"name": "x", "path": "C:/plugins/x", "source": "x@builtin"},       # real path claims built in
+    {"name": "x", "source": "x@builtin"},                               # path missing
+    "x@builtin",                                                        # unrecognised shape
+])
+def test_anything_short_of_both_builtin_markers_counts_as_external(plugin):
+    assert claude_code.is_builtin_plugin(plugin) is False
+    r = claude_code.RunResult(ok=True, exit_code=0, session_id="s", subtype="success", result_text="",
+                              num_turns=1, duration_ms=1, cost_estimate_usd=None, permission_denials=[],
+                              model=None, plugins=[BUILTIN, plugin])
+    assert r.isolated is False and len(r.external_plugins) == 1
+    assert claude_code.RunResult(**{**r.__dict__, "plugins": [BUILTIN]}).isolated is True
 
 
 def test_demo_rejects_a_run_that_does_not_fix_the_bug(fake, tmp_path, monkeypatch):

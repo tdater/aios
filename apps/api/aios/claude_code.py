@@ -53,6 +53,18 @@ NO_SETTING_SOURCES = ""
 ISOLATION_SETTINGS = json.dumps({"disableAllHooks": True}, separators=(",", ":"))
 
 
+def is_builtin_plugin(p) -> bool:
+    """True only for plugins Claude Code ships inside its own binary. Observed in 2.1.310 init
+    events as path "builtin" and source "<name>@builtin". Both must match; anything else
+    (a real path, a marketplace source, an unrecognised shape) counts as external."""
+    return (isinstance(p, dict) and p.get("path") == "builtin"
+            and str(p.get("source", "")).endswith("@builtin"))
+
+
+def _names(items) -> list:
+    return [p.get("name") if isinstance(p, dict) else p for p in items]
+
+
 class ClaudeUnavailable(RuntimeError):
     """The official client is missing, too old, signed out, or set to metered billing."""
 
@@ -90,6 +102,15 @@ class RunResult:
     stderr: str = ""
     timed_out: bool = False
 
+    @property
+    def external_plugins(self) -> list:
+        return [p for p in self.plugins if not is_builtin_plugin(p)]
+
+    @property
+    def isolated(self) -> bool:
+        """No personal, repository, or marketplace plugins and no MCP servers loaded."""
+        return not self.external_plugins and not self.mcp_servers
+
     def summary(self) -> dict:
         return {"ok": self.ok, "exit_code": self.exit_code, "session_id": self.session_id,
                 "subtype": self.subtype, "num_turns": self.num_turns,
@@ -98,8 +119,9 @@ class RunResult:
                 "cost_note": "client-side estimate printed by Claude Code; billed to the "
                              "subscription, not the API, because API variables are removed",
                 "permission_denials": self.permission_denials, "timed_out": self.timed_out,
-                "plugins_loaded": [p.get("name") if isinstance(p, dict) else p for p in self.plugins],
-                "mcp_servers": [m.get("name") if isinstance(m, dict) else m for m in self.mcp_servers],
+                "builtin_plugins": _names(p for p in self.plugins if is_builtin_plugin(p)),
+                "external_plugins": _names(self.external_plugins),
+                "mcp_servers": _names(self.mcp_servers),
                 "result": redact(self.result_text)[:4000]}
 
 
