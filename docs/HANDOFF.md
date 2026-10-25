@@ -10,8 +10,9 @@ The product goal changed: see `docs/product-goal.md`. Steps 1 and 2 are done (`d
   `scripts/demo_claude_connection.py` on the Windows PC three times, all PASS (fix, scope check: only calc.py,
   AIOS's own test re-run green, resumed session). Those runs loaded the owner's user settings, and a personal
   Stop hook ran pytest in the workspace; since then no settings files load in AIOS runs (`--setting-sources ""`)
-  and the demo has an isolation step. Windows run 2026-10-25 15:22 confirmed the hook no longer fires; isolation
-  reported FAIL only because built-in plugins counted, now fixed. **The built-in exemption has not yet been run on Windows.**
+  and the demo has an isolation step. Windows run 2026-10-25 15:29 (commit `cfc0dc6`): demo PASS on all seven steps
+  including isolation (only Claude Code's three built-in plugins loaded, no MCP servers); backend suite 348 passed,
+  1 warning (Starlette/httpx test-client deprecation). Web, browser e2e and Android e2e were not re-run (no changes there).
 - Antigravity is D for AIOS-started runs (Google consumer terms), C via manual handoff. Gemini CLI removed.
 - Steps 3-5 (conversation workspace, reviewer, worktrees, memory in execution) are NOT started. They wait on the
   demo result and on the reviewer decision in `docs/integration-findings.md`.
