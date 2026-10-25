@@ -78,14 +78,19 @@ describe paid subscribers being suspended for third-party tool use.
 What would change this: Google confirming in writing that a personal local tool may start `agy`, or an enterprise
 or API-key path you choose to pay for (not assumed, not approved).
 
-## Decision needed for Steps 3 and 4
+## Reviewer decision for Steps 3 and 4 (owner, 2026-10-25): option 3
 
-The brief asks for a second, independent reviewer. With Antigravity blocked for automation, the options are:
+Claude reviewer by default, Antigravity review on demand.
 
-1. **A second Claude session as reviewer.** A fresh session with no shared context, read-only, reviewing the
-   patch at a known revision. Supported today; independent context but the same vendor.
-2. **Antigravity as reviewer through manual handoff (C).** Different vendor, but you run every review by hand.
-3. **Both:** Claude reviewer by default, an Antigravity review on demand.
+- **Default reviewer:** a separate Claude Code session, started fresh (no `--resume`, never sees the writer's
+  conversation or reasoning), read-only mode, given only the task, the patch at a pinned git revision, and AIOS's
+  own test output. It may run on a different model than the writer. It reports findings; it never edits.
+- **Pass/fail stays with AIOS:** the verdict comes from tests AIOS runs on the integrated result, not from either
+  model's opinion.
+- **On demand:** an Antigravity review through the existing task packet and import path (category C), stored as an
+  unverified claim, for changes that need a different vendor's view.
+- **Known limits:** two Claude runs per reviewed task count against the subscription; two sessions from the same
+  vendor can share blind spots, which the on-demand Antigravity review exists to catch.
 
 ## Sources (opened 2026-10-24)
 

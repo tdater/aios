@@ -14,8 +14,12 @@ The product goal changed: see `docs/product-goal.md`. Steps 1 and 2 are done (`d
   including isolation (only Claude Code's three built-in plugins loaded, no MCP servers); backend suite 348 passed,
   1 warning (Starlette/httpx test-client deprecation). Web, browser e2e and Android e2e were not re-run (no changes there).
 - Antigravity is D for AIOS-started runs (Google consumer terms), C via manual handoff. Gemini CLI removed.
-- Steps 3-5 (conversation workspace, reviewer, worktrees, memory in execution) are NOT started. They wait on the
-  demo result and on the reviewer decision in `docs/integration-findings.md`.
+- Reviewer decided (2026-10-25): option 3, Claude reviewer by default and Antigravity on demand; design in
+  `docs/integration-findings.md`.
+- **Next: Step 3** (`docs/product-goal.md`), on the Windows PC: project selection, one conversation, a real Claude
+  turn through `claude_code.py`, persisted attributed messages, AIOS-supplied context, the real patch artifact, real
+  verification output, honest provider/session/permission status, then the Claude reviewer. Not started. Work
+  moves from the cloud session to the owner's PC from here; one writer per branch.
 - The Linux sandbox that wrote this ran the backend suite: 344 passed, 1 skipped, 3 failed. The 3 failures are
   Windows-path tests (`test_claude_guard` backslash case, `test_core` workspace roots and `resolve_within`) that
   cannot pass on Linux and were failing before this change. Windows CI is the reference.
