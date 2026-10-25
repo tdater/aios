@@ -36,11 +36,45 @@ class GitError(RuntimeError):
     pass
 
 
+HARDENING = ("core.fsmonitor=false", "core.sshCommand=", "diff.external=")
+
+
+def _pin_file(wt: Path) -> Path:
+    """Where AIOS records a worktree's real git dir. A sibling of the worktree, outside the
+    folder the provider is allowed to write in."""
+    wt = Path(wt)
+    return wt.with_name(wt.name + ".aios-gitdir")
+
+
+def _record_pin(wt: Path) -> None:
+    link = (Path(wt) / ".git").read_text(encoding="utf-8", errors="replace").strip()
+    if not link.startswith("gitdir:"):
+        raise GitError("a new worktree has an unexpected .git link")
+    _pin_file(wt).write_text(link[len("gitdir:"):].strip(), encoding="utf-8")
+
+
+def _pinned_env(repo: Path) -> dict[str, str]:
+    """Git finds a linked worktree's repository through its `.git` file, which the provider can
+    rewrite. For worktrees AIOS created, refuse if that file changed and pass the recorded git dir
+    explicitly, so provider-written files can never choose which config git reads."""
+    pin = _pin_file(repo)
+    if not pin.is_file():
+        return {}
+    gitdir = pin.read_text(encoding="utf-8").strip()
+    try:
+        link = (Path(repo) / ".git").read_text(encoding="utf-8", errors="replace").strip()
+    except OSError as e:
+        raise GitError(f"worktree .git link is unreadable: {e}") from e
+    if link != f"gitdir: {gitdir}":
+        raise GitError("the worktree's .git link was changed after AIOS created it; refusing to run git there")
+    return {"GIT_DIR": gitdir, "GIT_WORK_TREE": str(repo)}
+
+
 def _git(repo: Path, *args: str, timeout: int = GIT_TIMEOUT_S, check: bool = True,
          extra_config: tuple[str, ...] = ()) -> str:
-    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "GIT_PAGER": "cat"}
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "GIT_PAGER": "cat", **_pinned_env(repo)}
     cfg: list[str] = []
-    for c in (f"safe.directory={repo}", *extra_config):
+    for c in (f"safe.directory={repo}", *HARDENING, *extra_config):
         cfg += ["-c", c]
     cmd = ["git", *cfg, "-C", str(repo), *args]
     try:
@@ -60,9 +94,10 @@ def _git(repo: Path, *args: str, timeout: int = GIT_TIMEOUT_S, check: bool = Tru
 
 def _git_rc(repo: Path, *args: str, timeout: int = GIT_TIMEOUT_S) -> int:
     """Return code of a git command whose exit status is the answer (e.g. diff --quiet)."""
-    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"}
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", **_pinned_env(repo)}
+    cfg = [x for c in HARDENING for x in ("-c", c)]
     try:
-        return subprocess.run(["git", "-c", f"safe.directory={repo}", "-C", str(repo), *args],
+        return subprocess.run(["git", "-c", f"safe.directory={repo}", *cfg, "-C", str(repo), *args],
                               capture_output=True, stdin=subprocess.DEVNULL, timeout=timeout,
                               env=env).returncode
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -109,6 +144,7 @@ def create_worktree(repo: Path, dest: Path, branch: str) -> dict:
         raise GitError(f"worktree path already exists: {dest}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "--quiet", "-b", branch, str(dest), st["head"])
+    _record_pin(dest)
     return {"path": str(dest), "branch": branch, "base_revision": st["head"],
             "dirty_source": st["dirty"], "source_branch": st["branch"]}
 
@@ -122,6 +158,7 @@ def create_detached(repo: Path, dest: Path, rev: str) -> str:
     _git(repo, "cat-file", "-e", f"{rev}^{{commit}}")          # the revision must exist
     dest.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "--quiet", "--detach", str(dest), rev)
+    _record_pin(dest)
     return head(dest)
 
 
@@ -130,6 +167,8 @@ def remove_worktree(repo: Path, dest: Path) -> bool:
     try:
         _git(Path(repo), "worktree", "remove", "--force", str(dest))
         _git(Path(repo), "worktree", "prune", check=False)
+        if not Path(dest).exists():
+            _pin_file(dest).unlink(missing_ok=True)
         return not Path(dest).exists()
     except GitError:
         return False

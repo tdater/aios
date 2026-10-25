@@ -410,3 +410,32 @@ def test_verification_times_out_and_redacts(tmp_path):
     leaky = verification.run_command([sys.executable, "-c", "print('token = abcdefghijklmnop1234')"], tmp_path,
                                      timeout_s=30)
     assert leaky["passed"] and "abcdefghijklmnop1234" not in leaky["output"]
+
+
+def test_a_rewritten_worktree_git_link_is_refused_and_no_hook_command_runs(repo, tmp_path):
+    """The provider can write the worktree's `.git` file. Pointing it at a gitdir with a
+    core.fsmonitor command must not make AIOS's own git calls run that command."""
+    wt = tmp_path / "wts" / "w1"
+    worktrees.create_worktree(repo, wt, "aios/pin-test")
+    (wt / "x.txt").write_text("hello")
+    fake_gitdir = wt / "evil.git"
+    fake_gitdir.mkdir()
+    marker = tmp_path / "pwned.txt"
+    (fake_gitdir / "config").write_text(
+        f"[core]\n\trepositoryformatversion = 0\n\tfsmonitor = echo x > {marker.as_posix()}\n")
+    (fake_gitdir / "HEAD").write_text("ref: refs/heads/main\n")
+    swap = wt / "git.swap"
+    swap.write_text(f"gitdir: {fake_gitdir.as_posix()}\n")
+    swap.replace(wt / ".git")                       # replaced the way an editor would, not overwritten in place
+    with pytest.raises(worktrees.GitError, match="link was changed"):
+        worktrees.commit_all(wt, "m", tmp_path / "nohooks")
+    assert not marker.exists()
+
+
+def test_an_untouched_worktree_still_commits_through_the_pinned_git_dir(repo, tmp_path):
+    wt = tmp_path / "wts" / "w2"
+    worktrees.create_worktree(repo, wt, "aios/pin-ok")
+    (wt / "y.txt").write_text("hi")
+    assert worktrees.commit_all(wt, "m", tmp_path / "nohooks")
+    assert worktrees.remove_worktree(repo, wt)
+    assert not worktrees._pin_file(wt).exists()
