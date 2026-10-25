@@ -6,13 +6,15 @@ Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/ap
 
 The product goal changed: see `docs/product-goal.md`. Steps 1 and 2 are done (`docs/integration-findings.md`):
 - Claude Code is classified A (supported integrated execution). Transport: `apps/api/aios/claude_code.py`, tests:
-  `tests/test_claude_code.py` (stand-in executable, not a real connection). **Real connection: NOT yet
-  demonstrated.** The owner runs `scripts/demo_claude_connection.py` on the Windows PC; until it passes, the
-  milestone is not complete.
+  `tests/test_claude_code.py` (stand-in executable). **Real connection demonstrated 2026-10-25**: the owner ran
+  `scripts/demo_claude_connection.py` on the Windows PC three times, all PASS (fix, scope check: only calc.py,
+  AIOS's own test re-run green, resumed session). Those runs loaded the owner's user settings, and a personal
+  Stop hook ran pytest in the workspace; since then no settings files load in AIOS runs (`--setting-sources ""`)
+  and the demo has an isolation step. **That isolation change has not yet been run on Windows.**
 - Antigravity is D for AIOS-started runs (Google consumer terms), C via manual handoff. Gemini CLI removed.
 - Steps 3-5 (conversation workspace, reviewer, worktrees, memory in execution) are NOT started. They wait on the
   demo result and on the reviewer decision in `docs/integration-findings.md`.
-- The Linux sandbox that wrote this ran the backend suite: 335 passed, 1 skipped, 3 failed. The 3 failures are
+- The Linux sandbox that wrote this ran the backend suite: 339 passed, 1 skipped, 3 failed. The 3 failures are
   Windows-path tests (`test_claude_guard` backslash case, `test_core` workspace roots and `resolve_within`) that
   cannot pass on Linux and were failing before this change. Windows CI is the reference.
 

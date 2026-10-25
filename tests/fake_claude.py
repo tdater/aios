@@ -28,12 +28,18 @@ if args[:2] == ["auth", "status"]:
     sys.exit(0 if auth.get("loggedIn") else 1)
 
 if "-p" in args:
+    if cfg.get("reject_empty_sources") and "--setting-sources" in args \
+            and args[args.index("--setting-sources") + 1] == "":
+        print("Error processing --setting-sources: Invalid setting source: . "
+              "Valid options are: user, project, local", file=sys.stderr)
+        sys.exit(1)
     sid = args[args.index("--resume") + 1] if "--resume" in args else str(uuid.uuid4())
     outcome = cfg.get("outcome", "ok")
     if outcome == "hang":
         time.sleep(60)
     print(json.dumps({"type": "system", "subtype": "init", "session_id": sid,
-                      "model": "fake-model", "cwd": os.getcwd()}), flush=True)
+                      "model": "fake-model", "cwd": os.getcwd(),
+                      "plugins": cfg.get("plugins", []), "mcp_servers": []}), flush=True)
     if cfg.get("edit") and "acceptEdits" in args and os.path.exists("calc.py"):
         with open("calc.py", encoding="utf-8") as f:
             src = f.read()

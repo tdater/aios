@@ -35,12 +35,34 @@ def test_command_carries_every_safety_flag_and_ends_options_before_prompt():
     cmd = claude_code.build_command(["claude"], "-rm everything", mode="edit", max_turns=4)
     assert cmd[cmd.index("--permission-mode") + 1] == "acceptEdits"
     assert cmd[cmd.index("--permission-prompts") + 1] == "none"
-    assert cmd[cmd.index("--setting-sources") + 1] == "user"
+    assert cmd[cmd.index("--setting-sources") + 1] == ""  # no user, project, or local settings
+    assert json.loads(cmd[cmd.index("--settings") + 1]) == {"disableAllHooks": True}
     assert "--strict-mcp-config" in cmd
     assert "Bash" in cmd[cmd.index("--disallowedTools") + 1].split(",")
     assert cmd[cmd.index("--max-turns") + 1] == "4"
     assert cmd[-2:] == ["--", "-rm everything"]
     assert "--bare" not in cmd  # bare mode ignores the subscription login
+
+
+def test_empty_setting_sources_survives_windows_argument_quoting():
+    """The empty value must reach the child as its own argument, not vanish."""
+    cmd = claude_code.build_command(["claude.exe"], "fix it")
+    line = subprocess.list2cmdline(cmd)
+    assert '--setting-sources "" --settings' in line
+
+
+def test_user_hooks_and_settings_do_not_reach_the_child(fake, tmp_path):
+    log = fake()
+    claude_code.run(tmp_path, "hello", exe=FAKE)
+    argv = calls(log)[-1]["argv"]
+    assert argv[argv.index("--setting-sources") + 1] == ""
+    assert "disableAllHooks" in argv[argv.index("--settings") + 1]
+
+
+def test_older_claude_rejecting_empty_sources_is_reported_not_hidden(fake, tmp_path):
+    fake(reject_empty_sources=True)
+    with pytest.raises(claude_code.ClaudeUnavailable, match="claude update"):
+        claude_code.run(tmp_path, "hello", exe=FAKE)
 
 
 def test_read_mode_cannot_edit():
@@ -133,6 +155,20 @@ def test_demo_script_end_to_end_with_stand_in(fake, tmp_path, monkeypatch, capsy
     assert summary["steps"]["patch"]["changed_files"] == ["calc.py"]
     assert summary["steps"]["claude_follow_up"]["same_session"] is True
     assert "+    return a + b" in (ev / "change.patch").read_text(encoding="utf-8")
+
+
+def test_demo_fails_isolation_when_a_plugin_loads(fake, tmp_path, monkeypatch):
+    fake(edit=True, plugins=[{"name": "personal-hooks", "path": "/x"}])
+    monkeypatch.setattr(claude_code, "default_exe", lambda: FAKE)
+    spec = importlib.util.spec_from_file_location("demo3", ROOT / "scripts" / "demo_claude_connection.py")
+    demo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(demo)
+    ev = tmp_path / "evidence"
+    monkeypatch.setattr(sys, "argv", ["demo", "--workspace", str(tmp_path / "repo"), "--evidence", str(ev)])
+    assert demo.main() == 1
+    summary = json.loads((ev / "summary.json").read_text(encoding="utf-8"))
+    assert summary["steps"]["isolation"]["ok"] is False
+    assert summary["steps"]["isolation"]["plugins_loaded"] == ["personal-hooks"]
 
 
 def test_demo_rejects_a_run_that_does_not_fix_the_bug(fake, tmp_path, monkeypatch):

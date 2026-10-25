@@ -6,8 +6,11 @@ Supported execution model (category A in docs/integration-findings.md):
 - Each run is started by the user from AIOS and works only inside one registered workspace.
 - Variables that would switch Claude Code to metered API billing are removed from the child
   environment, and a run is refused unless `claude auth status` reports a claude.ai login.
-- Repository-supplied hooks, settings, and MCP servers are not loaded (`--setting-sources user`,
-  `--strict-mcp-config`), so an untrusted workspace cannot run code through them.
+- No settings files are loaded (`--setting-sources ""`): not the workspace's, so an untrusted repo
+  cannot run code through hooks or MCP servers, and not the user's, so personal hooks, plugins,
+  permission rules, and `env` blocks (which could reintroduce an API key) do not leak into AIOS
+  runs. Managed policy still applies. `disableAllHooks` is passed as a backstop, and
+  `--strict-mcp-config` with no servers keeps MCP off.
 - Claude may read and edit files; shell, web, and MCP tools are denied. AIOS runs verification
   itself, so the verdict never comes from the model.
 
@@ -43,6 +46,13 @@ DENIED_TOOLS = ["Bash", "WebFetch", "WebSearch", "NotebookEdit", "Agent", "Task"
 MODES = {"read": READ_TOOLS, "edit": EDIT_TOOLS}
 
 
+# Empty value = load no user/project/local settings. Verified against the Claude Code 2.1.310
+# argument parser (an empty string returns no sources); older builds may reject it, which run()
+# reports as ClaudeUnavailable instead of a silent failure.
+NO_SETTING_SOURCES = ""
+ISOLATION_SETTINGS = json.dumps({"disableAllHooks": True}, separators=(",", ":"))
+
+
 class ClaudeUnavailable(RuntimeError):
     """The official client is missing, too old, signed out, or set to metered billing."""
 
@@ -74,6 +84,8 @@ class RunResult:
     cost_estimate_usd: float | None
     permission_denials: list
     model: str | None
+    plugins: list = field(default_factory=list)
+    mcp_servers: list = field(default_factory=list)
     events: list[dict] = field(default_factory=list)
     stderr: str = ""
     timed_out: bool = False
@@ -86,6 +98,8 @@ class RunResult:
                 "cost_note": "client-side estimate printed by Claude Code; billed to the "
                              "subscription, not the API, because API variables are removed",
                 "permission_denials": self.permission_denials, "timed_out": self.timed_out,
+                "plugins_loaded": [p.get("name") if isinstance(p, dict) else p for p in self.plugins],
+                "mcp_servers": [m.get("name") if isinstance(m, dict) else m for m in self.mcp_servers],
                 "result": redact(self.result_text)[:4000]}
 
 
@@ -164,7 +178,8 @@ def build_command(exe: list[str], prompt: str, *, mode: str = "read", max_turns:
            "--permission-prompts", "none",
            "--allowedTools", ",".join(MODES[mode]),
            "--disallowedTools", ",".join(DENIED_TOOLS),
-           "--setting-sources", "user",
+           "--setting-sources", NO_SETTING_SOURCES,
+           "--settings", ISOLATION_SETTINGS,
            "--strict-mcp-config",
            "--max-turns", str(int(max_turns))]
     if resume:
@@ -242,6 +257,10 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
             out_f.close()
     timed_out = expired.is_set()
     t_err.join(timeout=5)
+    stderr = "".join(err_chunks)
+    if proc.returncode != 0 and "setting source" in stderr.lower():
+        raise ClaudeUnavailable("This Claude Code version rejects running without settings files "
+                                "(--setting-sources \"\"). Run `claude update` and try again.")
     events, init, res = parse_events(lines)
     is_error = bool(res.get("is_error", True)) if res else True
     return RunResult(
@@ -255,7 +274,9 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
         cost_estimate_usd=res.get("total_cost_usd"),
         permission_denials=list(res.get("permission_denials") or []),
         model=init.get("model"),
+        plugins=list(init.get("plugins") or []),
+        mcp_servers=list(init.get("mcp_servers") or []),
         events=events,
-        stderr=redact("".join(err_chunks))[-4000:],
+        stderr=redact(stderr)[-4000:],
         timed_out=timed_out,
     )
