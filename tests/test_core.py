@@ -56,9 +56,9 @@ def test_workspace_registration_rejects_broad_and_overlapping_roots(db, settings
 # ---- 5: provider blocked, no fake result ----
 def test_unavailable_provider_blocks_without_fabricating(engine, db, project):
     providers.discover(db)
-    db.execute("UPDATE provider_caps SET mode='unavailable' WHERE provider='gemini'")
+    db.execute("UPDATE provider_caps SET mode='unavailable' WHERE provider='antigravity'")
     t, r, state = run_task(engine, db, "provider.task", project=project,
-                           spec={"provider": "gemini", "prompt": "summarize"},
+                           spec={"provider": "antigravity", "prompt": "summarize"},
                            acceptance=[{"type": "artifact_kind", "kind": "imported_result"}])
     assert state == "blocked"
     d = services.run_detail(db, r["id"])

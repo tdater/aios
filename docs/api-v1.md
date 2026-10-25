@@ -43,7 +43,7 @@ endpoint set drifts). Everything below is **implemented and covered by `tests/te
 ## Run state, execution honesty
 `state` is the machine contract (`queued, running, awaiting_approval, blocked, interrupted, succeeded, failed,
 cancelled`). `display_state` is the honest user-facing label: adds **`awaiting_provider_session`** (a user-started
-Claude/Gemini session is needed; AIOS does not drive subscription providers) and **`blocked_quota`**; `block_code`
+Claude/Antigravity session is needed; AIOS does not drive subscription providers) and **`blocked_quota`**; `block_code`
 carries the precise reason (`provider_unavailable`, `quota_exhausted`, `dependency`, `uncertain_side_effect`, …).
 Quota stops never fall back to paid access. (Quota *detection* from real providers is **not implemented**; the
 state exists and is tested through a test executor.)

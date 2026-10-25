@@ -42,8 +42,10 @@ def _claude() -> dict:
                     detail={"reason": "claude CLI not found on PATH"})
     _, ver = _run([exe, "--version"])
     detail: dict = {"version": ver.strip(), "usage": "unknown",
-                    "headless": "documented for personal use with subscription login, but NOT "
-                                "enabled by AIOS; runs are user-started sessions with a task packet."}
+                    "integration": "aios/claude_code.py starts the official CLI in print mode with "
+                                   "your own subscription login (supported: see "
+                                   "docs/integration-findings.md). Not yet wired into the run "
+                                   "engine; proven only by scripts/demo_claude_connection.py."}
     rc, out = _run([exe, "auth", "status"])
     logged_in, plan = None, None
     try:  # keep only non-secret fields
@@ -64,17 +66,21 @@ def _claude() -> dict:
     return dict(provider="claude", mode=mode, billing=billing, detail=detail)
 
 
-def _gemini() -> dict:
-    exe = shutil.which("gemini")
+ANTIGRAVITY_NOTE = ("Manual handoff only. Google's Antigravity FAQ says wrapping agy inside "
+                    "third-party applications is not supported on consumer plans and can lead to "
+                    "account suspension, so AIOS never starts agy itself. Run the task packet in "
+                    "an agy session you start, then import the result. "
+                    "See docs/integration-findings.md.")
+
+
+def _antigravity() -> dict:
+    exe = shutil.which("agy")
     if not exe:
-        return dict(provider="gemini", mode="unavailable", billing="n/a", detail={
-            "reason": "Gemini CLI not installed",
-            "note": "Official pages show a notice that Gemini CLI was replaced by Antigravity CLI "
-                    "for some tiers (2026-06-18). Verify current status and terms before installing."})
+        return dict(provider="antigravity", mode="unavailable", billing="n/a", detail={
+            "reason": "Antigravity CLI (agy) not found on PATH", "note": ANTIGRAVITY_NOTE})
     _, ver = _run([exe, "--version"])
-    return dict(provider="gemini", mode="manual_handoff", billing="unknown", detail={
-        "version": ver.strip(), "usage": "unknown",
-        "note": "Installed but auth/automation compatibility is untested; treated as handoff only."})
+    return dict(provider="antigravity", mode="manual_handoff", billing="unknown (manual)",
+                detail={"version": ver.strip(), "usage": "unknown", "note": ANTIGRAVITY_NOTE})
 
 
 def _perplexity() -> dict:
@@ -92,8 +98,12 @@ def _mock() -> dict:
 
 
 def discover(db: Database) -> list[dict]:
-    caps = [_claude(), _gemini(), _perplexity(), _mock()]
+    caps = [_claude(), _antigravity(), _perplexity(), _mock()]
     with db.tx() as con:
+        # Drop providers AIOS no longer supports (Gemini CLI) so stale rows never show as options.
+        names = [c["provider"] for c in caps]
+        con.execute(f"DELETE FROM provider_caps WHERE provider NOT IN ({','.join('?' * len(names))})",
+                    names)
         for c in caps:
             con.execute("INSERT INTO provider_caps(provider,mode,billing,detail_json,checked_at) "
                         "VALUES (?,?,?,?,?) ON CONFLICT(provider) DO UPDATE SET mode=excluded.mode, "

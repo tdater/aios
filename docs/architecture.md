@@ -57,14 +57,15 @@ Not protected (be honest):
   single-user loopback tool; remote access needs a separately approved authenticated setup (not built).
 - Secret detection is pattern-based and will miss novel formats.
 
-## Provider constraints (verified 2026-10-24 against official docs; see sources in `docs/HANDOFF.md`)
+## Provider constraints (checked 2026-10-24; details and sources in `docs/integration-findings.md`)
 
-- **Claude Code**: `claude -p` / Agent SDK work with a Pro/Max login for personal use, but Anthropic's terms
-  forbid products that route requests through subscription credentials or store/intermediate Claude.ai
-  tokens, and "ordinary individual usage" is undefined for heavy automation. AIOS therefore does **not**
-  drive Claude headlessly: it writes a task packet, you run it in a session you start, and you import the
-  result (stored as an unverified claim). Setting `ANTHROPIC_API_KEY` would bill the API, so AIOS flags it.
-- **Gemini CLI**: not installed. Official pages show a notice that it was replaced by Antigravity CLI for some
-  tiers (2026-06-18) and that third-party tools using its OAuth are a ToS violation. Reported `unavailable`.
+- **Claude Code**: supported integrated execution (A). `apps/api/aios/claude_code.py` starts the unmodified CLI
+  in print mode with your own claude.ai login, read or edit tools only, no shell, no repository hooks or MCP
+  servers, bounded turns and time. AIOS never reads credentials and removes API-billing variables from the child
+  environment. Not yet wired into the run engine; proven by `scripts/demo_claude_connection.py`.
+- **Antigravity CLI**: AIOS never starts `agy` (Google's FAQ: wrapping it in third-party applications is not
+  supported on consumer plans and risks suspension). Manual handoff only (C).
+- **Gemini CLI**: removed.
 - **Perplexity**: manual handoff only. Pro does not include API credits; AIOS makes no Perplexity calls.
-- Usage/quota: no documented non-interactive way to read Claude subscription usage, so it is reported `unknown`.
+- Usage/quota: no documented non-interactive way to read Claude subscription usage, so it is reported `unknown`;
+  print mode reports a client-side cost estimate per run.
