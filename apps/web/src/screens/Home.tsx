@@ -28,6 +28,10 @@ export function Home() {
     <div className="screen">
       <h2>Home</h2>
       <ConnectionCard />
+      <button className="card-btn startwork" onClick={() => go({ tab: "work" })}>
+        <strong>Workspace</strong>
+        <span className="muted small">Talk to Claude about a project, review the changes it makes, and check them with your tests.</span>
+      </button>
       {home.error && !home.data && (
         <>
           <ErrorBox msg={home.error} code={home.errorCode} />

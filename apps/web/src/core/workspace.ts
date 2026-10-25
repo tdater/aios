@@ -9,7 +9,7 @@ const KEY = "aios.workspace.v1.";
 
 export interface RouteLike { tab: string; sub?: string; id?: string }
 
-const KIND_LABEL: Record<string, string> = { runs: "Run", knowledge: "Note", projects: "Project", inbox: "Review", graph: "Graph" };
+const KIND_LABEL: Record<string, string> = { runs: "Run", knowledge: "Note", projects: "Project", inbox: "Review", graph: "Graph", work: "Chat" };
 
 export function hrefFor(r: RouteLike): string {
   return `#/${[r.tab, r.sub, r.id].filter(Boolean).map((s) => encodeURIComponent(s as string)).join("/")}`;

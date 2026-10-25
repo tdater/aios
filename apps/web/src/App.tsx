@@ -19,6 +19,7 @@ import { Knowledge } from "./screens/Knowledge";
 import { Projects } from "./screens/Projects";
 import { Runs } from "./screens/Runs";
 import { Settings } from "./screens/Settings";
+import { Workspace } from "./screens/Workspace";
 import { ShortcutsHelp, StatusBar, TabStrip, Toast } from "./ui/Chrome";
 import { AppContext, AppCtx } from "./ui/Context";
 import { go, Route, useRoute, useStore, useViewport } from "./ui/hooks";
@@ -121,9 +122,12 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
   return <Shell key={phase.server.id} phase={phase} rt={rt} pf={pf} reinit={reinit} />;
 }
 
-const NAV: { tab: Route["tab"]; label: string; icon: IconName; wideOnly?: boolean }[] = [
-  { tab: "home", label: "Home", icon: "home" }, { tab: "projects", label: "Projects", icon: "folder" }, { tab: "runs", label: "Runs", icon: "play" },
-  { tab: "inbox", label: "Inbox", icon: "inbox" }, { tab: "knowledge", label: "Knowledge", icon: "book" }, { tab: "graph", label: "Graph", icon: "graph", wideOnly: true },
+// The main path comes first (Workspace -> Projects -> Runs -> Inbox for approvals). Notes and the graph are
+// still here, but quieter: they are the secondary experience, not the product.
+const NAV: { tab: Route["tab"]; label: string; icon: IconName; wideOnly?: boolean; secondary?: boolean }[] = [
+  { tab: "home", label: "Home", icon: "home" }, { tab: "work", label: "Workspace", icon: "chat" }, { tab: "projects", label: "Projects", icon: "folder" },
+  { tab: "runs", label: "Runs", icon: "play" }, { tab: "inbox", label: "Inbox", icon: "inbox" },
+  { tab: "knowledge", label: "Knowledge", icon: "book", secondary: true }, { tab: "graph", label: "Graph", icon: "graph", wideOnly: true, secondary: true },
   { tab: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -240,7 +244,8 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
           {NAV.map((n) => (
             <span key={n.tab} style={{ display: "contents" }}>
               {n.tab === "settings" && <span className="spacer" />}
-              <button className={`${route.tab === n.tab ? "on" : ""} ${n.wideOnly ? "only-wide" : ""}`} aria-current={route.tab === n.tab ? "page" : undefined}
+              {n.tab === "knowledge" && <span className="navdivider" aria-hidden="true" />}
+              <button className={`${route.tab === n.tab ? "on" : ""} ${n.wideOnly ? "only-wide" : ""} ${n.secondary ? "secondary" : ""}`} aria-current={route.tab === n.tab ? "page" : undefined}
                 title={n.label} onClick={() => go({ tab: n.tab })}>
                 <Icon name={n.icon} size={wide ? 20 : 22} /><span className="navlabel">{n.label}</span>
                 {n.tab === "inbox" && badge > 0 && <span className="badgecount" aria-label={`${badge} waiting`}>{badge > 99 ? "99+" : badge}</span>}
@@ -252,6 +257,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
           <TabStrip />
           <main className={`content ${flush ? "flush" : ""}`} id="main">
             {route.tab === "home" && <Home />}
+            {route.tab === "work" && <Workspace id={route.id} />}
             {route.tab === "projects" && <Projects id={route.id} />}
             {route.tab === "runs" && <Runs id={route.id} />}
             {route.tab === "inbox" && <Inbox sub={route.sub} id={route.id} />}

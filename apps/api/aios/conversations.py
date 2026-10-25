@@ -248,22 +248,24 @@ STATIC_PERMISSIONS = {
 }
 
 
-def _last_turn(db: Database, conversation_id: str) -> dict | None:
-    row = db.one("SELECT meta_json, created_at, run_id FROM conversation_messages WHERE conversation_id=? "
-                 "AND meta_json LIKE '%\"turn\":%' ORDER BY seq DESC LIMIT 1", (conversation_id,))
-    if not row:
-        return None
-    meta = json.loads(row["meta_json"])
-    turn = meta.get("turn")
-    if not turn:
-        return None
-    return {"at": row["created_at"], "run_id": row["run_id"], **turn}
+def _last_turn(db: Database, conversation_id: str, role: str = "writer") -> dict | None:
+    """What Claude Code itself reported on its latest run for this role ('writer' or 'reviewer')."""
+    for row in db.query("SELECT kind, meta_json, created_at, run_id FROM conversation_messages "
+                        "WHERE conversation_id=? AND meta_json LIKE '%\"turn\":%' ORDER BY seq DESC LIMIT 40",
+                        (conversation_id,)):
+        turn = json.loads(row["meta_json"]).get("turn")
+        if not turn:
+            continue
+        if turn.get("role", "reviewer" if row["kind"] == "review" else "writer") == role:
+            return {"at": row["created_at"], "run_id": row["run_id"], **turn}
+    return None
 
 
 def status_block(db: Database, conv: dict) -> dict:
     cap = providers.capability(db, "claude")
     detail = (cap or {}).get("detail", {})
-    last = _last_turn(db, conv["id"])
+    last, last_review = _last_turn(db, conv["id"], "writer"), _last_turn(db, conv["id"], "reviewer")
+    newest = max((t for t in (last, last_review) if t and t.get("rate_limit")), key=lambda t: t["at"], default=None)
     run = db.one("SELECT r.* FROM runs r JOIN conversation_messages m ON m.run_id=r.id "
                  "WHERE m.conversation_id=? ORDER BY r.created_at DESC LIMIT 1", (conv["id"],))
     pending = []
@@ -283,9 +285,10 @@ def status_block(db: Database, conv: dict) -> dict:
         "workspace": {"worktree": conv["worktree_path"], "branch": conv["branch"],
                       "base_revision": conv["base_revision"], "head_revision": conv["head_revision"]},
         "last_turn": last,
-        "quota": (last or {}).get("rate_limit"),
-        "quota_note": ("From the last turn's rate-limit report; shows 5-hour and 7-day usage of your "
-                       "subscription. Not live." if (last or {}).get("rate_limit")
+        "last_review_turn": last_review,
+        "quota": (newest or {}).get("rate_limit"),
+        "quota_note": ("From the most recent Claude run's rate-limit report; shows 5-hour and 7-day usage of "
+                       "your subscription. Not live." if newest
                        else "No quota report yet: it appears after the first turn."),
         "run": services.decorate_run(db, run, with_cancel=False) if run else None,
         "pending_approvals": pending,

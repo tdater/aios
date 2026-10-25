@@ -92,3 +92,44 @@ export interface GraphData { nodes: GraphNode[]; edges: GraphEdge[]; truncated: 
 export interface Provider { provider: string; mode: string; billing: string; detail: Record<string, unknown>; checked_at: string }
 export interface SessionInfo { id: string; device_name: string; kind: string; created_at: string; last_seen_at: string; expires_at: string; revoked_at: string | null; current: boolean }
 export interface Artifact { id: string; kind: string; sha256: string; provenance: string; content: string }
+
+// ---- Workspace: conversations with a provider about one project (docs/api-v1.md, "Conversations")
+export interface Conversation {
+  id: string; project_id: string; project_name?: string; workspace_id: string; title: string; provider: "claude";
+  model: string | null; status: "open" | "archived"; session_id: string | null; worktree_path: string | null;
+  branch: string | null; base_revision: string | null; head_revision: string | null;
+  created_at: string; updated_at: string; version: number;
+}
+export type MessageKind = "message" | "status" | "patch" | "verification" | "review";
+export interface ConvMessage {
+  id: string; conversation_id: string; seq: number; role: "user" | "assistant" | "system";
+  author_kind: "user" | "provider" | "aios"; author: string; kind: MessageKind; content: string;
+  run_id: string | null; meta: Record<string, unknown> | null; created_at: string;
+}
+export interface Finding {
+  id: string; severity: "high" | "medium" | "low"; title: string; detail: string; file: string | null;
+  line: number | null; suggestion: string | null; grounded: boolean | null;
+}
+export interface Readiness { ready: boolean; verified: boolean | null; reviewed: boolean; high_findings: number; reasons: string[]; head_revision: string | null }
+export interface QuotaWindow { utilization?: number | null; resets_at?: number | null; status?: string | null }
+export interface Quota { status?: string | null; overage?: string | null; five_hour?: QuotaWindow; seven_day?: QuotaWindow }
+export interface TurnInfo {
+  at: string; run_id: string; role?: "writer" | "reviewer"; model?: string; client_version?: string; permission_mode?: string; tools: string[];
+  unexpected_tools: string[]; api_key_source?: string | null; builtin_plugins: string[]; external_plugins: string[];
+  mcp_servers: string[]; permission_denials: unknown[]; num_turns?: number; cost_estimate_usd?: number | null;
+  rate_limit?: Quota | null; cancelled?: boolean; timed_out?: boolean;
+}
+export interface ConversationStatus {
+  provider: { name: string; mode: string; billing: string; client_version?: string | null; plan?: string | null; auth_method?: string | null; logged_in?: boolean | null; checked_at?: string | null };
+  session: { id: string | null; resumable: boolean; model: string };
+  permissions: Record<string, string | string[]>;
+  workspace: { worktree: string | null; branch: string | null; base_revision: string | null; head_revision: string | null };
+  last_turn: TurnInfo | null; last_review_turn: TurnInfo | null; quota: Quota | null; quota_note: string; run: Run | null;
+  pending_approvals: { id: string; summary: string; requested_at: string; expires_at: string }[];
+}
+export interface ConversationView {
+  conversation: Conversation; project: { id: string; name: string }; verify_command: string[] | null;
+  messages: ConvMessage[]; status: ConversationStatus;
+  changes: { patch: ConvMessage | null; verification: ConvMessage | null; review: ConvMessage | null; readiness: Readiness };
+  context: Record<string, { kind: string; ref: string; version: string | null; sha256: string }[]>;
+}

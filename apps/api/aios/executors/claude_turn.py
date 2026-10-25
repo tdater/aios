@@ -155,6 +155,7 @@ def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack
     conversations.set_session(db, conv["id"], res.session_id)
 
     summary = res.summary()
+    summary["role"] = "writer"
     text = summary.pop("result")
     problems = isolation_problems(res, summary)
     why = failure_reason(res, timeout)

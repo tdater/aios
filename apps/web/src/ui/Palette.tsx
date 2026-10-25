@@ -26,8 +26,9 @@ async function loadIndex(client: AiosClient, partition: string): Promise<Index> 
 }
 export const invalidatePaletteIndex = () => { cache = null; };
 
-const GO: { id: string; label: string; icon: IconName; route: { tab: "home" | "projects" | "runs" | "inbox" | "knowledge" | "graph" | "settings" } }[] = [
-  { id: "go-home", label: "Home", icon: "home", route: { tab: "home" } }, { id: "go-projects", label: "Projects", icon: "folder", route: { tab: "projects" } },
+const GO: { id: string; label: string; icon: IconName; route: { tab: "home" | "work" | "projects" | "runs" | "inbox" | "knowledge" | "graph" | "settings" } }[] = [
+  { id: "go-home", label: "Home", icon: "home", route: { tab: "home" } }, { id: "go-work", label: "Workspace (talk to Claude)", icon: "chat", route: { tab: "work" } },
+  { id: "go-projects", label: "Projects", icon: "folder", route: { tab: "projects" } },
   { id: "go-runs", label: "Runs", icon: "play", route: { tab: "runs" } }, { id: "go-inbox", label: "Inbox", icon: "inbox", route: { tab: "inbox" } },
   { id: "go-knowledge", label: "Knowledge vault", icon: "book", route: { tab: "knowledge" } }, { id: "go-graph", label: "Graph view", icon: "graph", route: { tab: "graph" } },
   { id: "go-settings", label: "Settings", icon: "settings", route: { tab: "settings" } },
@@ -178,7 +179,7 @@ function PaletteDialog({ initial, commands, app }: { initial: string; commands: 
 
 function routeFromHref(href: string) {
   const parts = href.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const tab = (["home", "projects", "runs", "inbox", "knowledge", "graph", "settings"] as const).find((t) => t === parts[0]) ?? "home";
+  const tab = (["home", "work", "projects", "runs", "inbox", "knowledge", "graph", "settings"] as const).find((t) => t === parts[0]) ?? "home";
   return tab === "inbox" && parts[2] ? { tab, sub: parts[1], id: parts[2] } : { tab, id: parts[1] };
 }
 export { hrefFor };

@@ -123,6 +123,7 @@ def claude_review(ctx: RunContext) -> dict:
                              stream.read_text(encoding="utf-8", errors="replace") if stream.exists() else "",
                              provenance=f"claude-code {res.client_version or pf.version} reviewer, secrets redacted")
             summary = res.summary()
+            summary["role"] = "reviewer"
             summary.pop("result", None)
             problems = isolation_problems(res, summary)
             why = failure_reason(res, timeout)
