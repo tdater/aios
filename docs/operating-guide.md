@@ -15,7 +15,7 @@ Logs: `C:\aios-state\logs\server.{out,err}.log`.
 1. **Projects** -> register a folder (AIOS only ever reads registered folders).
 2. **Tasks** -> New task, kind `audit.workspace`, pick the project -> Run.
 3. **Runs** -> open the run: timeline, steps, evidence, artifacts (audit report with sha256).
-4. **Providers** shows real capability and billing mode. Gemini/Claude/Perplexity tasks never fake output:
+4. **Providers** shows real capability and billing mode. Claude/Antigravity/Perplexity tasks never fake output:
    unavailable providers block the run; Claude/Perplexity produce a task packet you run yourself, then use
    **Import result** (stored as an unverified claim).
 5. **Approvals** lists exact actions awaiting a decision; approvals are single use and bound to the action.

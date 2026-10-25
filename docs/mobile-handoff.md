@@ -39,7 +39,7 @@ Not built: push, SSE, background sync, native plugins beyond secure storage and 
    409 with a specific code; destructive/unknown actions need explicit confirmation; offline approvals are impossible by design
    (the buttons are disabled and nothing is queued).
 5. Cancellation: *requested* ≠ *confirmed*; a step in flight may finish; completed side effects are never reversed.
-6. Provider reality: the phone cannot run subscription-backed providers differently from the desktop. Claude/Gemini work is a
+6. Provider reality: the phone cannot run subscription-backed providers differently from the desktop. Claude/Antigravity work is a
    user-started session using a task packet; quota stops never fall back to paid access.
 7. All imported/served text is rendered as inert text (no raw HTML); tests inject markup and assert nothing is created.
 8. Server addresses must be HTTPS. Cleartext exists only in the debug build, only to `localhost`/`127.0.0.1`, for `adb reverse`.

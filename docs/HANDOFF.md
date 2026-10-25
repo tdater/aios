@@ -2,6 +2,20 @@
 
 Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
+## Course correction (2026-10-24, read first)
+
+The product goal changed: see `docs/product-goal.md`. Steps 1 and 2 are done (`docs/integration-findings.md`):
+- Claude Code is classified A (supported integrated execution). Transport: `apps/api/aios/claude_code.py`, tests:
+  `tests/test_claude_code.py` (stand-in executable, not a real connection). **Real connection: NOT yet
+  demonstrated.** The owner runs `scripts/demo_claude_connection.py` on the Windows PC; until it passes, the
+  milestone is not complete.
+- Antigravity is D for AIOS-started runs (Google consumer terms), C via manual handoff. Gemini CLI removed.
+- Steps 3-5 (conversation workspace, reviewer, worktrees, memory in execution) are NOT started. They wait on the
+  demo result and on the reviewer decision in `docs/integration-findings.md`.
+- The Linux sandbox that wrote this ran the backend suite: 335 passed, 1 skipped, 3 failed. The 3 failures are
+  Windows-path tests (`test_claude_guard` backslash case, `test_core` workspace roots and `resolve_within`) that
+  cannot pass on Linux and were failing before this change. Windows CI is the reference.
+
 ## Environment (verified)
 A local Windows 11 Pro PC (10.0.26200; **not** a cloud VM), 16 GB RAM, PowerShell 7.6,
 Python 3.14.7, Node 26.8.1, Git 2.55, JDK 21 (Gradle uses it; Android Studio's bundled JDK 25 is not used),
@@ -38,7 +52,7 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | History ingestion → candidates → review queue (parsers, dedupe, redaction/quarantine, chronology, incremental, deletion) | IMPLEMENTED+TESTED on **synthetic fixtures only**. Parsers follow public knowledge of Claude Code / claude.ai / ChatGPT formats and are **unvalidated against real exports**. No real history has been read |
 | Provider discovery + honest billing/mode reporting | IMPLEMENTED (claude/gemini tested live; mock provider is MOCKED by design) |
 | Claude handoff (task packet → your own session → import as UNVERIFIED) | IMPLEMENTED+TESTED with a faked `interactive` mode; never exercised with a real Claude session |
-| Gemini execution | BLOCKED (not installed; official status uncertain, see architecture.md) |
+| Gemini execution | REMOVED (owner decision 2026-10-24). Antigravity: manual handoff only, see integration-findings.md |
 | Backup + restore to a separate directory | IMPLEMENTED+TESTED |
 | Web/PWA client (6 screens, offline drafts, opt-in summary cache, service worker) | IMPLEMENTED+TESTED (see mobile-handoff) |
 | Obsidian-style UI (v0.2.0): themes/accent/font settings, icon ribbon, tabs, status bar, Ctrl+K command palette (`>` commands, `#` tags), safe markdown notes with callouts/tasks/wiki links, vault explorer with search operators, backlinks/outline/local graph panels, whole-vault graph with list view, tags + wiki links + graph APIs | IMPLEMENTED+TESTED (vitest + real-browser e2e). Canvas drawing itself is only checked by screenshots; layout/logic are unit-tested. No physical-device pass yet |

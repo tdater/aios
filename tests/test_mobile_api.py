@@ -348,9 +348,9 @@ def test_display_states_distinguish_quota_provider_and_manual_session(client, ap
     r = client.get(f"{V}/runs/{q['run']['id']}").json()["run"]
     assert (r["display_state"], r["block_code"]) == ("blocked_quota", "quota_exhausted")
     assert "will not switch to paid" in r["state_reason"]
-    app.state.db.execute("UPDATE provider_caps SET mode='unavailable' WHERE provider='gemini'")
+    app.state.db.execute("UPDATE provider_caps SET mode='unavailable' WHERE provider='antigravity'")
     g = client.post(f"{V}/tasks", json={"title": "g", "kind": "provider.task", "start_run": True,
-                                        "spec": {"provider": "gemini", "prompt": "x"}}).json()
+                                        "spec": {"provider": "antigravity", "prompt": "x"}}).json()
     wait_state(client, g["run"]["id"], {"blocked"})
     r = client.get(f"{V}/runs/{g['run']['id']}").json()["run"]
     assert (r["display_state"], r["block_code"]) == ("blocked", "provider_unavailable")
@@ -396,7 +396,7 @@ def test_home_summarises_real_state(client, app):
     wait_state(client, q["run"]["id"], {"blocked"})
     h = client.get(f"{V}/home").json()
     assert h["counts"]["blocked_runs"] == 1 and h["blocked_runs"][0]["display_state"] == "blocked_quota"
-    assert {p["provider"] for p in h["providers"]} >= {"claude", "gemini", "perplexity", "mock"}
+    assert {p["provider"] for p in h["providers"]} >= {"claude", "antigravity", "perplexity", "mock"}
     assert h["server_time"].endswith("+00:00")
 
 

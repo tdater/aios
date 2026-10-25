@@ -1,13 +1,16 @@
 # AIOS
 
-A **personal, local-first workflow and project operating layer**: a durable run engine with evidence-based verification,
-exact-action approvals, a markdown knowledge vault, a review queue for lessons mined from your own history, and a companion
-web/PWA/Android client. It runs on your own machine; it is not a hosted service and not an operating system.
+A **personal, local-first project workspace for working with official AI coding tools**: pick a project, have Claude Code propose or make a change, inspect the real patch, and verify it with tests AIOS runs itself, on top of a durable run engine with exact-action approvals and a markdown knowledge vault. It runs on your own machine; it is not a hosted service and not an operating system. Product goal and roadmap: `docs/product-goal.md`.
 
 > **Status: early personal project (v0.2, one author).** Built for one user on Windows 11. It has not had an external
 > security review. Do **not** expose it to the public internet. See "Safety model" and "Known limitations".
 
 ## What works today (tested)
+
+- **Claude Code transport (new, real connection not yet demonstrated)**: starts the official `claude` CLI with your
+  own subscription login, read or edit tools only, no shell, and records the patch and test results. Try it with
+  `scripts/demo_claude_connection.py`. Antigravity and Perplexity are manual handoffs; see
+  `docs/integration-findings.md` for why.
 - **Run engine**: queued → running → awaiting approval / blocked / interrupted → succeeded / failed / cancelled, with deadlines,
   iteration limits, bounded retries, workspace locks, idempotent submission, restart reconciliation, and a rule that
   side effects with unknown outcome are **never** replayed automatically.
@@ -32,8 +35,9 @@ web/PWA/Android client. It runs on your own machine; it is not a hosted service 
 ## Safety model (read this)
 - The server binds to **loopback only** and refuses anything else. Remote use is intended through a private network path
   (for example Tailscale Serve) **plus HTTPS plus the app's own device login**. `docs/mobile-remote-access.md` explains it.
-- AIOS never reads, copies or stores provider OAuth tokens and makes no paid API calls by default. Claude and Gemini work
-  happens in sessions **you** start, using a task packet; results come back as unverified claims.
+- AIOS never reads, copies or stores provider OAuth tokens and makes no paid API calls by default. Claude runs through the
+  unmodified Claude Code CLI with your own sign-in, and AIOS strips API-billing variables before starting it. Antigravity and
+  Perplexity work happens in sessions **you** start, using a task packet; those results come back as unverified claims.
 - Private runtime state (database, vault, imported history, backups) lives **outside** this repository and is git-ignored.
 - Imported text (history, research, repo contents) is treated as untrusted data, never as instructions.
 - Path checks are application-level guards, **not an OS sandbox**.
@@ -55,7 +59,7 @@ and are never committed.
 Start with `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
 
 ## Known limitations
-No push notifications or SSE yet; no scheduled jobs; Gemini is unsupported;
+No push notifications or SSE yet; no scheduled jobs; Gemini CLI is removed; Antigravity is manual handoff only; the Claude transport is not yet in the UI or run engine;
 the Android app has not been tested on a physical phone; Windows is the only supported host; the history parsers are unvalidated
 against real exports.
 
