@@ -8,6 +8,7 @@ import {
 } from "../../core/work";
 import { sealOfChanges } from "../../core/seal";
 import { useApp } from "../../ui/Context";
+import { FlightRecorder } from "../../ui/FlightRecorder";
 import { useLoad } from "../../ui/hooks";
 import { ProofSeal } from "../../ui/Seal";
 import { VaultDoor } from "../../ui/VaultDoor";
@@ -39,6 +40,15 @@ export function ActivityPanel({ v, reload }: { v: ConversationView; reload: () =
     });
   }, [client, runId]);
   useEffect(() => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; }, [events.length]);
+  const [tid, setTid] = useState<string | null>(null);
+  const [replay, setReplay] = useState<string | null>(null);
+  useEffect(() => { setTid(null); setReplay(null); }, [runId]);
+  useEffect(() => { /* find the saved transcript once the run has one */
+    if (!runId) return;
+    let live = true;
+    client.get<RunDetail>(`/runs/${runId}`).then((d) => { if (live) setTid(d.artifacts.find((a) => a.kind === "claude_transcript")?.id ?? null); }).catch(() => {});
+    return () => { live = false; };
+  }, [client, runId, run?.state]);
   if (!run) return <Empty>Nothing has run yet. Send a message and you will see what Claude does here, step by step.</Empty>;
   const open = ACTIVE_RUN_STATES.has(run.state);
   const shown = events.filter((e) => e.kind !== "lock").slice(-300);
@@ -61,6 +71,13 @@ export function ActivityPanel({ v, reload }: { v: ConversationView; reload: () =
             {e.kind === "claude" ? <strong>Claude</strong> : <code>{e.kind}</code>} {e.message}
           </li>))}
       </ol>
+      {tid && !open && (
+        <Collapsible title="Replay this run">
+          {replay === null
+            ? <Btn kind="ghost" onClick={async () => { try { setReplay((await client.get<Artifact>(`/artifacts/${tid}`)).content); } catch (e) { setErr((e as Error).message); } }}>Load replay</Btn>
+            : <FlightRecorder transcript={replay} />}
+        </Collapsible>
+      )}
       <ContextUsed items={v.context[run.id]} />
     </div>
   );

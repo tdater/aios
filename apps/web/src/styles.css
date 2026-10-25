@@ -316,3 +316,14 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .vault .spoke { stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .vault .progress { fill: none; stroke: var(--ok); stroke-width: 4; stroke-linecap: round; }
 .vaultlabel { color: var(--muted); font-size: .86rem; }
+
+/* Flight Recorder */
+.flight { display: grid; gap: 8px; } .flight .row { display: flex; gap: 10px; align-items: center; } .flight input[type=range] { flex: 1; min-width: 0; }
+.flightnow { margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); overflow-wrap: anywhere; }
+.flightnow.fk-refused, .flightnow.fk-unexpected, .flightnow.fk-tool_error { border-color: var(--bad); }
+.flightfiles { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.flightfiles li { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); opacity: .6; }
+.flightfiles li.ff-read { opacity: 1; border-color: var(--info); } .flightfiles li.ff-edited, .flightfiles li.ff-written { opacity: 1; border-color: var(--ok); }
+.flightfiles li.flash { animation: flightflash .7s ease-out; }
+@keyframes flightflash { from { background: color-mix(in srgb, var(--accent) 45%, transparent); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .flightfiles li.flash { animation: none; } }
