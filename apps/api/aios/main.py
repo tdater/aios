@@ -21,6 +21,7 @@ from .config import LOOPBACK_HOSTS, REPO_ROOT, Settings, load_settings
 from .db import Database
 from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
+from .assist_api import build_router as build_assist_router
 from .conversations_api import build_router as build_conversations_router
 from .executors import apply_change, audit, capture, claude_review, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
 from .history import schedule
@@ -492,6 +493,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(build_skills_router(db, settings, require_auth))
     app.include_router(build_conversations_router(db, engine, settings, require_auth))
     app.include_router(build_insights_router(db, settings, require_auth))
+    app.include_router(build_assist_router(db, engine, settings, require_auth))
 
     # ---------------------------------------------------------------- static UI (public, no secrets)
     if WEB_DIST.exists():
