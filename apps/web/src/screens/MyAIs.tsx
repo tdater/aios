@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { ApiError } from "../core/client";
+import { COMPANIONS } from "../core/companion";
 import { ImportResult, SharingRow, ShareLevel } from "../core/types";
+import { Companion } from "../ui/Companion";
 import { LEVEL_TEXT } from "../core/universe";
 import { useApp } from "../ui/Context";
 import { go, useLoad } from "../ui/hooks";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice } from "../ui/kit";
 import { useTabTitle } from "../ui/useTabTitle";
 
-type TabId = "knows" | "import" | "share";
-const TABS: [TabId, string][] = [["knows", "What AIOS knows"], ["import", "Bring in memories"], ["share", "What each AI may be told"]];
+type TabId = "knows" | "import" | "share" | "subs";
+const TABS: [TabId, string][] = [["knows", "What AIOS knows"], ["import", "Bring in memories"], ["share", "What each AI may be told"], ["subs", "Gemini and Perplexity"]];
 const TYPE_NAME: Record<string, string> = { preference: "Preferences", fact: "Facts about you and your life", decision: "Decisions", lesson: "Lessons learned", procedure: "Ways of doing things" };
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : (e as Error).message);
 
@@ -28,6 +30,7 @@ export function MyAIs({ section }: { section?: string }) {
       {tab === "knows" && <Knows />}
       {tab === "import" && <Import />}
       {tab === "share" && <Share />}
+      {tab === "subs" && <Subscriptions />}
     </div>
   );
 }
@@ -140,6 +143,19 @@ function Import() {
           <li>Open <strong>Settings</strong> and find <strong>Imported history</strong>. AIOS reads the file, hides anything secret, and suggests memories for you to review.</li></ol>
         <Btn kind="ghost" onClick={() => go({ tab: "settings", id: "history" })}>Open Imported history</Btn>
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ AIs you pay for yourself
+function Subscriptions() {
+  const [who, setWho] = useState("gemini");
+  const name = COMPANIONS.find(([k]) => k === who)![1];
+  return (
+    <div>
+      <Notice tone="info">Have a Gemini or Perplexity subscription? Use it from here, with prompts AIOS writes for you. It works when you have a question for them, or when Antigravity cannot be used. You do the copying and pasting; AIOS never contacts them or reads their windows.</Notice>
+      <label className="field"><span>Which one?</span><select value={who} onChange={(e) => setWho(e.target.value)}>{COMPANIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      <Companion key={who} provider={who} name={name} />
     </div>
   );
 }

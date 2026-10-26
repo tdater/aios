@@ -102,6 +102,32 @@
         "title": "ConversationReviewIn",
         "type": "object"
       },
+      "CopiedIn": {
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "suggestion_id": {
+            "maxLength": 32,
+            "title": "Suggestion Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suggestion_id"
+        ],
+        "title": "CopiedIn",
+        "type": "object"
+      },
       "DecideIn": {
         "properties": {
           "action_hash": {
@@ -450,6 +476,18 @@
               }
             ],
             "title": "Expected Version"
+          },
+          "sensitivity": {
+            "anyOf": [
+              {
+                "pattern": "^(public|private|secret-adjacent)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensitivity"
           },
           "status": {
             "anyOf": [
@@ -1944,6 +1982,106 @@
           }
         },
         "summary": "Supersede"
+      }
+    },
+    "/api/v1/companion/{provider}": {
+      "get": {
+        "operationId": "get_companion_api_v1_companion__provider__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Companion"
+      }
+    },
+    "/api/v1/companion/{provider}/copied": {
+      "post": {
+        "operationId": "companion_copied_api_v1_companion__provider__copied_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopiedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Companion Copied"
       }
     },
     "/api/v1/constellation": {

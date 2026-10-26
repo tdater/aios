@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ApiError } from "../core/client";
 import { shapePath, starSummary } from "../core/sky";
 import { AiPlanet, ShareLevel, SharingRow, Universe } from "../core/types";
+import { CompanionToggle } from "./Companion";
 import { CORE, H, LEGEND, LEVEL_TEXT, PLANET_STATUS, W, layoutUniverse, starTitles } from "../core/universe";
 import { Evidence } from "../screens/Insights";
 import { useApp } from "./Context";
@@ -94,6 +95,7 @@ function PlanetPanel({ ai, u, reload }: { ai: AiPlanet; u: Universe; reload: () 
           <ul className="plain">{told.slice(0, 8).map((s) => <li key={s.id}>{s.title}</li>)}{told.length > 8 && <li className="muted small">…and {told.length - 8} more</li>}</ul></>)}
       <div className="row"><Btn onClick={() => go({ tab: "work" })}>{ai.provider === "claude" ? "Chat with Claude" : `Ask ${ai.name}`}</Btn>
         <Btn kind="ghost" onClick={() => go({ tab: "ais", id: "share" })}>Choose per memory</Btn></div>
+      <CompanionToggle provider={ai.provider} name={ai.name} />
     </div>
   );
 }

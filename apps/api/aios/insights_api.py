@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from . import abilities, briefing, constellation, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
+from . import abilities, briefing, companion, constellation, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
 from .config import Settings
 from .db import Database
 from .errors import ApiError
@@ -33,6 +33,11 @@ class LevelIn(BaseModel):
 class PasteIn(BaseModel):
     provider: str = Field(max_length=16)
     text: str = Field(max_length=memory_import.MAX_TEXT)
+
+
+class CopiedIn(BaseModel):
+    suggestion_id: str = Field(max_length=32)
+    conversation_id: str | None = Field(default=None, max_length=64)
 
 
 class LearningIn(BaseModel):
@@ -80,6 +85,14 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     def put_sharing(provider: str, body: LevelIn):
         sharing.set_level(db, provider, body.level)
         return get_sharing()
+
+    @r.get("/companion/{provider}")
+    def get_companion(provider: str, conversation_id: str | None = None):
+        return redact_obj(companion.suggestions(db, settings, provider, conversation_id))
+
+    @r.post("/companion/{provider}/copied", status_code=201)
+    def companion_copied(provider: str, body: CopiedIn):
+        return companion.record_copied(db, settings, provider, body.suggestion_id, body.conversation_id)
 
     @r.get("/learning")
     def get_learning():

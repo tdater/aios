@@ -3,6 +3,7 @@ import { ApiError, newKey } from "../../core/client";
 import { ConversationView, ConvMessage } from "../../core/types";
 import { ACTIVE_RUN_STATES } from "../../core/work";
 import { useApp } from "../../ui/Context";
+import { CompanionToggle } from "../../ui/Companion";
 import { Btn, ErrorBox, Notice, Untrusted } from "../../ui/kit";
 
 const MANUAL: [string, string][] = [["gemini", "Gemini"], ["perplexity", "Perplexity"], ["antigravity", "Antigravity"]];
@@ -89,6 +90,7 @@ export function Together({ v, reload }: { v: ConversationView; reload: () => Pro
                         <Btn kind="ghost" disabled={!prompts[p]} onClick={() => void copy(prompts[p])}>Copy</Btn>
                         <label className="field"><span>{name}&apos;s answer</span><textarea rows={4} value={replies[p] ?? ""} onChange={(e) => setReplies((r) => ({ ...r, [p]: e.target.value }))} /></label>
                         <Btn disabled={!connected || !(replies[p] ?? "").trim()} onClick={() => void saveReply(p)}>{`Save ${name}'s answer`}</Btn>
+                        <CompanionToggle provider={p} name={name} conversationId={v.conversation.id} />
                       </div>)}
                 </article>);
             })}
