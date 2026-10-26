@@ -82,7 +82,8 @@ def test_timers_and_routines_are_validated_too():
             widgets.validate("routine", "Plan", bad)
 
 
-def test_a_routine_runs_through_the_single_prompt_in_one_click(client, fake):
+def test_a_routine_runs_through_the_single_prompt_in_one_click(client, fake, monkeypatch):
+    monkeypatch.setattr(assist, "claude_ready", lambda d: True)      # CI has no real claude on PATH; turns run on the stand-in
     on(client)
     w = client.post(f"{V}/widgets/from-catalog", json={"template": "briefing"}).json()
     r = client.post(f"{V}/widgets/{w['id']}/run")
