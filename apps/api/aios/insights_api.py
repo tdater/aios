@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from . import abilities, briefing, companion, constellation, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
+from . import abilities, briefing, calibration, companion, constellation, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
 from .config import Settings
 from .db import Database
 from .errors import ApiError
@@ -100,6 +100,11 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     @r.post("/companion/{provider}/copied", status_code=201)
     def companion_copied(provider: str, body: CopiedIn):
         return companion.record_copied(db, settings, provider, body.suggestion_id, body.conversation_id)
+
+    @r.get("/calibration")
+    def get_calibration():
+        """The last reviewer scorecard from the firing range. Read-only: running it is a deliberate script, since it uses Claude."""
+        return redact_obj(calibration.latest(settings))
 
     @r.get("/learning")
     def get_learning():

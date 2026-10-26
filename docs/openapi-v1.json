@@ -1912,6 +1912,23 @@
         "summary": "Get Briefing"
       }
     },
+    "/api/v1/calibration": {
+      "get": {
+        "description": "The last reviewer scorecard from the firing range. Read-only: running it is a deliberate script, since it uses Claude.",
+        "operationId": "get_calibration_api_v1_calibration_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Calibration"
+      }
+    },
     "/api/v1/candidates": {
       "get": {
         "operationId": "candidates_api_v1_candidates_get",
