@@ -2,6 +2,23 @@
 
 Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
+## Expansion work (branch `phase1-delight`, 2026-10-25, newest first)
+
+Plan, status table and what is deliberately not built: `docs/expansion-plan.md`. Not merged to `main`; `step3-workspace` (PR #2)
+is still unmerged and this branch sits on top of it.
+
+- **Built:** Proof Seal, Vault Door, Flight Recorder, Bench, Constellation + Skyline (Insights screen), modes and Today,
+  memory capture and per-AI briefings, other AIs by copy and paste, abilities with opt-in + pause + receipts, read-only system
+  scan, validated widgets. Migration `0007_abilities.sql` adds `abilities`, `flags`, `receipts`, `widgets`.
+- **Security fixes from automated review (both real):** linked worktrees are pinned to the git dir AIOS recorded at creation;
+  AIOS refuses to run git in one whose `.git` link changed or has no record (worktrees from before this branch are refused: start a
+  new conversation).
+- **Tests (Windows):** backend `pytest` 425 passed; web `vitest` 376 passed, `tsc` clean; real-browser `mobile.e2e.mjs` 16/16
+  against a rebuilt bundle (an old `dist` hid the new screens in the first run: rebuild with `npm run build` before e2e).
+- **Not run this round:** the real-Claude demos and `workspace.e2e.mjs` after these changes; the Android emulator e2e; GitHub CI on this branch.
+- **Not built:** computer control, quarantine cleanup, habit suggestions, "What AIOS knows", earned autonomy, onboarding,
+  optional API keys. Owner decisions still open are listed in `docs/expansion-plan.md`.
+
 ## Course correction (updated 2026-10-25, read first)
 
 Product goal and order of work: `docs/product-goal.md`. Provider rules, official sources and everything learned from

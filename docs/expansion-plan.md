@@ -114,12 +114,23 @@ Earned autonomy for repeated low-risk verification runs; a one-click "apply this
 | Item | State |
 |---|---|
 | This plan and the research | Done |
-| Proof Seal | In progress on branch `phase1-delight` |
-| Vault Door, Flight Recorder, Bench, Skyline, Constellation | Planned next, in that order, on the same branch |
-| Modes, Today, customizable interface | Planned after the visual pieces |
-| What AIOS knows, Receipts, pause switch, memory capture and briefings | Planned |
-| Multi-AI conversations | Planned (needs a provider-aware conversation model) |
-| System scan, widgets, computer control | Planned; each starts with consent, audit and a read-only slice |
+| Proof Seal, Vault Door | Built and tested on branch `phase1-delight` |
+| Flight Recorder (replay in the Activity panel) | Built and tested; checked against transcripts shaped like real ones, not yet against a real browser run |
+| The Bench (Outcome panel) | Built and tested; the "travelling" stage depends on the review run's task kind containing `review` (inferred from code, check on a real run) |
+| Constellation and Skyline | Built and tested (API and the Insights screen). The Constellation draws only `supersedes` links: derived-from and contradicts have no stored source yet, so none are invented |
+| Simple / Standard / Power, section toggles, spacing, Today cards | Built and tested. Default mode is Power so existing users keep the full menu; offering Simple on first run is not built |
+| Memory capture, per-AI briefings | Built and tested. Candidates only; auto-approval of low-risk items is not built (stays off) |
+| Other AIs in a conversation | Built as copy and paste inside the same thread (no migration was needed). Optional API keys for Gemini or Perplexity are not built (your decision) |
+| Pause everything, Receipts, per-ability opt-in | Built and tested |
+| System scan (read-only) | Built and tested, real on Windows. Quarantine cleanup is **not** built: AIOS only explains and never deletes |
+| Widgets | Built and tested as validated data. Habit-based suggestions are **not** built |
+| Computer control (look, browser, apps) | **Not built.** The consent gate, pause switch and receipts it needs exist; the controller, redaction and kill hotkey do not. Spike result below |
+| "What AIOS knows" page, earned autonomy, plain-language onboarding, seals gallery | Not built |
+
+### Spike result (2026-10-25)
+`claude -p` with read-only tools could read a screenshot PNG through its Read tool and return schema-valid structured output
+derived from the pixels, so the "look and explain" phase is feasible with the existing transport. Nothing in AIOS captures a
+screen yet.
 
 ## Sources
 

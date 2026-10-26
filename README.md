@@ -14,6 +14,11 @@ A **personal, local-first project workspace for working with official AI coding 
   NOT READY. Status shows the real provider facts and your real 5-hour and 7-day usage. Shown working on real Claude Code by
   `scripts/demo_workspace.py` and `apps/web/e2e/workspace.e2e.mjs`. Antigravity and Perplexity remain manual handoffs; see
   `docs/integration-findings.md` for why.
+- **A calmer daily interface** (branch `phase1-delight`, see `docs/expansion-plan.md`): Today cards, Simple / Standard / Power
+  menus, a proof seal on every checked change, a replay of what Claude did, a writer-and-reviewer view, a constellation of what
+  AIOS remembers (bright only when a memory was used and the tests then passed), a skyline of projects, other AIs by copy and
+  paste, and opt-in extras (a read-only PC check, small panels) behind a pause-everything switch and a plain-language receipts
+  list. Computer control is not built.
 - **Run engine**: queued → running → awaiting approval / blocked / interrupted → succeeded / failed / cancelled, with deadlines,
   iteration limits, bounded retries, workspace locks, idempotent submission, restart reconciliation, and a rule that
   side effects with unknown outcome are **never** replayed automatically.
