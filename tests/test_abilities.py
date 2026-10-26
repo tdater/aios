@@ -14,7 +14,7 @@ def code(fn, *a, **k):
 
 def test_everything_is_off_by_default_and_enabling_needs_confirmation(db):
     st = abilities.status(db)
-    assert st["paused"] is False and {a["name"]: a["enabled"] for a in st["abilities"]} == {"system_scan": False, "widgets": False}
+    assert st["paused"] is False and {a["name"]: a["enabled"] for a in st["abilities"]} == {"system_scan": False, "widgets": False, "routines": False}
     assert [p["name"] for p in st["planned"]] == ["computer_look", "browser_control", "app_control"]
     assert code(abilities.require, db, "system_scan") == "ability_off"
     assert code(abilities.set_enabled, db, "system_scan", True, False) == "confirmation_required"

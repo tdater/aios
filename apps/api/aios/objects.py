@@ -26,7 +26,8 @@ PLAIN_JOB = {
     "antigravity": "Big coding jobs you hand over yourself.",
 }
 LEVEL_WORDS = {"private": "Everything (public and private memories)", "public": "Only memories I marked public", "none": "Nothing"}
-WIDGET_JOB = {"counter": "A counter on your Today screen.", "checklist": "A checklist on your Today screen.", "note": "A note on your Today screen."}
+WIDGET_JOB = {"counter": "A counter in your universe.", "checklist": "A checklist in your universe.", "note": "A note in your universe.",
+              "habit": "A daily check with a streak.", "timer": "A focus and rest timer.", "routine": "A saved request you can run in one click."}
 
 
 def _o(oid: str, typ: str, region: str, name: str, job: str, tone: str, text: str, **meta) -> dict:
@@ -146,6 +147,15 @@ def _widget_state(w: dict) -> str:
     if w["kind"] == "checklist":
         items = c.get("items", [])
         return f"{sum(1 for i in items if i['done'])} of {len(items)} done"
+    if w["kind"] == "habit":
+        n = widgets.streak(c.get("days", []))
+        return f"{n}-day streak" if n else "No streak yet"
+    if w["kind"] == "timer":
+        return f"{c.get('focus', 25)} minutes, {c.get('sessions', 0)} done"
+    if w["kind"] == "routine":
+        when = {"manual": "Runs when you press Run", "daily": f"Daily at {c.get('at')}", "weekdays": f"Weekdays at {c.get('at')}",
+                "weekly": f"Weekly, {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][c.get('day', 6)]} at {c.get('at')}"}[c.get("when", "manual")]
+        return when
     return "1 note"
 
 

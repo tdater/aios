@@ -22,6 +22,12 @@ ABILITIES: dict[str, dict] = {
         "cannot": ["run code", "reach the internet", "read anything outside AIOS"],
     },
 }
+ABILITIES["routines"] = {
+    "title": "Run my routines on a schedule",
+    "can_see": ["the routines you made, and the time you chose for each"],
+    "can_do": ["start a routine's saved request at its time, using your own Claude plan, and put the answer on your Home screen"],
+    "cannot": ["run while AIOS is paused or Claude is not signed in", "run a routine more than once a day", "act on your computer or send anything anywhere"],
+}
 PLANNED = {"computer_look": "Look at one window and explain it (not built yet)",
            "browser_control": "Control a browser in a separate profile (not built yet)",
            "app_control": "Control other apps (not built yet)"}
