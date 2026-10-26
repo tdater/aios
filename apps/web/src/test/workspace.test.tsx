@@ -589,6 +589,6 @@ describe("ask several AIs together", () => {
     fakeServer(base(view()));                                                         // but a conversation that has code changes keeps every tab
     render(<Wrap ctx={{ ...c.ctx, settings: { ...c.ctx.settings, mode: "simple" } }}><ConversationScreen id="cnv_1" /></Wrap>);
     await screen.findByRole("heading", { name: "Fix the add bug" });
-    expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/[^A-Za-z]/g, ""))).toEqual(["Activity", "Together", "Changes", "Tests", "Outcome", "Status"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/[^A-Za-z]/g, ""))).toEqual(["Activity", "Starttofinish", "Together", "Changes", "Tests", "Outcome", "Status"]);
   });
 });

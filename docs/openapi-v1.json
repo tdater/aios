@@ -1054,6 +1054,40 @@
         ],
         "title": "WidgetIn",
         "type": "object"
+      },
+      "WorkflowIn": {
+        "properties": {
+          "max_rounds": {
+            "anyOf": [
+              {
+                "maximum": 3.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rounds"
+          },
+          "profile": {
+            "default": "build_and_check",
+            "maxLength": 32,
+            "title": "Profile",
+            "type": "string"
+          },
+          "request": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Request",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "title": "WorkflowIn",
+        "type": "object"
       }
     }
   },
@@ -2626,6 +2660,89 @@
           }
         },
         "summary": "Request Review"
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/workflow": {
+      "get": {
+        "operationId": "get_workflow_api_v1_conversations__conversation_id__workflow_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Workflow"
+      },
+      "post": {
+        "description": "Carry one request through build, check, independent review and corrections. Every step is an ordinary run\nunder the same approvals; the workflow cannot approve anything or merge anything.",
+        "operationId": "start_workflow_api_v1_conversations__conversation_id__workflow_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Workflow"
       }
     },
     "/api/v1/everyday": {
@@ -5038,6 +5155,43 @@
           }
         },
         "summary": "Put Widget"
+      }
+    },
+    "/api/v1/workflows/{workflow_id}/cancel": {
+      "post": {
+        "operationId": "cancel_workflow_api_v1_workflows__workflow_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Workflow"
       }
     }
   }

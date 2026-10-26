@@ -128,6 +128,15 @@ export interface ConversationStatus {
   last_turn: TurnInfo | null; last_review_turn: TurnInfo | null; quota: Quota | null; quota_note: string; run: Run | null;
   pending_approvals: { id: string; summary: string; type?: string | null; requested_at: string; expires_at: string }[];
 }
+export interface WorkflowStep { id: string; seq: number; kind: "implement" | "review" | "correct" | "capture"; round: number; run_id: string | null; status: "running" | "done" | "failed"; summary: string | null }
+export interface WorkflowInfo {
+  id: string; request: string; profile: string; label: string; max_rounds: number; round: number;
+  state: "working" | "waiting_you" | "finished" | "cancelled"; outcome: "ready" | "needs_you" | "no_change" | "failed" | "cancelled" | null; outcome_reason: string | null;
+  steps: WorkflowStep[]; needs_you: string | null; pending_approvals: { id: string; summary: string }[]; current_run: { id: string; state: string } | null; max_rounds_allowed: number;
+}
+export interface WorkflowProfile { label: string; summary: string; steps: string[]; max_rounds: number; permissions: string[] }
+export interface WorkflowResponse { workflow: WorkflowInfo | null; profiles: Record<string, WorkflowProfile> }
+
 export interface ConversationView {
   conversation: Conversation; project: { id: string; name: string }; verify_command: string[] | null;
   messages: ConvMessage[]; status: ConversationStatus;

@@ -11,6 +11,8 @@ Behaviour is set by the FAKE_CLAUDE_CONFIG env var (JSON):
   reply                    final result text
   review                   {"summary", "findings"} returned as structured_output when --json-schema is given
   no_structured_output     omit structured_output even when --json-schema is given
+  per_call, counter        per_call is a list of setting overrides; with a counter file path, call N (0-based, counting only -p
+                           calls) uses entry N, and the last entry repeats
   log                      path to append argv/env facts to
 It mirrors the stream-json shapes observed from Claude Code 2.1.310 (init, assistant text and
 tool_use blocks, rate_limit_event, result), so tests exercise AIOS's parsing, not Claude itself.
@@ -51,6 +53,15 @@ if "-p" in args:
         print("Error processing --setting-sources: Invalid setting source: . "
               "Valid options are: user, project, local", file=sys.stderr)
         sys.exit(1)
+    if cfg.get("per_call") and cfg.get("counter"):      # each call takes the next entry's settings (the last one repeats)
+        try:
+            with open(cfg["counter"], encoding="utf-8") as f:
+                n = int(f.read() or 0)
+        except FileNotFoundError:
+            n = 0
+        with open(cfg["counter"], "w", encoding="utf-8") as f:
+            f.write(str(n + 1))
+        cfg = {**cfg, **cfg["per_call"][min(n, len(cfg["per_call"]) - 1)]}
     sid = arg("--resume") or str(uuid.uuid4())
     outcome = cfg.get("outcome", "ok")
     if outcome == "hang":

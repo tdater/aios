@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import __version__, approvals, auth, backup, idempotency, providers, services
+from . import __version__, approvals, auth, backup, idempotency, providers, services, workflow
 from .config import LOOPBACK_HOSTS, REPO_ROOT, Settings, load_settings
 from .db import Database
 from .engine import EXECUTORS, Engine
@@ -94,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     db = Database(settings.db_path)
     engine = Engine(settings, db)
+    engine.ticker = lambda: workflow.advance_all(db, engine)
     startup: dict = {}
 
     @asynccontextmanager

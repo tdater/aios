@@ -202,6 +202,7 @@ class Engine:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
+        self.ticker = None                      # called by the dispatch loop about once a second; the workflow coordinator
 
     # ---- basic records ----
     def event(self, run_id: str, kind: str, message: str, data: dict | None = None) -> None:
@@ -543,6 +544,8 @@ class Engine:
                             self._active.add(r["id"])
                         self._pool.submit(self._run_claimed, r["id"])
                 tick += 1
+                if self.ticker and tick % 2 == 0 and not abilities.is_paused(self.db):   # workflows advance, never while paused
+                    self.ticker()
                 if tick % 20 == 0:
                     self.detect_stalled()
             except Exception:  # dispatcher must survive anything

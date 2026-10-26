@@ -9,10 +9,11 @@ import { Badge, Btn, ErrorBox, Loading, Notice } from "../../ui/kit";
 import { useTabTitle } from "../../ui/useTabTitle";
 import { Handoff } from "./Handoff";
 import { Together } from "./Together";
+import { Workflow } from "./Workflow";
 import { ActivityPanel, ChangesPanel, OutcomePanel, StatusPanel, TestsPanel } from "./Panels";
 import { Busy, Composer, MessageList, PanelId } from "./Thread";
 
-const TAB_LABEL: Record<PanelId, string> = { chat: "Chat", activity: "Activity", together: "Together", changes: "Changes", tests: "Tests", outcome: "Outcome", status: "Status" };
+const TAB_LABEL: Record<PanelId, string> = { chat: "Chat", activity: "Activity", workflow: "Start to finish", together: "Together", changes: "Changes", tests: "Tests", outcome: "Outcome", status: "Status" };
 
 export function ConversationScreen({ id }: { id: string }) {
   const { client, settings } = useApp();
@@ -41,7 +42,7 @@ export function ConversationScreen({ id }: { id: string }) {
   const pending = v.status.pending_approvals.length;
   // Simple mode with no code changes in this conversation: hide the code-review tabs and keep chat, together and status.
   const codeFree = settings.mode === "simple" && !v.changes.patch && !v.conversation.worktree_path;
-  const right: PanelId[] = codeFree ? ["together", "status"] : ["activity", "together", "changes", "tests", "outcome", "status"];
+  const right: PanelId[] = codeFree ? ["together", "status"] : ["activity", "workflow", "together", "changes", "tests", "outcome", "status"];
   const tabs: PanelId[] = twoPane ? right : ["chat", ...right];
   const shown: PanelId = tabs.includes(panel) ? panel : tabs[0];
   const mark = (p: PanelId) =>
@@ -54,6 +55,7 @@ export function ConversationScreen({ id }: { id: string }) {
     </div>
   );
   const body = shown === "chat" ? chat : shown === "activity" ? <ActivityPanel v={v} reload={view.reload} />
+    : shown === "workflow" ? <Workflow v={v} reload={view.reload} open={setPanel} />
     : shown === "together" ? <Together v={v} reload={view.reload} />
     : shown === "changes" ? <ChangesPanel v={v} /> : shown === "tests" ? <TestsPanel v={v} reload={view.reload} />
     : shown === "outcome" ? <OutcomePanel v={v} reload={view.reload} sendFindings={draftFix} /> : <><StatusPanel v={v} /><Handoff conversationId={id} onChanged={() => void view.reload()} /></>;

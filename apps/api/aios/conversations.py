@@ -163,7 +163,10 @@ def active_turn(db: Database, conversation_id: str) -> dict | None:
 
 
 def post_user_message(db: Database, engine: "Engine", conversation_id: str, content: str,
-                      mode: str = "read", idempotency_key: str | None = None) -> dict:
+                      mode: str = "read", idempotency_key: str | None = None, *,
+                      author_kind: str = "user", author: str = "you", meta: dict | None = None) -> dict:
+    """Start a turn from a message. `author_kind` other than 'user' is for AIOS's own workflow requests: they are
+    redacted like any AIOS text and never mined for memories."""
     from . import services
     conv = require(db, conversation_id)
     content = (content or "").strip()
@@ -185,8 +188,8 @@ def post_user_message(db: Database, engine: "Engine", conversation_id: str, cont
         st = worktrees.repo_state(ws["path"])
         if not st["usable"]:
             raise ApiError(409, "repo_not_ready", st["reason"])
-    msg = add_message(db, conversation_id, role="user", author_kind="user", author="you",
-                      content=content, meta={"mode": mode})
+    msg = add_message(db, conversation_id, role="user", author_kind=author_kind, author=author,
+                      content=content, meta={"mode": mode, **(meta or {})})
     try:                                   # proposing memories must never be able to break a turn
         from . import memory_capture
         memory_capture.from_user_message(db, engine.settings, conv, msg)

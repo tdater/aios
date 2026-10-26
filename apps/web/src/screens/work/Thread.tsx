@@ -4,7 +4,7 @@ import { ConvMessage } from "../../core/types";
 import { useApp } from "../../ui/Context";
 import { Badge, Btn, Collapsible, ErrorBox, Notice, ago, useOnce } from "../../ui/kit";
 
-export type PanelId = "chat" | "activity" | "together" | "changes" | "tests" | "outcome" | "status";
+export type PanelId = "chat" | "activity" | "workflow" | "together" | "changes" | "tests" | "outcome" | "status";
 
 const meta = <T,>(m: ConvMessage, key: string): T | undefined => (m.meta as Record<string, unknown> | null)?.[key] as T | undefined;
 
