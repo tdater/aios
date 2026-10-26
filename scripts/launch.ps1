@@ -1,5 +1,5 @@
 # One-click launcher: starts AIOS if it is not running and opens it in your browser.
-# The first time, the link carries a one-time sign-in code so the browser signs itself in. The code is single use,
+# The first time, the link carries a one-time sign-in code that fills in the sign-in form (you press Pair). The code is single use,
 # expires in 10 minutes, and is only ever shown to this computer. Use -NewCode (the "AIOS sign-in code" shortcut)
 # to sign in another browser or to recover after clearing your browser data.
 param([switch]$NewCode, [switch]$NoBrowser)
