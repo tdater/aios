@@ -14,4 +14,5 @@ Push-Location "$Root\apps\web"
 npm install --no-audit --no-fund
 npm run build
 Pop-Location
-Write-Host "Setup complete. Next: scripts\start.ps1"
+& "$PSScriptRoot\create_shortcuts.ps1"
+Write-Host "Setup complete. Double-click the AIOS icon on your desktop to start it (or run scripts\start.ps1)."

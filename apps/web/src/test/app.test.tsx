@@ -37,6 +37,24 @@ describe("boot, auth and honesty", () => {
     expect(JSON.stringify(localStorage)).not.toMatch(/token/i);                  // browser build stores no credential
   });
 
+  it("the desktop shortcut's link signs the browser in by itself, then removes the code from the address bar", async () => {
+    let authed = false;
+    location.hash = "#pair=abcd-efgh";
+    const { srv } = boot({ ...signedIn, "GET /auth/me": () => (authed ? { body: { session_id: "s" } } : err(401, "unauthenticated")),
+      "POST /auth/pair": () => { authed = true; return { body: { session_id: "s" } }; } });
+    await screen.findByText("Current runs");
+    expect(srv.count("POST", "/auth/pair")).toBe(1);                              // once, not twice
+    expect(srv.calls.find((c) => c.path === "/auth/pair")!.body).toMatchObject({ code: "ABCD-EFGH", kind: "browser" });
+    expect(location.hash.startsWith("#pair=")).toBe(false);
+  });
+
+  it("a stale or wrong link code shows the error and leaves the form for a new code", async () => {
+    location.hash = "#pair=WRONG-CODE";
+    boot({ ...signedIn, "GET /auth/me": () => err(401, "unauthenticated"), "POST /auth/pair": () => err(401, "invalid_pairing_code", "Pairing code is wrong, expired, or already used.") });
+    expect(await screen.findByText(/wrong, expired, or already used/)).toBeTruthy();
+    expect((screen.getByLabelText("Pairing code") as HTMLInputElement).value).toBe("WRONG-CODE");
+  });
+
   it("wrong pairing code and lockout are shown clearly", async () => {
     boot({ ...signedIn, "GET /auth/me": () => err(401, "unauthenticated"), "POST /auth/pair": () => err(429, "pairing_locked", "locked") });
     await screen.findByText("Sign in to this device");
