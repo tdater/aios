@@ -13,6 +13,7 @@ import { getPlatform, Platform } from "./platform";
 import { registerServiceWorker, resetAppCaches, updateStore } from "./pwa/register";
 import { Frame, Incompatible, Pair, ServerChanged, SetupServer, Unreachable } from "./screens/Boot";
 import { GraphScreen } from "./screens/Graph";
+import { InsightsScreen } from "./screens/Insights";
 import { Home } from "./screens/Home";
 import { Inbox } from "./screens/Inbox";
 import { Knowledge } from "./screens/Knowledge";
@@ -126,7 +127,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
 // still here, but quieter: they are the secondary experience, not the product.
 const NAV: { tab: Route["tab"]; label: string; icon: IconName; wideOnly?: boolean; secondary?: boolean }[] = [
   { tab: "home", label: "Home", icon: "home" }, { tab: "work", label: "Workspace", icon: "chat" }, { tab: "projects", label: "Projects", icon: "folder" },
-  { tab: "runs", label: "Runs", icon: "play" }, { tab: "inbox", label: "Inbox", icon: "inbox" },
+  { tab: "runs", label: "Runs", icon: "play" }, { tab: "inbox", label: "Inbox", icon: "inbox" }, { tab: "insights", label: "Insights", icon: "star" },
   { tab: "knowledge", label: "Knowledge", icon: "book", secondary: true }, { tab: "graph", label: "Graph", icon: "graph", wideOnly: true, secondary: true },
   { tab: "settings", label: "Settings", icon: "settings" },
 ];
@@ -263,6 +264,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
             {route.tab === "inbox" && <Inbox sub={route.sub} id={route.id} />}
             {route.tab === "knowledge" && <Knowledge id={route.id} />}
             {route.tab === "graph" && <GraphScreen id={route.id} />}
+            {route.tab === "insights" && <InsightsScreen />}
             {route.tab === "settings" && <Settings section={route.id} />}
           </main>
         </div>

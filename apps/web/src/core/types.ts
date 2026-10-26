@@ -133,3 +133,21 @@ export interface ConversationView {
   changes: { patch: ConvMessage | null; verification: ConvMessage | null; review: ConvMessage | null; readiness: Readiness };
   context: Record<string, { kind: string; ref: string; version: string | null; sha256: string }[]>;
 }
+
+// ---- Insights: the Constellation and the Skyline (docs/api-v1.md, "Insights")
+export type StarState = "fresh" | "stale" | "candidate" | "superseded";
+export interface Star {
+  id: string; title: string; type: "preference" | "fact" | "decision" | "lesson" | "procedure"; scope: "global" | "project";
+  project_id: string | null; project: string | null; state: StarState; uses: number; verified_uses: number; hollow: boolean;
+  last_used: string | null; last_verified: string | null; brightness: number;
+}
+export interface Constellation {
+  stars: Star[]; links: { kind: "supersedes"; from: string; to: string }[]; clusters: string[]; link_kinds: string[];
+  totals: { stars: number; verified: number; hollow: number; stale: number };
+}
+export interface StarEvidence {
+  memory_id: string; total_uses: number; verified_uses: number;
+  uses: { run_id: string; conversation_id: string; conversation: string | null; memory_version: string | null; at: string; verified: boolean }[];
+}
+export interface Building { id: string; name: string; floors: number; working: number; waiting: number; conversations: number }
+export interface Skyline { projects: Building[]; totals: { projects: number; floors: number; waiting: number } }
