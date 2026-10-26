@@ -46,6 +46,14 @@ describe("layoutUniverse", () => {
     expect(layoutUniverse(uni({ comets: { approvals: 0, blocked: 3, to_review: 0 } })).comets.map((c) => [c.kind, c.to])).toEqual([["blocked", { tab: "runs" }]]);
     expect(layoutUniverse(uni({ comets: { approvals: 0, blocked: 0, to_review: 0 } })).comets).toEqual([]);
   });
+  it("crops the view tight around you and your AIs until there are stars or comets to show", () => {
+    const empty = layoutUniverse(uni({ stars: [], clusters: [], comets: { approvals: 0, blocked: 0, to_review: 0 } }));
+    expect(empty.view[2]).toBeLessThan(W / 2);
+    expect([empty.view[0] + empty.view[2] / 2, empty.view[1] + empty.view[3] / 2]).toEqual([CORE.x, CORE.y]);   // still centred on you
+    for (const p of empty.planets) { expect(p.x).toBeGreaterThan(empty.view[0]); expect(p.x).toBeLessThan(empty.view[0] + empty.view[2]); expect(p.y).toBeGreaterThan(empty.view[1]); expect(p.y).toBeLessThan(empty.view[1] + empty.view[3]); }
+    expect(layoutUniverse(uni()).view).toEqual([0, 0, W, H]);
+    expect(layoutUniverse(uni({ stars: [], clusters: [] })).view).toEqual([0, 0, W, H]);                        // comets alone still need the full width
+  });
   it("copes with an empty universe", () => {
     const l = layoutUniverse(uni({ stars: [], clusters: [], ais: [], comets: { approvals: 0, blocked: 0, to_review: 0 } }));
     expect([l.planets.length, l.stars.length, l.comets.length]).toEqual([0, 0, 0]);

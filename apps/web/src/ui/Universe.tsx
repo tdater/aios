@@ -19,7 +19,7 @@ export function UniverseMap({ u, sel, onSelect }: { u: Universe; sel: Selection;
   const at = new Map(L.stars.map((s) => [s.star.id, s]));
   const chosen = sel?.kind === "planet" ? L.planets.find((p) => p.ai.provider === sel.provider) : undefined;
   return (
-    <svg className={`universe${u.paused ? " paused" : ""}`} viewBox={`0 0 ${W} ${H}`} role="group" aria-label="Your universe: you, your AIs and what AIOS remembers">
+    <svg className={`universe${u.paused ? " paused" : ""}`} viewBox={L.view.join(" ")} role="group" aria-label="Your universe: you, your AIs and what AIOS remembers">
       {L.orbits.map((o) => <circle key={o.level} className={`orbit o-${o.level}`} cx={CORE.x} cy={CORE.y} r={o.r}><title>{`Ring: ${LEVEL_TEXT[o.level].short}`}</title></circle>)}
       {L.clusters.map((c) => (
         <g key={c.name}><circle className="cluster" cx={c.x} cy={c.y} r={c.radius + 12} /><text className="clabel" x={c.x} y={c.y - c.radius - 18} textAnchor="middle">{c.name}</text></g>))}

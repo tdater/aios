@@ -6,7 +6,7 @@ import { openTour, tourStore } from "../ui/uiState";
 import { fakeServer } from "./fakeServer";
 import { ctxFor, resetRoute, setWidth, Wrap } from "./helpers";
 
-beforeEach(() => { resetRoute(""); setWidth(1300, 900); tourStore.set({ open: false, step: 0 }); });
+beforeEach(() => { resetRoute(""); setWidth(1300, 900); tourStore.set({ open: false, step: 0, waiting: false }); });
 afterEach(cleanup);
 
 const star = (id: string, o: object = {}) => ({ id, title: `Memory ${id}`, type: "preference", scope: "global", project_id: null, project: null, state: "fresh", uses: 1, verified_uses: 1, hollow: false, last_used: null, last_verified: null, brightness: 0.8, ...o });
@@ -42,7 +42,7 @@ describe("the universe on Home", () => {
     for (const t of ["You (the glowing centre)", "Planets: your AIs", "Rings: how much each AI may be told", "Stars: what AIOS remembers", "Constellations: groups of memories", "Comets: waiting for you"]) expect(within(legend).getByText(t)).toBeTruthy();
     expect(legend.textContent).toContain("Nothing marked secret is ever shared at any ring");
     fireEvent.click(within(legend).getByRole("button", { name: "Take the tour" }));
-    expect(tourStore.get()).toEqual({ open: true, step: 0 });
+    expect(tourStore.get()).toEqual({ open: true, step: 0, waiting: false });
   });
 
   it("picking a planet shows what it was told, lights those memories, and lets you change its ring", async () => {
@@ -103,6 +103,6 @@ describe("the universe on Home", () => {
 
   it("openTour starts at the step it is given", () => {
     openTour(3);
-    expect(tourStore.get()).toEqual({ open: true, step: 3 });
+    expect(tourStore.get()).toEqual({ open: true, step: 3, waiting: false });
   });
 });

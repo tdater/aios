@@ -90,6 +90,21 @@ try {
     expect(!(await page.evaluate(() => document.cookie)).includes("aios_session"), "JS must not see the session cookie");
     await shot("01-home-phone");
   });
+  await step("first run: the tour opens, explains the map, checks Claude, and can be skipped", async () => {
+    const dlg = page.getByRole("dialog");
+    await dlg.getByRole("heading", { name: "Welcome to AIOS" }).waitFor();
+    await dlg.getByRole("button", { name: "Next" }).click();
+    await dlg.getByRole("heading", { name: "This is your universe" }).waitFor();
+    await dlg.getByRole("button", { name: "Next" }).click();
+    await dlg.getByRole("heading", { name: "Connect Claude" }).waitFor();
+    await dlg.getByText(/Claude is (connected|not connected yet)\./).waitFor();         // a real check against the real server
+    await shot("01b-tour-claude");
+    await dlg.getByRole("button", { name: "Skip the tour" }).click();
+    await dlg.waitFor({ state: "detached" });
+    await page.getByRole("group", { name: /Your universe/ }).waitFor();                    // the map is the first thing on Home
+    await page.getByRole("region", { name: "What am I looking at?" }).waitFor();
+    await shot("01c-universe-phone");
+  });
   await step("register the sample workspace (server path) and see it listed", async () => {
     await page.getByRole("button", { name: /Projects/ }).click();
     await page.getByText("Register a workspace").click();

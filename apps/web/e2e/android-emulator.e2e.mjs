@@ -122,6 +122,8 @@ try {
     await page.getByRole("button", { name: "Pair" }).click();
     await page.getByRole("heading", { name: "Home" }).waitFor();
     await page.locator(".pill.connected").waitFor();
+    const tour = page.getByRole("dialog");                                  // the first-run tour opens after signing in; skip it
+    if (await tour.isVisible().catch(() => false)) { await tour.getByRole("button", { name: "Skip the tour" }).click(); await tour.waitFor({ state: "detached" }); }
     for (let i = 0; i < 20 && !issuedToken; i++) await sleep(250);
     expect(issuedToken && issuedToken.length >= 40, "did not observe the issued token");
     const ls = await page.evaluate(() => JSON.stringify(Object.assign({}, localStorage)));

@@ -46,6 +46,7 @@ const COMMANDS: { id: string; label: string; icon: IconName; keywords?: string }
   { id: "close-tab", label: "Close current tab", icon: "x" },
   { id: "history", label: "Review imported history", icon: "history", keywords: "sessions sources" },
   { id: "pair", label: "Pair another device", icon: "link", keywords: "phone qr code" },
+  { id: "tour", label: "Take the tour", icon: "star", keywords: "tutorial help welcome guide setup" },
   { id: "help", label: "Show keyboard shortcuts", icon: "keyboard" },
   { id: "refresh", label: "Refresh search index", icon: "clock" },
   { id: "signout", label: "Sign out this device", icon: "x" },

@@ -386,3 +386,12 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .legend-cards li { display: flex; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--panel); }
 .legend-cards .sym { font-size: 1.4rem; line-height: 1.2; color: var(--accent); } .legend-cards p { margin: 2px 0; }
 .field.inline { display: inline-block; margin: 0 8px 0 0; } .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* The tour */
+.tour-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, #000 55%, transparent); }
+.tour { width: min(620px, 100%); max-height: 90vh; overflow: auto; display: grid; gap: 10px; }
+.tour .tour-head { display: flex; align-items: center; gap: 10px; } .tour .tour-head progress { flex: 1; min-width: 0; height: 8px; }
+.tour h2:focus { outline: none; } .tour .lead { font-size: 1.05rem; margin: 0; } .tour ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.tour .tour-nav { display: flex; justify-content: space-between; margin-top: 6px; }
+.tour-pill { position: fixed; right: 16px; bottom: 56px; z-index: 55; display: flex; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); box-shadow: 0 6px 24px color-mix(in srgb, #000 30%, transparent); }
+@media (max-width: 600px) { .universe .plabel { font-size: 14px; } .universe .clabel { font-size: 14px; } .universe .corelabel { font-size: 16px; } }

@@ -18,6 +18,7 @@ export interface PlacedPlanet { ai: AiPlanet; x: number; y: number; r: number; a
 export interface Comet { kind: "approvals" | "blocked" | "review"; count: number; label: string; x: number; y: number; to: Route }
 export interface UniverseLayout {
   planets: PlacedPlanet[]; orbits: { level: ShareLevel; r: number }[]; stars: Layout["placed"]; clusters: Layout["clusters"]; comets: Comet[];
+  view: [number, number, number, number];     // the part of the picture worth showing: tight around you and your AIs until there is more to see
 }
 
 export function layoutUniverse(u: Universe): UniverseLayout {
@@ -54,7 +55,10 @@ export function layoutUniverse(u: Universe): UniverseLayout {
     { kind: "review", count: cm.to_review, label: `${cm.to_review} to look over`, to: { tab: "inbox" } },
   ];
   const list: Comet[] = raw.filter((c) => c.count > 0).map((c, i) => ({ ...c, x: 58, y: 44 + i * 44 }));
-  return { planets, orbits: (["private", "public", "none"] as ShareLevel[]).map((level) => ({ level, r: ORBIT[level] })), stars, clusters, comets: list };
+  const sparse = stars.length === 0 && list.length === 0;
+  const pad = ORBIT.none + PLANET_R + 30;
+  const view: UniverseLayout["view"] = sparse ? [CORE.x - pad, CORE.y - pad, pad * 2, pad * 2] : [0, 0, W, H];
+  return { planets, orbits: (["private", "public", "none"] as ShareLevel[]).map((level) => ({ level, r: ORBIT[level] })), stars, clusters, comets: list, view };
 }
 const round = (n: number) => Math.round(n * 10) / 10;
 
