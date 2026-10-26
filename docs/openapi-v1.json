@@ -1683,6 +1683,59 @@
         "summary": "Supersede"
       }
     },
+    "/api/v1/constellation": {
+      "get": {
+        "operationId": "get_constellation_api_v1_constellation_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Constellation"
+      }
+    },
+    "/api/v1/constellation/{memory_id}": {
+      "get": {
+        "operationId": "get_star_api_v1_constellation__memory_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Star"
+      }
+    },
     "/api/v1/conversations": {
       "get": {
         "operationId": "list_conversations_api_v1_conversations_get",
@@ -3760,6 +3813,22 @@
           }
         },
         "summary": "Rollback"
+      }
+    },
+    "/api/v1/skyline": {
+      "get": {
+        "operationId": "get_skyline_api_v1_skyline_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Skyline"
       }
     },
     "/api/v1/tasks": {

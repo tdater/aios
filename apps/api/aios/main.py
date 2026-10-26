@@ -25,6 +25,7 @@ from .conversations_api import build_router as build_conversations_router
 from .executors import audit, capture, claude_review, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
 from .history import schedule
 from .history_api import build_router
+from .insights_api import build_router as build_insights_router
 from .skills_api import build_router as build_skills_router
 from .pagination import page
 from .security import PathViolation, redact_obj
@@ -489,6 +490,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(build_router(db, settings, require_auth))
     app.include_router(build_skills_router(db, settings, require_auth))
     app.include_router(build_conversations_router(db, engine, settings, require_auth))
+    app.include_router(build_insights_router(db, settings, require_auth))
 
     # ---------------------------------------------------------------- static UI (public, no secrets)
     if WEB_DIST.exists():
