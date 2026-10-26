@@ -368,3 +368,23 @@ describe("modes change what the menu lists, and nothing else", () => {
     expect(nav().queryByRole("button", { name: /Graph/ })).toBeNull();
   });
 });
+
+describe("Today cards on Home", () => {
+  const skyline = { "GET /skyline": () => ({ body: { projects: [{ id: "p", name: "Calc", floors: 2, working: 0, waiting: 0, conversations: 1 }], totals: { projects: 1, floors: 2, waiting: 0 } } }) };
+  it("shows what needs you, what AIOS saw pass, and one next step with its reason", async () => {
+    fakeServer({ ...signedIn, ...skyline });
+    render(<Wrap ctx={ctxFor().ctx}><Home /></Wrap>);
+    const today = await screen.findByRole("region", { name: "Today" });
+    await waitFor(() => expect(today.textContent).toContain("2 changes passed tests that AIOS ran itself."));
+    expect(today.textContent).toContain("2 approvals and 1 blocked run.");
+    expect(today.textContent).toContain("Review what is waiting for your approval. 2 actions cannot go ahead until you decide.");
+  });
+  it("a card the person switched off is not shown", async () => {
+    fakeServer({ ...signedIn, ...skyline });
+    const c = ctxFor();
+    render(<Wrap ctx={{ ...c.ctx, settings: { ...c.ctx.settings, hiddenCards: ["ask", "done"] } }}><Home /></Wrap>);
+    const today = await screen.findByRole("region", { name: "Today" });
+    expect(within(today).queryByText("Ask anything")).toBeNull();
+    expect(within(today).getByText("Needs you")).toBeTruthy();
+  });
+});

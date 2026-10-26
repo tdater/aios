@@ -358,3 +358,8 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 :root[data-density=compact] .card { padding: 8px; } :root[data-density=compact] .content { padding-block: 8px; }
 :root[data-density=compact] .timeline li, :root[data-density=compact] .plain li { margin-bottom: 2px; }
 :root[data-density=compact] button, :root[data-density=compact] .btn { padding-block: 4px; }
+
+/* Today */
+.today { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 8px 0 14px; }
+.todaycard { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--panel); display: grid; gap: 6px; align-content: start; }
+.todaycard h3 { margin: 0; font-size: 1rem; } .todaycard p { margin: 0; overflow-wrap: anywhere; }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MODES, Tab, hideable } from "../core/modes";
 import { ACCENTS, THEME_MODES } from "../core/settings";
+import { CARD_IDS, CARD_NAMES } from "../core/today";
 import { APP_VERSION, API_VERSION, Provider, SessionInfo } from "../core/types";
 import { useApp } from "../ui/Context";
 import { Icon } from "../ui/icons";
@@ -74,6 +75,11 @@ function AppearanceSection() {
         {hideable(settings.mode).map((t) => (
           <label key={t} className="check"><input type="checkbox" checked={!settings.hiddenNav.includes(t)}
             onChange={(e) => updateSettings({ hiddenNav: e.target.checked ? settings.hiddenNav.filter((x) => x !== t) : [...settings.hiddenNav, t] })} /> Show {TAB_NAMES[t]} in the menu</label>))}
+      </fieldset>
+      <fieldset className="field"><legend>Cards on Home</legend>
+        {CARD_IDS.map((c) => (
+          <label key={c} className="check"><input type="checkbox" checked={!settings.hiddenCards.includes(c)}
+            onChange={(e) => updateSettings({ hiddenCards: e.target.checked ? settings.hiddenCards.filter((x) => x !== c) : [...settings.hiddenCards, c] })} /> {CARD_NAMES[c]}</label>))}
       </fieldset>
       <label className="field"><span>Spacing</span>
         <select value={settings.density} onChange={(e) => updateSettings({ density: e.target.value as "comfortable" | "compact" })}>
