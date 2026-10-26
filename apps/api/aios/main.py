@@ -22,6 +22,7 @@ from .db import Database
 from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
 from .assist_api import build_router as build_assist_router
+from .objects_api import build_router as build_objects_router
 from .conversations_api import build_router as build_conversations_router
 from .executors import apply_change, audit, capture, claude_review, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
 from .history import schedule
@@ -41,6 +42,8 @@ CAPABILITIES = {
     # Antigravity and Perplexity remain manual handoffs.
     "provider_execution": "claude_code_print_mode",
     "conversations": True,
+    "universe_objects": True,            # the web app needs this: older servers have no object model, and the app says so
+    "assist": True,
 }
 
 
@@ -494,6 +497,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(build_conversations_router(db, engine, settings, require_auth))
     app.include_router(build_insights_router(db, settings, require_auth))
     app.include_router(build_assist_router(db, engine, settings, require_auth))
+    app.include_router(build_objects_router(db, settings, require_auth, REPO_ROOT / ".claude" / "skills"))
 
     # ---------------------------------------------------------------- static UI (public, no secrets)
     if WEB_DIST.exists():
