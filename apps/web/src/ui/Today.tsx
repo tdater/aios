@@ -4,9 +4,9 @@ import { go } from "./hooks";
 import { WidgetStrip } from "./Widgets";
 
 /** A few calm cards at the top of Home. Hidden cards are chosen in Settings. */
-export function Today({ input }: { input: TodayInput }) {
+export function Today({ input, hide = [] }: { input: TodayInput; hide?: string[] }) {
   const { settings } = useApp();
-  const cards = todayCards(input, settings.hiddenCards);
+  const cards = todayCards(input, [...settings.hiddenCards, ...hide]);
   return (
     <>
     <section className="today" aria-label="Today">

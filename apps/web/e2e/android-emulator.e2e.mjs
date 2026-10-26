@@ -137,7 +137,7 @@ try {
   });
 
   await step("quick capture online creates a real server task (verified server-side)", async () => {
-    await page.locator("textarea").first().fill("buy oat milk (from the emulator)");
+    await page.locator('form[aria-label="Quick capture"] textarea').fill("buy oat milk (from the emulator)");
     await page.getByRole("button", { name: "Capture" }).click();
     await page.getByText("Captured on the server.").waitFor();
     const l = await admin("GET", "/tasks?q=oat%20milk");

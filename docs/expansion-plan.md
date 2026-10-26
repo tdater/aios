@@ -129,6 +129,7 @@ Earned autonomy for repeated low-risk verification runs; a one-click "apply this
 | "What AIOS knows" page (My AIs), plain-language onboarding (first-run tour) | Built and tested on branch `phase2-everyday`. Earned autonomy and the seals gallery are not built |
 | The Universe (3D Home), per-AI sharing levels, bringing in memories from other AIs | Built and tested (`docs/universe.md`) |
 | Companion windows for Gemini and Perplexity subscriptions | Built and tested. AIOS opens the official site in a separate window and writes prompts to paste; it never reads or drives that window. Not an integration: nothing is automated |
+| One prompt for any task: triage, plan shown first, dashboard of agents, task page | Built and tested; real-Claude proof in `scripts/demo_assist.py`. Triage is fixed rules (no model), so unusual phrasing may be guessed wrong; the choice is shown and can be changed in one click. Second-AI steps stay copy and paste |
 | Start to finish (implement, check, independent review, corrections, result, memory candidates) | Built and tested with a stand-in Claude; real-Claude proof in `docs/product-direction.md`. Capability profiles are code-enforced step lists |
 
 ### Spike result (2026-10-25)

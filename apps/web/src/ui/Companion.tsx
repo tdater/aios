@@ -16,12 +16,13 @@ export function CompanionToggle({ provider, name, conversationId }: { provider: 
 
 /** Use a subscription AI you already pay for: open its own site in a window and copy prompts AIOS wrote for you.
  *  AIOS cannot see that window. Nothing leaves this computer until you paste it there yourself. */
-export function Companion({ provider, name, conversationId, nested }: { provider: string; name: string; conversationId?: string; nested?: boolean }) {
+export function Companion({ provider, name, conversationId, nested, only }: { provider: string; name: string; conversationId?: string; nested?: boolean; only?: string[] }) {
   const Heading = nested ? "h4" : "h2";
   const { client, connected } = useApp();
   const info = useLoad(() => client.get<CompanionInfo>(`/companion/${provider}`, { query: conversationId ? { conversation_id: conversationId } : {} }), [client, provider, conversationId]);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const shown = (info.data?.items ?? []).filter((i) => !only || only.includes(i.id));
   const copy = async (id: string, prompt: string) => {
     setErr(null);
     try { await navigator.clipboard.writeText(prompt); } catch { setErr("Could not copy automatically. Select the text and copy it."); return; }
@@ -38,8 +39,8 @@ export function Companion({ provider, name, conversationId, nested }: { provider
       {info.data && (
         <>
           <Notice tone="info">{info.data.notice}</Notice>
-          {info.data.items.length === 0 ? <Empty>No suggested prompts yet. Open a conversation with some work in it, or approve a memory you are happy to share with {name}.</Empty> : (
-            <ul className="plain">{info.data.items.map((i) => (
+          {shown.length === 0 ? <Empty>No suggested prompts yet. Open a conversation with some work in it, or approve a memory you are happy to share with {name}.</Empty> : (
+            <ul className="plain">{shown.map((i) => (
               <li key={i.id}>
                 <strong>{i.title}</strong> <span className="muted small">{i.chars} characters</span>
                 <p className="muted small">{i.why}</p>

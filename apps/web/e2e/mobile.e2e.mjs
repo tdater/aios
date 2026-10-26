@@ -1,7 +1,7 @@
 // Real end-to-end run: real AIOS server + SQLite + real (Edge) browser at phone size. No mocks.
 // Uses an ISOLATED temp state dir; never touches your real AIOS state. Usage: node e2e/mobile.e2e.mjs
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +22,8 @@ let server = null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function startServer() {
   server = spawn(py, ["-m", "aios.main"], { env, cwd: repo, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
-  server.stderr.on("data", () => {}); server.stdout.on("data", () => {});
+  const log = (d) => { if (process.env.AIOS_E2E_LOG) appendFileSync(process.env.AIOS_E2E_LOG, d); };   // opt-in: keep the server's own output when a run fails
+  server.stderr.on("data", log); server.stdout.on("data", log);
   for (let i = 0; i < 60; i++) { try { if ((await fetch(`${BASE}/api/v1/meta`)).ok) return; } catch {} await sleep(250); }
   throw new Error("server did not start");
 }
@@ -120,6 +121,25 @@ try {
     await page.getByRole("button", { name: "3D space" }).waitFor();
     await page.getByRole("button", { name: "3D space" }).click();
     await map.waitFor();
+  });
+  await step("dashboard: one prompt box shows a plan that leaves out what a task does not need, and the four agents", async () => {
+    await page.goto(`${BASE}/#/home`);
+    const box = page.locator("#ask-input");
+    await box.fill("What is the capital of Australia?");
+    const plan = page.getByRole("region", { name: "How AIOS will handle this" });
+    await plan.waitFor();
+    const simple = (await plan.textContent()) ?? "";
+    expect(simple.includes("Claude answers") && /Left out: .*build, test and review/.test(simple), `a simple question should skip the build steps: ${simple.slice(0, 200)}`);
+    expect((await plan.locator("li.pstep").count()) === 2, "a simple question is understand + answer, nothing else");
+    await box.fill("Fix the failing test in calc.py");
+    await page.getByText("A separate Claude reviews the change").waitFor();
+    expect((await plan.locator("li.pstep.you").count()) >= 1, "a build has steps that need you");
+    await box.fill("");
+    const agents = page.getByRole("region", { name: "Your agents" });
+    await agents.waitFor();
+    expect((await agents.getByRole("listitem").count()) === 4, "four agents are shown");
+    expect((await agents.textContent()).includes("AIOS never starts it"), "Antigravity is honest about being manual");
+    await shot("01d-dashboard-phone");
   });
   await step("register the sample workspace (server path) and see it listed", async () => {
     await page.getByRole("button", { name: /Projects/ }).click();
@@ -271,9 +291,9 @@ try {
     await page.getByText("Quick capture").waitFor();
     await ctx.setOffline(true);
     await page.locator(".pill.disconnected, .pill.stale").first().waitFor({ timeout: 40000 });
-    await page.locator("textarea").first().fill("buy oat milk");
+    await page.locator('form[aria-label="Quick capture"] textarea').fill("buy oat milk");
     await page.getByRole("button", { name: /Save draft|Capture/ }).click();
-    await page.getByText(/Saved as a local draft|Could not|No answer/).first().waitFor();
+    await page.locator('form[aria-label="Quick capture"]').getByText(/Saved as a local draft|Could not|No answer/).first().waitFor();
     const before = (await ctx.request.get(`${BASE}/api/v1/meta`)).ok();   // server still up; browser was offline
     await ctx.setOffline(false);
     await page.locator(".pill.connected").waitFor({ timeout: 40000 });

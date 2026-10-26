@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { ApiError, NetworkError, newKey } from "../core/client";
 import { Draft } from "../core/drafts";
+import { AssistRecent, Dashboard, KIND_ICON, KIND_SHORT, TASK_TEXT } from "../core/assist";
 import { Home as HomeData, Skyline } from "../core/types";
+import { Agents } from "../ui/Agents";
+import { AskBox } from "../ui/Ask";
 import { useApp } from "../ui/Context";
 import { go, useLoad } from "../ui/hooks";
+import { Icon } from "../ui/icons";
 import { Today } from "../ui/Today";
 import { UniverseHome } from "../ui/UniverseHome";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } from "../ui/kit";
@@ -26,11 +30,18 @@ export function Home() {
 
   const list = drafts.list(partition);
   const pending = list.filter((d) => d.status !== "sent");
+  const dash = useLoad(() => client.get<Dashboard>("/dashboard"), [client], 4000);
 
   return (
-    <div className="screen">
-      <h2>Home</h2>
+    <div className="screen dash">
+      <h2 className="sr">Home</h2>
       <ConnectionCard />
+      <AskBox />
+      {dash.data && dash.data.agents.length > 0 && (
+        <div className="dash-grid">
+          <Agents agents={dash.data.agents} />
+          <Recent items={dash.data.recent} />
+        </div>)}
       <button className="card-btn startwork" onClick={() => go({ tab: "work" })}>
         <strong>Workspace</strong>
         <span className="muted small">Talk to Claude about a project, review the changes it makes, and check them with your tests.</span>
@@ -49,8 +60,11 @@ export function Home() {
       {home.loading && !home.data && <Loading />}
       {home.data && (
         <>
+          <h2 className="sect">Your universe</h2>
           <UniverseHome />
-          <Today input={{ approvals: home.data.counts.pending_approvals, blocked: home.data.counts.blocked_runs, running: home.data.counts.active_runs, toReview: home.data.counts.pending_candidates, verifiedOutcomes: sky.data?.totals.floors ?? 0, projects: sky.data ? sky.data.totals.projects : null }} />
+          <Today hide={["ask"]} input={{ approvals: home.data.counts.pending_approvals, blocked: home.data.counts.blocked_runs, running: home.data.counts.active_runs, toReview: home.data.counts.pending_candidates, verifiedOutcomes: sky.data?.totals.floors ?? 0, projects: sky.data ? sky.data.totals.projects : null }} />
+          <details className="tech" open={app.settings.mode !== "simple"}>
+          <summary>Details for technical users: counts, runs and providers</summary>
           <div className="stats" role="group" aria-label="Work summary">
             <Stat label="Running" value={home.data.counts.active_runs} to={{ tab: "runs" }} />
             <Stat label="Blocked" value={home.data.counts.blocked_runs} tone={home.data.counts.blocked_runs ? "warn" : undefined} to={{ tab: "runs" }} />
@@ -73,11 +87,34 @@ export function Home() {
               <span key={p.provider} className="chip" title={`billing: ${p.billing}`}>{p.provider}: <Badge s={p.mode === "unavailable" ? "failed" : p.mode === "automated" ? "completed" : "pending"} label={p.mode.replace("_", " ")} /></span>
             ))}
           </div>
+          </details>
         </>
       )}
       <QuickCapture onChange={() => bump((n) => n + 1)} />
       <DraftList drafts={list} pending={pending.length} onChange={() => bump((n) => n + 1)} />
     </div>
+  );
+}
+
+/** The latest tasks, newest first, each with where it stands and the first line of the answer. */
+function Recent({ items }: { items: AssistRecent[] }) {
+  return (
+    <section className="recent" aria-label="Recent tasks">
+      <h2 className="sect">Recent</h2>
+      {items.length === 0 ? <p className="muted small recent-empty">Nothing yet. Type a request above and it will show up here with its progress.</p> : (
+        <ul className="recent-list">
+          {items.map((r) => (
+            <li key={r.id}>
+              <button type="button" className="recent-item" onClick={() => go({ tab: "home", id: r.id })}>
+                <span className="recent-top"><Icon name={KIND_ICON[r.kind]} size={15} /><span className="recent-kind">{KIND_SHORT[r.kind]}</span>
+                  <span className={`status ${r.state}`}><span className="dotmark" aria-hidden="true" />{TASK_TEXT[r.state]}</span></span>
+                <span className="recent-prompt">{r.prompt}</span>
+                {r.snippet && <span className="recent-snip">{r.snippet}</span>}
+                <span className="muted small">{ago(r.created_at)}{r.project ? ` · ${r.project.name}` : ""}</span>
+              </button>
+            </li>))}
+        </ul>)}
+    </section>
   );
 }
 

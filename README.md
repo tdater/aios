@@ -14,6 +14,11 @@ A **personal, local-first project workspace for working with official AI coding 
   NOT READY. Status shows the real provider facts and your real 5-hour and 7-day usage. Shown working on real Claude Code by
   `scripts/demo_workspace.py` and `apps/web/e2e/workspace.e2e.mjs`. Antigravity and Perplexity remain manual handoffs; see
   `docs/integration-findings.md` for why.
+- **One prompt for any task** (`docs/dashboard-design.md`): Home is a dashboard of your AI agents with one box. You type any request; AIOS works
+  out what kind of task it is and shows, before anything starts, the steps it will take and the ones it leaves out and why. A simple
+  question gets an answer and nothing else; a letter is a draft; a question that needs the web is answered and a Perplexity step is
+  offered (by copy and paste, never claimed as done); only a request to change a project gets build, check, review and correct. Shown
+  on real Claude by `scripts/demo_assist.py`.
 - **Start to finish** (branch `phase2-everyday`): give one request and AIOS carries it through build, your check (you approve it
   every time), a separate Claude's review, automatic corrections, re-check and re-review, then a plain-words result and a few
   memory candidates. It adds no power: Claude still edits only an isolated copy, nothing is merged without a separate approval, and

@@ -42,6 +42,18 @@ this" panel showing the steps AIOS will take and the ones it skipped. Below: **N
 as a single timeline with the answer or result at the top and the technical detail (diffs, checks, runs) one click away. Plain words
 first; everything technical is still there for people who want it.
 
+## Status (2026-10-26)
+
+Built and tested: `triage.py` (rules and plan), `assist.py` and `assist_api.py` (create, view, recent, dashboard), the Home dashboard
+(single prompt with live plan preview, agent cards, recent tasks, universe), the task page (timeline, answer, follow-up, offered second-AI
+steps), tour text. Proof: `tests/test_triage.py` (27), `tests/test_assist.py` (9, stand-in Claude), `src/test/assist.test.tsx` (17), a real-browser
+step in `mobile.e2e.mjs`, and `scripts/demo_assist.py` on real Claude (a question, a letter, a web question and a project change each got
+only the steps they need).
+
+Known limits: triage is rules, so unusual wording can be guessed wrong (the plan is shown first and can be changed). Second-AI steps
+(Gemini, Perplexity) are copy and paste and are never claimed as done. Only Claude runs inside AIOS. Non-coding tasks have a second look as
+an offer, not an automatic independent review by a second Claude session; building that for text is a possible next step.
+
 ## Boundaries and honesty
 
 - Triage can only choose among steps that already exist and are already guarded. It cannot grant a permission.
