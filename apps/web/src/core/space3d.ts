@@ -15,6 +15,9 @@ export const RING_TILT: Record<ShareLevel, number> = { private: 0, public: 0.32,
 const GOLDEN = 2.399963229728653;
 const round = (n: number) => Math.round(n * 100) / 100;
 
+/** One vertical field of view for every renderer, so labels drawn by the page line up exactly with what WebGL draws. */
+export const VFOV = 2 * Math.atan(260 / FOCAL);
+export const viewFor = (w: number, h: number): View => ({ w, h, focal: h / 2 / Math.tan(VFOV / 2) });
 export const defaultCamera = (): Camera => ({ yaw: 0.35, pitch: 0.42, dist: 760, target: [0, 0, 0] });
 export const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 export const clampCamera = (c: Camera): Camera => ({ ...c, pitch: clamp(c.pitch, -MAX_PITCH, MAX_PITCH), dist: clamp(c.dist, MIN_DIST, MAX_DIST), yaw: ((c.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI });
@@ -56,7 +59,7 @@ const unit = (v: Vec3): Vec3 => { const n = Math.hypot(...v) || 1; return [v[0] 
 const scaleV = (v: Vec3, k: number): Vec3 => [round(v[0] * k), round(v[1] * k), round(v[2] * k)];
 const addV = (a: Vec3, b: Vec3): Vec3 => [round(a[0] + b[0]), round(a[1] + b[1]), round(a[2] + b[2])];
 
-export interface Planet3 { ai: AiPlanet; pos: Vec3; r: number }
+export interface Planet3 { ai: AiPlanet; pos: Vec3; r: number; angle: number; level: ShareLevel }
 export interface Star3 { star: Star; pos: Vec3; r: number }
 export interface Cluster3 { name: string; pos: Vec3; radius: number }
 export interface Ring3 { level: ShareLevel; points: Vec3[] }
@@ -74,7 +77,7 @@ export function layoutScene(u: Universe): Scene3 {
   const planets: Planet3[] = [];
   levels.forEach((level, k) => {
     const group = byLevel.get(level) ?? [];
-    group.forEach((ai, i) => planets.push({ ai, r: PLANET_R, pos: ringPoint(level, -Math.PI / 2 + k * 0.6 + (i / group.length) * Math.PI * 2) }));
+    group.forEach((ai, i) => { const angle = -Math.PI / 2 + k * 0.6 + (i / group.length) * Math.PI * 2; planets.push({ ai, r: PLANET_R, level, angle, pos: ringPoint(level, angle) }); });
   });
   const rings: Ring3[] = levels.map((level) => ({ level, points: Array.from({ length: 73 }, (_, i) => ringPoint(level, (i / 72) * Math.PI * 2)) }));
 
