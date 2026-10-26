@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from . import approvals, providers
+from . import abilities, approvals, providers
 from .config import Settings
 from .db import Database
 from .security import PathViolation, redact, redact_obj, resolve_within
@@ -534,7 +534,7 @@ class Engine:
             try:
                 with self._lock:
                     free = self.settings.max_concurrent - len(self._active)
-                if free > 0:
+                if free > 0 and not abilities.is_paused(self.db):       # pause-everything: nothing new starts
                     for r in self.db.query("SELECT id FROM runs WHERE state='queued' "
                                            "ORDER BY created_at LIMIT ?", (free,)):
                         with self._lock:
