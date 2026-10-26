@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../core/client";
+import { AssistView } from "../core/assist";
+import { canSpeak, speak, stopAllVoice } from "../core/voice";
 import {
   ChecklistItem, ConfigByKind, MAX_ITEMS, RoutineConfig, RoutineWhen, Widget, WEEKDAYS, doneToday, isAbilityOn, listWidgets, getAbilities, mmss, nextRunText,
   progressText, removeWidget, runRoutine, saveWidget, streak, timerNext, toggleToday,
@@ -215,6 +217,17 @@ function Routine({ w, save, connected, reload, scheduling, setErr }: Sub<"routin
   const [prompt, setPrompt] = useState(c.prompt);
   const [busy, setBusy] = useState(false);
   const setCfg = (patch: Partial<RoutineConfig>) => save(w, { ...c, ...patch });
+  const [reading, setReading] = useState(false);
+  /** Reads the last answer aloud with this device's own voice. Nothing is sent anywhere; Stop (or Esc) silences it. */
+  const readAloud = async () => {
+    if (reading) { stopAllVoice(); setReading(false); return; }
+    setErr(null);
+    try {
+      const a = (await client.get<AssistView>(`/assist/${c.last_task}`)).answer;
+      if (!a?.text) { setErr("There is no finished answer to read yet."); return; }
+      if (speak(a.text, () => setReading(false))) setReading(true); else setErr("This device has no voice to read with.");
+    } catch (e) { setErr(msgOf(e)); }
+  };
   const run = async () => {
     if (busy) return;
     setBusy(true);
@@ -228,6 +241,8 @@ function Routine({ w, save, connected, reload, scheduling, setErr }: Sub<"routin
         <button type="button" className="btn primary" aria-label={`Run now: ${w.title}`} disabled={!connected || busy} aria-busy={busy} onClick={() => void run()}>{busy ? "Starting…" : "Run now"}</button>
         {c.last_task && (
           <a href={routeHref({ tab: "home", id: c.last_task })} aria-label={`Last result of ${w.title}`} onClick={(e) => { e.preventDefault(); go({ tab: "home", id: c.last_task }); }}>Last result</a>)}
+        {c.last_task && canSpeak() && (
+          <button type="button" className="btn ghost" aria-label={`${reading ? "Stop reading" : "Read aloud"}: ${w.title}`} disabled={!connected} onClick={() => void readAloud()}>{reading ? "Stop reading" : "Read aloud"}</button>)}
       </div>
       <div className="row">
         <label>Runs{" "}

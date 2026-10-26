@@ -648,3 +648,10 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .ask-dock { border-radius: 14px; box-shadow: 0 0 22px rgba(94, 226, 214, .10); }
 .cockpit .ask-dock > summary::marker { content: ""; }
 .cockpit .ask-dock > summary::before { content: "\2726"; color: var(--teal); margin-right: 10px; }
+
+/* Voice: microphone button and the always-visible listening badge */
+.voice { display: inline-flex; align-items: center; gap: 8px; position: relative; flex-wrap: wrap; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }
+.icon-btn:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; }
+.icon-btn.live { background: var(--warn); color: #111; border-color: var(--warn); }
+.live-comms { font-weight: 600; font-size: 0.85rem; padding: 2px 8px; border-radius: 999px; background: var(--warn); color: #111; }

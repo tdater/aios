@@ -81,6 +81,7 @@ function server(initial: Widget[], opts: { widgets?: boolean; routines?: boolean
     "GET /widgets": () => ({ body: { items: list } }),
     "GET /widgets/catalog": () => ({ body: CATALOG }),
     "GET /abilities": () => ({ body: abilities() }),
+    "GET /assist/task_9": () => ({ body: { id: "task_9", answer: { text: "## Today\n**Call** the dentist.", author: "claude", at: "t", message_id: "m" } } }),
     "PUT /abilities/widgets": () => { widgetsOn = true; return { body: abilities() }; },
     "POST /widgets/from-catalog": (c) => {
       if (!widgetsOn) return { status: 403, body: { error: { code: "ability_off", message: "Turn on small panels first.", details: {} }, request_id: "r" } };
@@ -216,6 +217,21 @@ describe("My Day dock", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save request for Morning briefing" }));
     await waitFor(() => expect(puts()).toHaveLength(3));
     expect((puts()[2].body as { config: RoutineConfig }).config.prompt).toBe("New request");
+  });
+
+  it("routine: reads the last answer aloud with the device voice, and the same button stops it", async () => {
+    const synth = { cancel: vi.fn(), speak: vi.fn(), getVoices: () => [] };
+    vi.stubGlobal("SpeechSynthesisUtterance", class { text: string; onend: (() => void) | null = null; constructor(t: string) { this.text = t; } });
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: synth });
+    server([w("r1", "routine", "Morning briefing", { ...ROUTINE, last_run: "2026-10-26T10:00:00+00:00", last_task: "task_9" })]);
+    mount(<MyDay />);
+    fireEvent.click(await screen.findByRole("button", { name: "Read aloud: Morning briefing" }));
+    await waitFor(() => expect(synth.speak).toHaveBeenCalledTimes(1));
+    expect(synth.speak.mock.calls[0][0].text).toBe("Today Call the dentist.");
+    fireEvent.click(await screen.findByRole("button", { name: "Stop reading: Morning briefing" }));
+    expect(synth.cancel).toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Read aloud: Morning briefing" })).toBeTruthy();
+    Reflect.deleteProperty(window, "speechSynthesis");
   });
 
   it("rename saves the title; remove asks first and then deletes", async () => {

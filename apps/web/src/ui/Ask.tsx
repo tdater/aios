@@ -6,6 +6,7 @@ import { go, useLoad } from "./hooks";
 import { Icon } from "./icons";
 import { Btn } from "./kit";
 import { PlanView } from "./PlanView";
+import { VoiceButton } from "./VoiceButton";
 
 interface ProjectRow { id: string; name: string }
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : (e as Error).message);
@@ -22,6 +23,7 @@ export function AskBox() {
   const [busy, setBusy] = useState(false);
   const seq = useRef(0);
   const keyRef = useRef(newKey());
+  const dictated = useRef("");                       // what was already typed when the microphone was pressed
   const area = useRef<HTMLTextAreaElement>(null);
   const projects = useLoad(() => client.get<{ items: ProjectRow[] }>("/projects", { query: { limit: 50 } }), [client]);
   const list = (projects.data?.items ?? []).filter((p) => p.name !== "Everyday");
@@ -76,6 +78,7 @@ export function AskBox() {
               <option value="">AIOS decides</option>
               {PICKABLE.filter((k) => projectId || (k !== "project_question" && k !== "build")).map((k) => <option key={k} value={k}>{KIND_SHORT[k]}</option>)}
             </select></label>
+          <VoiceButton onBegin={() => { dictated.current = text.trim(); }} onText={(phrase) => setText(dictated.current ? `${dictated.current} ${phrase}` : phrase)} />
           <span className="grow" />
           <span className="ask-hint">Enter to send · Shift+Enter for a new line</span>
           <Btn type="submit" busy={busy} disabled={!connected || !prompt || (!!blocker && blocker.code === "claude_not_ready")} label="Send request">
