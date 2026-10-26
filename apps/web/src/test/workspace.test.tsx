@@ -463,3 +463,58 @@ describe("other AIs by copy and paste", () => {
     expect(sent).toEqual([{ provider: "gemini", question: "How should I name tests?" }, { provider: "gemini", reply: "Use descriptive names." }]);
   });
 });
+
+describe("apply a ready change to your real project", () => {
+  const APPLY_APPROVAL = { id: "apr_9", run_id: "run_1", summary: "Merge revision cccccccccccc (1 file(s)) into your project's branch 'main'", status: "pending", action_hash: "h".repeat(64), version: 2,
+    action: {}, destructive: true, requested_at: T0, expires_at: T0, age_s: 5, expires_in_s: 3000,
+    review: { type: "apply_revision", target: "C:\proj", side_effects: ["Adds a new commit to your real project folder, on its branch 'main'", "To undo it, run: git reset --hard aaaaaaaaaaaa (only before you commit more on top)"], content_preview: "{}", destructive: true } };
+
+  it("offers Apply only when AIOS says READY, and asking sends nothing but the request", async () => {
+    const { srv } = await open(view(), { "POST /conversations/cnv_1/apply": () => ({ status: 201, body: {} }) });
+    tab(/^Outcome/);
+    fireEvent.click(await screen.findByRole("button", { name: /Apply to my project/ }));
+    await waitFor(() => expect(srv.count("POST", "/conversations/cnv_1/apply")).toBe(1));
+    expect(screen.getByText(/Until then your folder is untouched/)).toBeTruthy();
+  });
+
+  it("a change that is not ready cannot be applied, and says why", async () => {
+    await open(view({}, { readiness: { ready: false, verified: false, reviewed: false, high_findings: 0, reasons: ["verification FAILED for this revision"], head_revision: "c".repeat(40) } }));
+    tab(/^Outcome/);
+    expect(screen.queryByRole("button", { name: /Apply to my project/ })).toBeNull();
+    expect(screen.getByText(/Available once AIOS says READY/)).toBeTruthy();
+  });
+
+  it("the approval is worded for adding to your real project, not for running tests, and needs the acknowledgement", async () => {
+    const waiting = view({}, {}, { run: RUN({ state: "awaiting_approval", display_state: "awaiting_approval" }), pending_approvals: [{ id: "apr_9", summary: "x", type: "apply_revision", requested_at: T0, expires_at: T0 }] });
+    const { srv } = await open(waiting, { "GET /approvals/apr_9": () => ({ body: APPLY_APPROVAL }), "POST /approvals/apr_9/decide": () => ({ body: { status: "approved" } }) });
+    expect(screen.getByText(/before this change is added to your real project/)).toBeTruthy();
+    expect(screen.queryByText(/before AIOS runs the tests/)).toBeNull();
+    tab(/^Outcome/);
+    expect(await screen.findByText(/git reset --hard aaaaaaaaaaaa/)).toBeTruthy();
+    const door = screen.getByRole("button", { name: "Approve and apply to my project" }) as HTMLButtonElement;
+    expect(door.disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText(/adds a new commit to my real project folder/));
+    expect(door.disabled).toBe(false);
+    fireEvent.click(door);                                                       // a plain click only arms the door
+    expect(srv.count("POST", "/approvals/apr_9/decide")).toBe(0);
+  });
+
+  it("after it is applied, says where and how to undo it, and warns when the result differs from what was tested", async () => {
+    const applied = { applied: true, commit: "d".repeat(40), previous_head: "a".repeat(40), tree_matches_reviewed: false, head_revision: "c".repeat(40), target_branch: "main", at: T0 };
+    await open(view({}, { applied }));
+    tab(/^Outcome/);
+    const card = (await screen.findByText("Applied to your project")).closest(".card") as HTMLElement;
+    expect(card.textContent).toContain("main");
+    expect(card.textContent).toContain("dddddddddddd");
+    expect(card.textContent).toContain("git reset --hard aaaaaaaaaaaa");
+    expect(card.textContent).toContain("not identical to what was tested");
+    expect(screen.queryByRole("button", { name: /Apply to my project/ })).toBeNull();
+  });
+
+  it("shows the server's reason when it refuses", async () => {
+    await open(view(), { "POST /conversations/cnv_1/apply": () => ({ status: 409, body: { error: { code: "not_ready", message: "AIOS does not consider this change ready: verification FAILED" } } }) });
+    tab(/^Outcome/);
+    fireEvent.click(await screen.findByRole("button", { name: /Apply to my project/ }));
+    expect((await screen.findByRole("alert")).textContent).toContain("does not consider this change ready");
+  });
+});

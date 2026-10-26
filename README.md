@@ -67,7 +67,7 @@ and are never committed.
 Start with `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
 
 ## Known limitations
-No push notifications or SSE yet; no scheduled jobs; Gemini CLI is removed; Antigravity is manual handoff only; applying an accepted change to your project is still a manual `git merge` of the `aios/...` branch; two writers at once is untried; the new Workspace screens have not been run on the Android shell;
+No push notifications or SSE yet; no scheduled jobs; Gemini CLI is removed; Antigravity is manual handoff only; applying a READY change to your project is an approval-gated merge (Outcome tab), with undo shown; two writers at once is untried; the new Workspace screens have not been run on the Android shell;
 the Android app has not been tested on a physical phone; Windows is the only supported host; the history parsers are unvalidated
 against real exports.
 

@@ -188,6 +188,27 @@ try {
     expect(git("branch", "--list", "aios/*").trim().length > 0, "the conversation branch should exist");
   });
 
+  await step("apply: AIOS asks first, then merges the reviewed change into the real project", async () => {
+    await tab(/^Outcome/);
+    expect(readFileSync(join(proj, "calc.py"), "utf8") === CALC, "project folder changed before apply was requested");
+    await page.getByRole("button", { name: /Apply to my project/ }).click();
+    const approve = page.getByRole("button", { name: "Approve and apply to my project" });
+    await approve.waitFor({ timeout: LONG });
+    expect(readFileSync(join(proj, "calc.py"), "utf8") === CALC, "the project must not change before the approval");
+    expect(await approve.isDisabled(), "approve must be disabled until the risk is acknowledged");
+    await page.getByLabel(/adds a new commit to my real project folder/).check();
+    await shot("10-apply-approval");
+    await approve.hover();                                           // the heavy door: hold it
+    await page.mouse.down();
+    await sleep(1600);
+    await page.mouse.up();
+    await page.getByRole("heading", { name: "Applied to your project" }).waitFor({ timeout: 60000 });
+    expect(readFileSync(join(proj, "calc.py"), "utf8").includes("return a + b"), "the fix should now be in the real project");
+    expect(git("status", "--porcelain").trim() === "", "the project folder should be clean after the merge");
+    expect(git("rev-list", "--parents", "-n", "1", "HEAD").trim().split(/\s+/).length === 3, "expected a merge commit");
+    await shot("11-applied");
+  });
+
   await step("phone width: the same conversation is usable", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("tab", { name: "Chat" }).click();

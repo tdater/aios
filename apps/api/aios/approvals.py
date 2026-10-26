@@ -44,6 +44,19 @@ def describe(action: dict) -> dict:
                                  "the worktree is undone by cancelling"],
                 "content_preview": redact(canonical_json({k: action.get(k) for k in keep}))[:2000],
                 "destructive": True}
+    if t == "apply_revision":
+        files = [str(f) for f in action.get("files", [])]
+        sens = [str(f) for f in action.get("sensitive_paths", [])]
+        keep = ("project_path", "branch", "head_revision", "target_branch", "target_head", "patch_sha256")
+        effects = [f"Adds a new commit to your real project folder, on its branch '{action.get('target_branch')}'",
+                   f"It merges revision {str(action.get('head_revision', ''))[:12]} (branch {action.get('branch')}), "
+                   f"changing {len(files)} file(s): {', '.join(files[:8])}{' ...' if len(files) > 8 else ''}",
+                   "Your project must be exactly as it is now (same branch and latest commit, nothing uncommitted), or nothing is changed"]
+        if sens:
+            effects.append("These files run code or change tool behaviour, so read them first: " + ", ".join(sens))
+        effects.append(f"To undo it, run: git reset --hard {str(action.get('target_head', ''))[:12]} (only before you commit more on top)")
+        return {"type": t, "target": str(action.get("project_path", "")), "side_effects": effects,
+                "content_preview": redact(canonical_json({k: action.get(k) for k in keep}))[:2000], "destructive": True}
     return {"type": t, "target": str(action.get("target", "")),
             "side_effects": ["Unknown action type: assume it changes state and cannot be undone"],
             "content_preview": redact(canonical_json(action))[:2000], "destructive": True}

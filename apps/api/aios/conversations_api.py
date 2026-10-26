@@ -86,6 +86,10 @@ def build_router(db: Database, engine, settings: Settings, require_auth) -> APIR
             response.headers["Idempotent-Replay"] = "true"
         return out
 
+    @r.post("/conversations/{conversation_id}/apply", status_code=201)
+    def request_apply(conversation_id: str):
+        return redact_obj(conversations.request_apply(db, engine, conversation_id))
+
     @r.post("/conversations/{conversation_id}/handoff", status_code=201)
     def prepare_handoff(conversation_id: str, body: HandoffIn):
         return redact_obj(handoff.prepare(db, settings, conversation_id, body.provider, body.question))

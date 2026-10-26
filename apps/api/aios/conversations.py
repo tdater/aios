@@ -240,6 +240,37 @@ def request_review(db: Database, engine: "Engine", conversation_id: str, *, mode
     return {"message": msg, "task": task, "run": services.decorate_run(db, run)}
 
 
+def request_apply(db: Database, engine: "Engine", conversation_id: str) -> dict:
+    """Ask to merge the latest reviewed change into the owner's real project. Only a READY change qualifies, and
+    the merge itself still waits for an approval bound to the exact revision and the project's current state."""
+    from . import services
+    conv = require(db, conversation_id)
+    ch = changes(db, conversation_id)
+    ready = ch["readiness"]
+    if not ch["patch"] or not ready["head_revision"]:
+        raise ApiError(409, "nothing_to_apply", "there is no recorded change to apply yet")
+    if ch["applied"]:
+        raise ApiError(409, "already_applied", "this revision was already applied to your project")
+    if not ready["ready"]:
+        raise ApiError(409, "not_ready", "AIOS does not consider this change ready: " + "; ".join(ready["reasons"]),
+                       {"reasons": ready["reasons"]})
+    busy = active_turn(db, conversation_id)
+    if busy:
+        raise ApiError(409, "turn_in_progress", "wait for the current run to finish first",
+                       {"run_id": busy["id"], "state": busy["state"]})
+    head = ready["head_revision"]
+    task = services.create_task(db, title=f"Apply revision {head[:12]} to the project", kind="claude.apply",
+                                project_id=conv["project_id"],
+                                spec={"conversation_id": conversation_id, "patch_message_id": ch["patch"]["id"]},
+                                acceptance=[{"type": "result_key", "key": "commit"}])
+    run = engine.create_run(task["id"], deadline_s=TURN_DEADLINE_S, max_attempts=1)
+    msg = add_message(db, conversation_id, role="system", author_kind="aios", author="aios", kind="status",
+                      run_id=run["id"], meta={"apply_of": head},
+                      content=f"Apply requested for revision {head[:12]}. AIOS checks the change is still ready and your project is "
+                              "unchanged, then asks for your approval before anything is merged.")
+    return {"message": msg, "task": task, "run": services.decorate_run(db, run)}
+
+
 # ---------------------------------------------------------------- honest status
 STATIC_PERMISSIONS = {
     "tools_read_mode": claude_code.READ_TOOLS,
@@ -276,8 +307,10 @@ def status_block(db: Database, conv: dict) -> dict:
                  "WHERE m.conversation_id=? ORDER BY r.created_at DESC LIMIT 1", (conv["id"],))
     pending = []
     if run and run["state"] == "awaiting_approval":
-        pending = db.query("SELECT id, summary, requested_at, expires_at FROM approvals "
+        pending = db.query("SELECT id, summary, requested_at, expires_at, action_json FROM approvals "
                            "WHERE run_id=? AND status='pending'", (run["id"],))
+        for p in pending:                     # the UI words the question by what is being approved
+            p["type"] = json.loads(p.pop("action_json")).get("type")
     from . import services
     return {
         "provider": {"name": "claude", "mode": (cap or {}).get("mode", "unknown"),
@@ -310,9 +343,16 @@ def changes(db: Database, conversation_id: str) -> dict:
         row["meta"] = json.loads(row.pop("meta_json")) if row.get("meta_json") else None
         return row
     patch, ver, rev = latest("patch"), latest("verification"), latest("review")
-    return {"patch": patch, "verification": ver, "review": rev,
-            "readiness": reviewer.readiness((patch or {}).get("meta"), (ver or {}).get("meta") or None,
-                                            ((rev or {}).get("meta") or {}).get("review"))}
+    readiness = reviewer.readiness((patch or {}).get("meta"), (ver or {}).get("meta") or None,
+                                   ((rev or {}).get("meta") or {}).get("review"))
+    applied = None
+    for row in db.query("SELECT * FROM conversation_messages WHERE conversation_id=? AND kind='status' "
+                        "AND meta_json LIKE '%\"applied\"%' ORDER BY seq DESC", (conversation_id,)):
+        meta = json.loads(row["meta_json"] or "{}").get("applied") or {}
+        if meta.get("applied") and meta.get("head_revision") == readiness["head_revision"]:
+            applied = {**meta, "message_id": row["id"], "at": row["created_at"]}
+            break
+    return {"patch": patch, "verification": ver, "review": rev, "readiness": readiness, "applied": applied}
 
 
 def view(db: Database, conversation_id: str) -> dict:

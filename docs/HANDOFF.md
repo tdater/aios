@@ -7,6 +7,7 @@ Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/ap
 Plan, status table and what is deliberately not built: `docs/expansion-plan.md`. Not merged to `main`; `step3-workspace` (PR #2)
 is still unmerged and this branch sits on top of it.
 
+- **Apply a READY change to the real project (built, real-Claude e2e 13/13):** Outcome tab, then an approval bound to the exact revision, branch and project HEAD; refuses on uncommitted work, a moved project or branch, or anything not READY; hooks off; conflicts aborted. Not yet: automatic re-verify after a merge into a changed branch (the result says when it differs from what was tested).
 - **Built:** Proof Seal, Vault Door, Flight Recorder, Bench, Constellation + Skyline (Insights screen), modes and Today,
   memory capture and per-AI briefings, other AIs by copy and paste, abilities with opt-in + pause + receipts, read-only system
   scan, validated widgets. Migration `0007_abilities.sql` adds `abilities`, `flags`, `receipts`, `widgets`.

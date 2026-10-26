@@ -2101,6 +2101,43 @@
         "summary": "Conversation"
       }
     },
+    "/api/v1/conversations/{conversation_id}/apply": {
+      "post": {
+        "operationId": "request_apply_api_v1_conversations__conversation_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Apply"
+      }
+    },
     "/api/v1/conversations/{conversation_id}/changes": {
       "get": {
         "operationId": "conversation_changes_api_v1_conversations__conversation_id__changes_get",

@@ -203,6 +203,41 @@ def commit_all(wt: Path, message: str, hooks_dir: Path) -> str | None:
     return head(wt)
 
 
+def branch_tip(repo: Path, branch: str) -> str | None:
+    out = _git(repo, "rev-parse", "--verify", "-q", f"refs/heads/{branch}", check=False).strip()
+    return out or None
+
+
+def apply_revision(repo: Path, *, revision: str, expected_branch: str, expected_head: str,
+                   message: str, hooks_dir: Path) -> dict:
+    """Merge one exact, already-reviewed revision into the owner's real project, as a new merge commit.
+
+    Refuses (raises GitError) unless the project is exactly where the owner approved: same branch, same HEAD, no
+    uncommitted work. The owner's own repository hooks are switched off (the merged files are provider-written).
+    A conflict is aborted and reported, never left half-done."""
+    st = repo_state(repo)
+    if not st["usable"]:
+        raise GitError(st["reason"])
+    if st["dirty"]:
+        raise GitError("your project folder has uncommitted changes; commit or stash them, then ask again")
+    if st["branch"] != expected_branch or st["head"] != expected_head:
+        raise GitError("your project moved after you approved this (a different branch or a new commit); ask again so you approve the current state")
+    _git(repo, "cat-file", "-e", f"{revision}^{{commit}}")
+    cfg = [f"core.hooksPath={hooks_dir}", "commit.gpgsign=false", "merge.verifySignatures=false"]
+    if not _git(repo, "config", "user.name", check=False).strip():          # a fresh git install has no identity
+        cfg += ["user.name=AIOS", "user.email=aios@localhost"]
+    try:
+        _git(repo, "merge", "--no-ff", "--no-verify", "-m", message, revision, extra_config=tuple(cfg))
+    except GitError as e:
+        _git(repo, "merge", "--abort", check=False)
+        return {"applied": False, "reason": f"git could not merge it cleanly ({e}); your project was left as it was"}
+    new_head = _git(repo, "rev-parse", "--verify", "HEAD").strip()
+    if new_head == expected_head:
+        return {"applied": False, "reason": "your project already contains this revision; nothing was added"}
+    same = _git(repo, "rev-parse", "HEAD^{tree}").strip() == _git(repo, "rev-parse", f"{revision}^{{tree}}").strip()
+    return {"applied": True, "commit": new_head, "previous_head": expected_head, "tree_matches_reviewed": same}
+
+
 def restore(wt: Path, revision: str) -> None:
     """Throw away everything in the worktree that is not in `revision`: edits, new files and ignored files.
     Used when a turn did not finish or failed its isolation check, so its half-done work cannot leak into a later patch."""

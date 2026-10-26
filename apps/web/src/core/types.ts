@@ -111,6 +111,7 @@ export interface Finding {
   line: number | null; suggestion: string | null; grounded: boolean | null;
 }
 export interface Readiness { ready: boolean; verified: boolean | null; reviewed: boolean; high_findings: number; reasons: string[]; head_revision: string | null }
+export interface AppliedInfo { applied: boolean; commit?: string; previous_head?: string; tree_matches_reviewed?: boolean; head_revision: string; target_branch: string; at: string }
 export interface QuotaWindow { utilization?: number | null; resets_at?: number | null; status?: string | null }
 export interface Quota { status?: string | null; overage?: string | null; five_hour?: QuotaWindow; seven_day?: QuotaWindow }
 export interface TurnInfo {
@@ -125,12 +126,12 @@ export interface ConversationStatus {
   permissions: Record<string, string | string[]>;
   workspace: { worktree: string | null; branch: string | null; base_revision: string | null; head_revision: string | null };
   last_turn: TurnInfo | null; last_review_turn: TurnInfo | null; quota: Quota | null; quota_note: string; run: Run | null;
-  pending_approvals: { id: string; summary: string; requested_at: string; expires_at: string }[];
+  pending_approvals: { id: string; summary: string; type?: string | null; requested_at: string; expires_at: string }[];
 }
 export interface ConversationView {
   conversation: Conversation; project: { id: string; name: string }; verify_command: string[] | null;
   messages: ConvMessage[]; status: ConversationStatus;
-  changes: { patch: ConvMessage | null; verification: ConvMessage | null; review: ConvMessage | null; readiness: Readiness };
+  changes: { patch: ConvMessage | null; verification: ConvMessage | null; review: ConvMessage | null; readiness: Readiness; applied?: AppliedInfo | null };
   context: Record<string, { kind: string; ref: string; version: string | null; sha256: string }[]>;
 }
 

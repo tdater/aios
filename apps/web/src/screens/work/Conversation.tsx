@@ -64,7 +64,9 @@ export function ConversationScreen({ id }: { id: string }) {
       <p className="muted small">{v.project.name} · {v.conversation.model ?? "account default model"}{v.conversation.branch ? ` · branch ${v.conversation.branch}` : ""}</p>
       <ErrorBox msg={view.error && v ? `Could not refresh (${view.error}). Showing the last data received.` : null} />
       {pending > 0 && (
-        <Notice tone="warn">Your approval is needed before AIOS runs the tests on Claude&apos;s change. <Btn kind="ghost" onClick={() => setPanel("tests")}>Review and decide</Btn></Notice>
+        v.status.pending_approvals.some((p) => p.type === "apply_revision")
+          ? <Notice tone="warn">Your approval is needed before this change is added to your real project. <Btn kind="ghost" onClick={() => setPanel("outcome")}>Review and decide</Btn></Notice>
+          : <Notice tone="warn">Your approval is needed before AIOS runs the tests on Claude&apos;s change. <Btn kind="ghost" onClick={() => setPanel("tests")}>Review and decide</Btn></Notice>
       )}
       <div className="tabs" role="tablist" aria-label="Conversation sections">
         {tabs.map((p) => (

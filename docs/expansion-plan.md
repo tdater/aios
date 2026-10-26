@@ -125,6 +125,7 @@ Earned autonomy for repeated low-risk verification runs; a one-click "apply this
 | System scan (read-only) | Built and tested, real on Windows. Quarantine cleanup is **not** built: AIOS only explains and never deletes |
 | Widgets | Built and tested as validated data. Habit-based suggestions are **not** built |
 | Computer control (look, browser, apps) | **Not built.** The consent gate, pause switch and receipts it needs exist; the controller, redaction and kill hotkey do not. Spike result below |
+| Apply a READY change to the real project | Built and tested, including a real-Claude UI run |
 | "What AIOS knows" page, earned autonomy, plain-language onboarding, seals gallery | Not built |
 
 ### Spike result (2026-10-25)
