@@ -6,8 +6,13 @@ import {
   ACTIVE_RUN_STATES, MODEL_CHOICES, UDiffFile, argvToText, commandToArgv, diffTotals, locationText, parseUnifiedDiff, quotaBars,
   sevTone, shortRev, showCommand, sortFindings,
 } from "../../core/work";
+import { sealOfChanges } from "../../core/seal";
 import { useApp } from "../../ui/Context";
+import { Bench } from "../../ui/Bench";
+import { FlightRecorder } from "../../ui/FlightRecorder";
 import { useLoad } from "../../ui/hooks";
+import { ProofSeal } from "../../ui/Seal";
+import { VaultDoor } from "../../ui/VaultDoor";
 import { Badge, Btn, Collapsible, Empty, ErrorBox, Loading, Notice, Untrusted, ago, fmtDuration, fmtLocal, useOnce } from "../../ui/kit";
 import { CancelPanel, ResumeButton } from "../Runs";
 import { ContextUsed } from "./Thread";
@@ -36,6 +41,15 @@ export function ActivityPanel({ v, reload }: { v: ConversationView; reload: () =
     });
   }, [client, runId]);
   useEffect(() => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; }, [events.length]);
+  const [tid, setTid] = useState<string | null>(null);
+  const [replay, setReplay] = useState<string | null>(null);
+  useEffect(() => { setTid(null); setReplay(null); }, [runId]);
+  useEffect(() => { /* find the saved transcript once the run has one */
+    if (!runId) return;
+    let live = true;
+    client.get<RunDetail>(`/runs/${runId}`).then((d) => { if (live) setTid(d.artifacts.find((a) => a.kind === "claude_transcript")?.id ?? null); }).catch(() => {});
+    return () => { live = false; };
+  }, [client, runId, run?.state]);
   if (!run) return <Empty>Nothing has run yet. Send a message and you will see what Claude does here, step by step.</Empty>;
   const open = ACTIVE_RUN_STATES.has(run.state);
   const shown = events.filter((e) => e.kind !== "lock").slice(-300);
@@ -58,6 +72,13 @@ export function ActivityPanel({ v, reload }: { v: ConversationView; reload: () =
             {e.kind === "claude" ? <strong>Claude</strong> : <code>{e.kind}</code>} {e.message}
           </li>))}
       </ol>
+      {tid && !open && (
+        <Collapsible title="Replay this run">
+          {replay === null
+            ? <Btn kind="ghost" onClick={async () => { try { setReplay((await client.get<Artifact>(`/artifacts/${tid}`)).content); } catch (e) { setErr((e as Error).message); } }}>Load replay</Btn>
+            : <FlightRecorder transcript={replay} />}
+        </Collapsible>
+      )}
       <ContextUsed items={v.context[run.id]} />
     </div>
   );
@@ -178,6 +199,7 @@ export function InlineApproval({ id, onDone }: { id: string; onDone: () => void 
     }
   });
   const d = a.data;
+  const apply = d?.review.type === "apply_revision";
   if (!d) return a.error ? <ErrorBox msg={a.error} code={a.errorCode} /> : <Loading what="Loading the approval" />;
   if (d.status !== "pending") return <Notice tone="info">This approval is {d.status}.</Notice>;
   return (
@@ -186,12 +208,14 @@ export function InlineApproval({ id, onDone }: { id: string; onDone: () => void 
       <p>{d.summary}</p>
       <ul>{d.review.side_effects.map((s) => <li key={s}>{s}</li>)}</ul>
       <Untrusted text={d.review.content_preview || "(empty)"} />
-      <p className="muted small">expires in {fmtDuration(d.expires_in_s)} · applies only to this exact command and revision; if either changes, a new request is made.</p>
+      <p className="muted small">expires in {fmtDuration(d.expires_in_s)} · {apply ? "applies only to this exact revision and your project as it is now; if either changes, a new request is made." : "applies only to this exact command and revision; if either changes, a new request is made."}</p>
       <ErrorBox msg={err} />
-      {d.destructive && <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I understand this runs code that Claude just wrote, on my computer, with my account&apos;s permissions.</label>}
+      {d.destructive && <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {apply ? "I understand this adds a new commit to my real project folder." : "I understand this runs code that Claude just wrote, on my computer, with my account's permissions."}</label>}
       {!connected && <Notice tone="warn">You are offline. Approvals are never queued: reconnect to decide.</Notice>}
       <div className="row">
-        <Btn busy={decide.busy} disabled={!connected || (d.destructive && !ack)} onClick={() => void decide.run(true)}>Approve and run the tests</Btn>
+        <VaultDoor heavy={d.destructive} label={apply ? "Approve and apply to my project" : "Approve and run the tests"} busy={decide.busy} disabled={!connected || (d.destructive && !ack)}
+          hint="This is a heavy door: hold it for about a second. With a keyboard or screen reader, press once to arm it and press again within five seconds to confirm."
+          onOpen={() => void decide.run(true)} />
         <Btn kind="danger" busy={decide.busy} disabled={!connected} onClick={() => void decide.run(false)}>Reject</Btn>
       </div>
     </div>
@@ -223,6 +247,45 @@ export function TestsPanel({ v, reload }: { v: ConversationView; reload: () => P
 }
 
 // ================================================================== Outcome
+/** Adds a READY change to the owner's real project, after an approval bound to the exact revision and project state. */
+function ApplyCard({ v, reload }: { v: ConversationView; reload: () => Promise<void> }) {
+  const { client, connected } = useApp();
+  const [err, setErr] = useState<string | null>(null);
+  const r = v.changes.readiness, applied = v.changes.applied;
+  const busy = !!v.status.run && ACTIVE_RUN_STATES.has(v.status.run.state);
+  const waiting = v.status.pending_approvals.filter((p) => p.type === "apply_revision");
+  const ask = useOnce(async () => {
+    setErr(null);
+    try { await client.post(`/conversations/${v.conversation.id}/apply`); await reload(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : (e as Error).message); }
+  });
+  if (!r.head_revision) return null;
+  if (applied) {
+    return (
+      <div className="card" role="status">
+        <h3>Applied to your project</h3>
+        <p>Merged into <code>{applied.target_branch}</code> as commit <code>{shortRev(applied.commit)}</code>.</p>
+        {applied.tree_matches_reviewed === false && <Notice tone="warn">Your branch had other changes, so the result is not identical to what was tested. Run your tests on it.</Notice>}
+        <p className="muted small">To undo it before you commit anything else: <code>git reset --hard {shortRev(applied.previous_head)}</code></p>
+      </div>
+    );
+  }
+  return (
+    <div className="card">
+      <h3>Apply to your project</h3>
+      {waiting.map((p) => <InlineApproval key={p.id} id={p.id} onDone={() => void reload()} />)}
+      {waiting.length === 0 && (r.ready ? (
+        <>
+          <p className="muted small">Adds this change to your real project folder as a new commit. AIOS first checks nothing has moved, then asks for your approval. Until then your folder is untouched.</p>
+          <ErrorBox msg={err} />
+          <Btn busy={ask.busy} disabled={!connected || busy} onClick={() => void ask.run()}>Apply to my project…</Btn>
+          {busy && <p className="muted small">Wait for the current run to finish first.</p>}
+        </>
+      ) : <p className="muted small">Available once AIOS says READY: the tests must pass on this exact revision.</p>)}
+    </div>
+  );
+}
+
 export function OutcomePanel({ v, reload, sendFindings }: { v: ConversationView; reload: () => Promise<void>; sendFindings: (fs: Finding[], rev: string | null) => void }) {
   const { client, connected } = useApp();
   const r = v.changes.readiness;
@@ -242,12 +305,19 @@ export function OutcomePanel({ v, reload, sendFindings }: { v: ConversationView;
   const current = !!reviewMeta && reviewMeta.reviewed_revision === r.head_revision;
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const chosen = findings.filter((f) => picked.has(f.id));
+  const seal = sealOfChanges(v.changes);
   return (
     <div>
-      <div className={`verdict ${!hasChange ? "none" : r.ready ? "ready" : "notready"}`} role="status">
-        <strong>{!hasChange ? "Nothing to check yet" : r.ready ? "READY" : "NOT READY"}</strong>
-        <span className="muted small"> · decided by AIOS from the facts below, not by Claude</span>
+      {hasChange && <Bench v={v} />}
+      <div className="verdictrow">
+        {seal.show && <ProofSeal hash={seal.hash} view={seal.view} size={96} />}
+        <div className={`verdict ${!hasChange ? "none" : r.ready ? "ready" : "notready"}`} role="status">
+          <strong>{!hasChange ? "Nothing to check yet" : r.ready ? "READY" : "NOT READY"}</strong>
+          <span className="muted small"> · decided by AIOS from the facts below, not by Claude</span>
+          {seal.show && <div className="muted small">The seal: its shape is this change&apos;s fingerprint; each ring is a check that really passed ({seal.view.strength} of 3).</div>}
+        </div>
       </div>
+      <ApplyCard v={v} reload={reload} />
       <dl className="facts">
         <dt>Tests</dt><dd>{r.verified === true ? "passed on this revision" : r.verified === false ? "FAILED on this revision" : "not run on this revision"}</dd>
         <dt>Independent review</dt><dd>{!current ? "none for this revision" : `${reviewMeta!.counts.high ?? 0} high · ${reviewMeta!.counts.medium ?? 0} medium · ${reviewMeta!.counts.low ?? 0} low`}</dd>

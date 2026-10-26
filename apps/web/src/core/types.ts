@@ -111,6 +111,7 @@ export interface Finding {
   line: number | null; suggestion: string | null; grounded: boolean | null;
 }
 export interface Readiness { ready: boolean; verified: boolean | null; reviewed: boolean; high_findings: number; reasons: string[]; head_revision: string | null }
+export interface AppliedInfo { applied: boolean; commit?: string; previous_head?: string; tree_matches_reviewed?: boolean; head_revision: string; target_branch: string; at: string }
 export interface QuotaWindow { utilization?: number | null; resets_at?: number | null; status?: string | null }
 export interface Quota { status?: string | null; overage?: string | null; five_hour?: QuotaWindow; seven_day?: QuotaWindow }
 export interface TurnInfo {
@@ -125,11 +126,39 @@ export interface ConversationStatus {
   permissions: Record<string, string | string[]>;
   workspace: { worktree: string | null; branch: string | null; base_revision: string | null; head_revision: string | null };
   last_turn: TurnInfo | null; last_review_turn: TurnInfo | null; quota: Quota | null; quota_note: string; run: Run | null;
-  pending_approvals: { id: string; summary: string; requested_at: string; expires_at: string }[];
+  pending_approvals: { id: string; summary: string; type?: string | null; requested_at: string; expires_at: string }[];
 }
 export interface ConversationView {
   conversation: Conversation; project: { id: string; name: string }; verify_command: string[] | null;
   messages: ConvMessage[]; status: ConversationStatus;
-  changes: { patch: ConvMessage | null; verification: ConvMessage | null; review: ConvMessage | null; readiness: Readiness };
+  changes: { patch: ConvMessage | null; verification: ConvMessage | null; review: ConvMessage | null; readiness: Readiness; applied?: AppliedInfo | null };
   context: Record<string, { kind: string; ref: string; version: string | null; sha256: string }[]>;
 }
+
+// ---- Insights: the Constellation and the Skyline (docs/api-v1.md, "Insights")
+export type StarState = "fresh" | "stale" | "candidate" | "superseded";
+export interface Star {
+  id: string; title: string; type: "preference" | "fact" | "decision" | "lesson" | "procedure"; scope: "global" | "project";
+  project_id: string | null; project: string | null; state: StarState; uses: number; verified_uses: number; hollow: boolean;
+  last_used: string | null; last_verified: string | null; brightness: number;
+}
+export interface Constellation {
+  stars: Star[]; links: { kind: "supersedes"; from: string; to: string }[]; clusters: string[]; link_kinds: string[];
+  totals: { stars: number; verified: number; hollow: number; stale: number };
+}
+export interface StarEvidence {
+  memory_id: string; total_uses: number; verified_uses: number;
+  uses: { run_id: string; conversation_id: string; conversation: string | null; memory_version: string | null; at: string; verified: boolean }[];
+}
+export interface Building { id: string; name: string; floors: number; working: number; waiting: number; conversations: number }
+export interface Skyline { projects: Building[]; totals: { projects: number; floors: number; waiting: number } }
+
+// ---- Abilities, receipts, widgets, system scan (docs/api-v1.md, "Abilities")
+export interface AbilityInfo { name: string; title: string; can_see: string[]; can_do: string[]; cannot: string[]; enabled: boolean }
+export interface AbilityStatus { paused: boolean; abilities: AbilityInfo[]; planned: { name: string; title: string }[] }
+export interface Receipt { id: string; ts: string; actor: string; kind: string; summary: string; changed: number }
+export interface ScanResult { facts: Record<string, unknown>; suggestions: { id: string; level: "ok" | "info" | "attention"; text: string }[]; changed_anything: boolean }
+export type WidgetData =
+  | { id: string; kind: "counter"; title: string; config: { value: number; step: number } }
+  | { id: string; kind: "checklist"; title: string; config: { items: { text: string; done: boolean }[] } }
+  | { id: string; kind: "note"; title: string; config: { text: string } };

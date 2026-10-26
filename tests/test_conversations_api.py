@@ -142,3 +142,35 @@ def test_errors_and_auth(client, native, repo, fake, app):
                              ("post", f"{V}/conversations"), ("put", f"{V}/projects/{p['id']}/verify-command")):
             assert getattr(anon, method)(path).status_code == 401, (method, path)
     assert native.get(f"{V}/conversations/{cid}").status_code == 200                # bearer tokens work too
+
+
+def test_a_remember_request_and_a_passed_check_become_memory_candidates(client, repo, fake):
+    p = client.post(f"{V}/projects", json={"name": "Calc", "path": str(repo)}).json()
+    cid = client.post(f"{V}/conversations", json={"project_id": p["id"], "title": "Cap"}).json()["id"]
+    r = client.post(f"{V}/conversations/{cid}/messages", headers={"Idempotency-Key": "cap-key-0001"},
+                    json={"content": "Remember that we always run tests with unittest here.", "mode": "read"})
+    assert r.status_code in (200, 201, 202)
+    wait_idle(client, cid)
+    cands = client.get(f"{V}/memories", params={"status": "candidate"}).json()
+    items = cands["items"] if isinstance(cands, dict) else cands
+    assert any("unittest" in i["title"] for i in items) and all(i["status"] == "candidate" for i in items)
+
+
+def test_other_ais_are_by_copy_and_paste_and_replies_stay_unverified(client, repo, fake):
+    p = client.post(f"{V}/projects", json={"name": "Calc", "path": str(repo)}).json()
+    cid = client.post(f"{V}/conversations", json={"project_id": p["id"], "title": "Multi"}).json()["id"]
+    pub = client.post(f"{V}/memories", json={"scope": "global", "type": "fact", "title": "Team uses pytest", "body": "pytest everywhere", "sensitivity": "public", "status": "approved"})
+    prep = client.post(f"{V}/conversations/{cid}/handoff", json={"provider": "gemini", "question": "How should I name tests?"})
+    assert prep.status_code == 201
+    out = prep.json()
+    assert "How should I name tests?" in out["prompt"] and out["prompt"].count("<aios_briefing>") == (1 if out["briefing_items"] else 0)
+    assert client.post(f"{V}/conversations/{cid}/handoff", json={"provider": "claude", "question": "x"}).status_code == 422
+    assert client.post(f"{V}/conversations/{cid}/handoff", json={"provider": "gemini", "question": "  "}).status_code in (400, 422)
+    rep = client.post(f"{V}/conversations/{cid}/handoff/reply", json={"provider": "gemini", "reply": "Use test_<thing>_<case>."})
+    assert rep.status_code == 201
+    msgs = client.get(f"{V}/conversations/{cid}/messages").json()["items"]
+    reply = [m for m in msgs if (m.get("meta") or {}).get("handoff", {}).get("step") == "reply"][0]
+    assert reply["author_kind"] == "provider" and "did not run or verify" in reply["author"] and reply["meta"]["handoff"]["unverified"] is True
+    cands = client.get(f"{V}/memories", params={"status": "candidate"}).json()
+    items = cands["items"] if isinstance(cands, dict) else cands
+    assert not any("test_<thing>" in i["title"] for i in items)       # pasted replies are never mined for memories

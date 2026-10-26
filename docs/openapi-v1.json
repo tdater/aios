@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "AbilityIn": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AbilityIn",
+        "type": "object"
+      },
       "CancelIn": {
         "properties": {
           "expected_version": {
@@ -237,6 +255,48 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HandoffIn": {
+        "properties": {
+          "provider": {
+            "maxLength": 32,
+            "title": "Provider",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "question"
+        ],
+        "title": "HandoffIn",
+        "type": "object"
+      },
+      "HandoffReplyIn": {
+        "properties": {
+          "provider": {
+            "maxLength": 32,
+            "title": "Provider",
+            "type": "string"
+          },
+          "reply": {
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Reply",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "reply"
+        ],
+        "title": "HandoffReplyIn",
         "type": "object"
       },
       "ImportIn": {
@@ -869,6 +929,46 @@
         },
         "title": "VerifyCommandIn",
         "type": "object"
+      },
+      "WidgetConfigIn": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "title": "WidgetConfigIn",
+        "type": "object"
+      },
+      "WidgetIn": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "kind": {
+            "maxLength": 16,
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "config"
+        ],
+        "title": "WidgetIn",
+        "type": "object"
       }
     }
   },
@@ -878,6 +978,69 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/abilities": {
+      "get": {
+        "operationId": "get_abilities_api_v1_abilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Abilities"
+      }
+    },
+    "/api/v1/abilities/{name}": {
+      "put": {
+        "operationId": "put_ability_api_v1_abilities__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbilityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Ability"
+      }
+    },
     "/api/v1/approvals": {
       "get": {
         "operationId": "get_approvals_api_v1_approvals_get",
@@ -1228,6 +1391,59 @@
           }
         },
         "summary": "Make Backup"
+      }
+    },
+    "/api/v1/briefing/{provider}": {
+      "get": {
+        "operationId": "get_briefing_api_v1_briefing__provider__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Briefing"
       }
     },
     "/api/v1/candidates": {
@@ -1683,6 +1899,59 @@
         "summary": "Supersede"
       }
     },
+    "/api/v1/constellation": {
+      "get": {
+        "operationId": "get_constellation_api_v1_constellation_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Constellation"
+      }
+    },
+    "/api/v1/constellation/{memory_id}": {
+      "get": {
+        "operationId": "get_star_api_v1_constellation__memory_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Star"
+      }
+    },
     "/api/v1/conversations": {
       "get": {
         "operationId": "list_conversations_api_v1_conversations_get",
@@ -1832,6 +2101,43 @@
         "summary": "Conversation"
       }
     },
+    "/api/v1/conversations/{conversation_id}/apply": {
+      "post": {
+        "operationId": "request_apply_api_v1_conversations__conversation_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Apply"
+      }
+    },
     "/api/v1/conversations/{conversation_id}/changes": {
       "get": {
         "operationId": "conversation_changes_api_v1_conversations__conversation_id__changes_get",
@@ -1867,6 +2173,100 @@
           }
         },
         "summary": "Conversation Changes"
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/handoff": {
+      "post": {
+        "operationId": "prepare_handoff_api_v1_conversations__conversation_id__handoff_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Handoff"
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/handoff/reply": {
+      "post": {
+        "operationId": "record_handoff_reply_api_v1_conversations__conversation_id__handoff_reply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffReplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Handoff Reply"
       }
     },
     "/api/v1/conversations/{conversation_id}/messages": {
@@ -2799,6 +3199,22 @@
         "summary": "Meta"
       }
     },
+    "/api/v1/pause": {
+      "post": {
+        "operationId": "pause_api_v1_pause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pause"
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "projects_api_v1_projects_get",
@@ -3095,6 +3511,70 @@
           }
         },
         "summary": "Published Export"
+      }
+    },
+    "/api/v1/receipts": {
+      "get": {
+        "operationId": "get_receipts_api_v1_receipts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "changed_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Changed Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Receipts"
+      }
+    },
+    "/api/v1/resume": {
+      "post": {
+        "operationId": "resume_api_v1_resume_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Resume"
       }
     },
     "/api/v1/runs": {
@@ -3762,6 +4242,38 @@
         "summary": "Rollback"
       }
     },
+    "/api/v1/skyline": {
+      "get": {
+        "operationId": "get_skyline_api_v1_skyline_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Skyline"
+      }
+    },
+    "/api/v1/system-scan": {
+      "post": {
+        "operationId": "run_system_scan_api_v1_system_scan_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run System Scan"
+      }
+    },
     "/api/v1/tasks": {
       "get": {
         "operationId": "tasks_api_v1_tasks_get",
@@ -3959,6 +4471,169 @@
           }
         },
         "summary": "Task Detail"
+      }
+    },
+    "/api/v1/widgets": {
+      "get": {
+        "operationId": "get_widgets_api_v1_widgets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Widgets"
+      },
+      "post": {
+        "operationId": "post_widget_api_v1_widgets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Widget"
+      }
+    },
+    "/api/v1/widgets/preview": {
+      "post": {
+        "operationId": "preview_widget_api_v1_widgets_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Widget"
+      }
+    },
+    "/api/v1/widgets/{wid}": {
+      "delete": {
+        "operationId": "del_widget_api_v1_widgets__wid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Del Widget"
+      },
+      "put": {
+        "operationId": "put_widget_api_v1_widgets__wid__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetConfigIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Widget"
       }
     }
   }

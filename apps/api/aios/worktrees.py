@@ -12,7 +12,9 @@ external diff drivers or text conversion filters.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -22,7 +24,7 @@ MAX_DIFF_BYTES = 2_000_000
 # Paths whose change deserves extra review before a patch is applied to the real project: they
 # run code or change tool behaviour without being "the feature".
 SENSITIVE_PATTERNS = (
-    ".git", ".git/*", ".gitattributes", ".gitmodules", ".gitignore", ".github/*", ".gitlab-ci.yml",
+    ".git", ".git/*", ".gitattributes", ".gitmodules", ".lfsconfig", ".gitignore", ".github/*", ".gitlab-ci.yml",
     ".claude/*", ".cursor/*", ".vscode/*", ".idea/*", ".husky/*", ".pre-commit-config.yaml",
     "Jenkinsfile", "azure-pipelines.yml", ".circleci/*", "CLAUDE.md", "AGENTS.md",
     ".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "id_rsa*", "*.keystore", "*.jks",
@@ -36,11 +38,49 @@ class GitError(RuntimeError):
     pass
 
 
+HARDENING = ("core.fsmonitor=false", "core.sshCommand=", "diff.external=")
+
+
+def _pin_file(wt: Path) -> Path:
+    """Where AIOS records a worktree's real git dir. A sibling of the worktree, outside the
+    folder the provider is allowed to write in."""
+    wt = Path(wt)
+    return wt.with_name(wt.name + ".aios-gitdir")
+
+
+def _record_pin(wt: Path) -> None:
+    link = (Path(wt) / ".git").read_text(encoding="utf-8", errors="replace").strip()
+    if not link.startswith("gitdir:"):
+        raise GitError("a new worktree has an unexpected .git link")
+    _pin_file(wt).write_text(link[len("gitdir:"):].strip(), encoding="utf-8")
+
+
+def _pinned_env(repo: Path) -> dict[str, str]:
+    """Git finds a linked worktree's repository through its `.git` file, which the provider can
+    rewrite. For worktrees AIOS created, refuse if that file changed and pass the recorded git dir
+    explicitly, so provider-written files can never choose which config git reads."""
+    pin = _pin_file(repo)
+    if not pin.is_file():
+        # A linked worktree has a `.git` *file* (a normal repository has a directory). Without a
+        # recorded git dir there is nothing to compare it with, so do not trust it.
+        if (Path(repo) / ".git").is_file():
+            raise GitError("this linked worktree has no recorded git dir, so AIOS will not run git in it")
+        return {}
+    gitdir = pin.read_text(encoding="utf-8").strip()
+    try:
+        link = (Path(repo) / ".git").read_text(encoding="utf-8", errors="replace").strip()
+    except OSError as e:
+        raise GitError(f"worktree .git link is unreadable: {e}") from e
+    if link != f"gitdir: {gitdir}":
+        raise GitError("the worktree's .git link was changed after AIOS created it; refusing to run git there")
+    return {"GIT_DIR": gitdir, "GIT_WORK_TREE": str(repo)}
+
+
 def _git(repo: Path, *args: str, timeout: int = GIT_TIMEOUT_S, check: bool = True,
          extra_config: tuple[str, ...] = ()) -> str:
-    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "GIT_PAGER": "cat"}
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "GIT_PAGER": "cat", **_pinned_env(repo)}
     cfg: list[str] = []
-    for c in (f"safe.directory={repo}", *extra_config):
+    for c in (f"safe.directory={repo}", *HARDENING, *extra_config):
         cfg += ["-c", c]
     cmd = ["git", *cfg, "-C", str(repo), *args]
     try:
@@ -60,9 +100,10 @@ def _git(repo: Path, *args: str, timeout: int = GIT_TIMEOUT_S, check: bool = Tru
 
 def _git_rc(repo: Path, *args: str, timeout: int = GIT_TIMEOUT_S) -> int:
     """Return code of a git command whose exit status is the answer (e.g. diff --quiet)."""
-    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"}
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", **_pinned_env(repo)}
+    cfg = [x for c in HARDENING for x in ("-c", c)]
     try:
-        return subprocess.run(["git", "-c", f"safe.directory={repo}", "-C", str(repo), *args],
+        return subprocess.run(["git", "-c", f"safe.directory={repo}", *cfg, "-C", str(repo), *args],
                               capture_output=True, stdin=subprocess.DEVNULL, timeout=timeout,
                               env=env).returncode
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -109,6 +150,7 @@ def create_worktree(repo: Path, dest: Path, branch: str) -> dict:
         raise GitError(f"worktree path already exists: {dest}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "--quiet", "-b", branch, str(dest), st["head"])
+    _record_pin(dest)
     return {"path": str(dest), "branch": branch, "base_revision": st["head"],
             "dirty_source": st["dirty"], "source_branch": st["branch"]}
 
@@ -122,6 +164,7 @@ def create_detached(repo: Path, dest: Path, rev: str) -> str:
     _git(repo, "cat-file", "-e", f"{rev}^{{commit}}")          # the revision must exist
     dest.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "--quiet", "--detach", str(dest), rev)
+    _record_pin(dest)
     return head(dest)
 
 
@@ -130,6 +173,8 @@ def remove_worktree(repo: Path, dest: Path) -> bool:
     try:
         _git(Path(repo), "worktree", "remove", "--force", str(dest))
         _git(Path(repo), "worktree", "prune", check=False)
+        if not Path(dest).exists():
+            _pin_file(dest).unlink(missing_ok=True)
         return not Path(dest).exists()
     except GitError:
         return False
@@ -158,6 +203,134 @@ def commit_all(wt: Path, message: str, hooks_dir: Path) -> str | None:
          extra_config=("user.name=AIOS", "user.email=aios@localhost", "commit.gpgsign=false",
                        f"core.hooksPath={hooks_dir}"))
     return head(wt)
+
+
+def branch_tip(repo: Path, branch: str) -> str | None:
+    out = _git(repo, "rev-parse", "--verify", "-q", f"refs/heads/{branch}", check=False).strip()
+    return out or None
+
+
+MERGE_BLOCKED = (".gitattributes", ".lfsconfig", ".gitmodules")      # they steer which filters and submodules git runs
+
+
+def revision_paths(repo: Path, revision: str) -> list[str]:
+    """Every path a merge of `revision` into the project's current HEAD would change, as git itself computes it."""
+    base = _git(repo, "merge-base", "HEAD", revision).strip()
+    out = _git(repo, "diff", "--name-only", "-z", "--no-renames", base, revision)
+    return sorted(p for p in out.split("\0") if p)
+
+
+def _ignorecase(repo: Path) -> bool:
+    return _git(repo, "config", "--type=bool", "core.ignorecase", check=False).strip() == "true"
+
+
+def _collides(repo: Path, path: str, tracked: set[str], fold) -> bool:
+    """True if applying `path` would overwrite, or write through, something on disk that git does not track: the file
+    itself, or any parent that exists as a file or a link instead of a folder."""
+    parts = path.split("/")
+    for n in range(1, len(parts) + 1):
+        prefix = "/".join(parts[:n])
+        target = repo / prefix
+        if fold(prefix) in tracked or not os.path.lexists(target):
+            continue
+        if n == len(parts) or os.path.islink(target) or not os.path.isdir(target):
+            return True
+    return False
+
+
+def has_control_chars(path: str) -> bool:
+    return any(ord(c) < 32 or ord(c) == 127 for c in path)
+
+
+def blocked_merge_paths(paths: list[str]) -> list[str]:
+    """Paths whose file name is, or on Windows could resolve to, a file that steers git filters or submodules.
+    Case, trailing dots and spaces, alternate data streams and 8.3 short names are all treated as the same file."""
+    out = []
+    for p in paths:
+        name = p.replace("\\", "/").rsplit("/", 1)[-1].rstrip(" .").lower().split(":")[0].rstrip(" .")
+        if name in MERGE_BLOCKED or re.match(r"^(gitatt|gitmod|lfscon)~\d", name):
+            out.append(p)
+    return sorted(out)
+
+
+def paths_digest(paths: list[str]) -> str:
+    return hashlib.sha256("\0".join(sorted(paths)).encode("utf-8")).hexdigest()
+
+
+def merge_preflight(repo: Path, revision: str, *, expected_digest: str | None = None) -> list[str]:
+    """Refuse merges that could overwrite or steer something the owner has not seen. Returns the paths it would change."""
+    paths = revision_paths(repo, revision)
+    if expected_digest is not None and paths_digest(paths) != expected_digest:
+        raise GitError("the set of files this merge would change is not the set you approved; ask again")
+    odd = sorted(p for p in paths if has_control_chars(p))
+    if odd:
+        raise GitError("this change contains file names with control characters, which AIOS cannot show you faithfully, "
+                       "so it will not merge it. Review the branch and merge it yourself with git")
+    blocked = blocked_merge_paths(paths)
+    if blocked:
+        raise GitError("this change alters " + ", ".join(blocked) + ", which control how git filters and submodules behave, "
+                       "so AIOS will not merge it for you. Review it and merge the branch yourself with git")
+    fold = str.casefold if _ignorecase(repo) else (lambda t: t)       # only fold case where the file system does
+    tracked = {fold(t) for t in _git(repo, "ls-files", "-z").split("\0") if t}
+    hit = sorted(p for p in paths if _collides(Path(repo), p, tracked, fold))
+    if hit:
+        raise GitError("these files already exist in your project, outside what git tracks (for example ignored files), and the merge "
+                       "would overwrite them: " + ", ".join(hit[:10]) + ". Move them away, then ask again")
+    return paths
+
+
+def apply_revision(repo: Path, *, revision: str, expected_branch: str, expected_head: str,
+                   message: str, hooks_dir: Path, expected_paths_digest: str | None = None) -> dict:
+    """Merge one exact, already-reviewed revision into the owner's real project, as a new merge commit.
+
+    Refuses (raises GitError) unless the project is exactly where the owner approved: same branch, same HEAD, no
+    uncommitted work. The owner's own repository hooks are switched off (the merged files are provider-written).
+    A conflict is aborted and reported, never left half-done."""
+    st = repo_state(repo)
+    if not st["usable"]:
+        raise GitError(st["reason"])
+    if st["dirty"]:
+        raise GitError("your project folder has uncommitted changes; commit or stash them, then ask again")
+    if st["branch"] != expected_branch or st["head"] != expected_head:
+        raise GitError("your project moved after you approved this (a different branch or a new commit); ask again so you approve the current state")
+    _git(repo, "cat-file", "-e", f"{revision}^{{commit}}")
+    merge_preflight(repo, revision, expected_digest=expected_paths_digest)
+    cfg = [f"core.hooksPath={hooks_dir}", "commit.gpgsign=false", "merge.verifySignatures=false"]
+    if not _git(repo, "config", "user.name", check=False).strip():          # a fresh git install has no identity
+        cfg += ["user.name=AIOS", "user.email=aios@localhost"]
+    try:
+        _git(repo, "merge", "--no-ff", "--no-verify", "--no-overwrite-ignore", "-m", message, revision, extra_config=tuple(cfg))
+    except GitError as e:
+        _git(repo, "merge", "--abort", check=False)
+        return {"applied": False, "reason": f"git could not merge it cleanly ({e}); your project was left as it was"}
+    new_head = _git(repo, "rev-parse", "--verify", "HEAD").strip()
+    if new_head == expected_head:
+        return {"applied": False, "reason": "your project already contains this revision; nothing was added"}
+    same = _git(repo, "rev-parse", "HEAD^{tree}").strip() == _git(repo, "rev-parse", f"{revision}^{{tree}}").strip()
+    return {"applied": True, "commit": new_head, "previous_head": expected_head, "tree_matches_reviewed": same}
+
+
+def restore(wt: Path, revision: str) -> None:
+    """Throw away everything in the worktree that is not in `revision`: edits, new files and ignored files.
+    Used when a turn did not finish or failed its isolation check, so its half-done work cannot leak into a later patch."""
+    _git(wt, "reset", "--hard", "-q", revision)
+    _git(wt, "clean", "-ffdxq")
+
+
+def is_clean_at(wt: Path, revision: str) -> bool:
+    """True when the worktree is exactly `revision`: same commit, no edits, no untracked or ignored files."""
+    return head(wt) == revision and not _git(wt, "status", "--porcelain", "--ignored").strip()
+
+
+def prepare_clean_checkout(wt: Path, expected_head: str) -> None:
+    """Make the worktree contain exactly the revision that was reviewed and approved, and nothing else.
+    The patch an owner approves holds tracked and added files only; ignored or untracked files would
+    otherwise run during verification without ever appearing in it."""
+    if head(wt) != expected_head:
+        raise GitError("the worktree is no longer at the approved revision; refusing to run tests on it")
+    _git(wt, "clean", "-ffdxq")
+    if _git(wt, "status", "--porcelain", "--ignored").strip():
+        raise GitError("the worktree still holds files that are not part of the approved revision")
 
 
 def diff_text(wt: Path, base: str, tip: str) -> tuple[str, bool]:

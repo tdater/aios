@@ -6,7 +6,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, Query, Response
 from pydantic import BaseModel, Field
 
-from . import conversations, idempotency, services
+from . import conversations, handoff, idempotency, services
 from .config import Settings
 from .db import Database
 from .errors import not_found
@@ -27,6 +27,16 @@ class MessageIn(BaseModel):
 class ConversationReviewIn(BaseModel):    # not "ReviewIn": history_api already publishes a schema by that name
     model: str | None = Field(default=None, max_length=64)
     patch_message_id: str | None = None
+
+
+class HandoffIn(BaseModel):
+    provider: str = Field(max_length=32)
+    question: str = Field(min_length=1, max_length=handoff.MAX_QUESTION)
+
+
+class HandoffReplyIn(BaseModel):
+    provider: str = Field(max_length=32)
+    reply: str = Field(min_length=1, max_length=handoff.MAX_REPLY)
 
 
 class VerifyCommandIn(BaseModel):
@@ -75,6 +85,18 @@ def build_router(db: Database, engine, settings: Settings, require_auth) -> APIR
         if replay:
             response.headers["Idempotent-Replay"] = "true"
         return out
+
+    @r.post("/conversations/{conversation_id}/apply", status_code=201)
+    def request_apply(conversation_id: str):
+        return redact_obj(conversations.request_apply(db, engine, conversation_id))
+
+    @r.post("/conversations/{conversation_id}/handoff", status_code=201)
+    def prepare_handoff(conversation_id: str, body: HandoffIn):
+        return redact_obj(handoff.prepare(db, settings, conversation_id, body.provider, body.question))
+
+    @r.post("/conversations/{conversation_id}/handoff/reply", status_code=201)
+    def record_handoff_reply(conversation_id: str, body: HandoffReplyIn):
+        return redact_obj(handoff.record_reply(db, conversation_id, body.provider, body.reply))
 
     @r.post("/conversations/{conversation_id}/review", status_code=201)
     def request_review(conversation_id: str, body: ConversationReviewIn, response: Response,

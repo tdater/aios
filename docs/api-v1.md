@@ -74,6 +74,28 @@ include `review` (findings with an AIOS-computed `grounded` flag) and `readiness
 (`ready`, `verified`, `reviewed`, `high_findings`, `reasons`), which AIOS computes from recorded facts: ready means a
 passing verification of exactly this revision and no high-severity finding in a review of it. A review is optional.
 
+## Insights, briefings, abilities (all additive)
+- `GET /constellation`: every non-deleted approved, candidate or superseded memory as a `star` with `uses`, `verified_uses`
+  (a use counts as verified only when the same run has a passing verification AIOS recorded), `hollow` (used, never verified),
+  `state` (`fresh`, `stale` after 90 days unreviewed, `candidate`, `superseded`), and `brightness`. `links` are only
+  `supersedes`. Titles of `secret-adjacent` items are withheld. `GET /constellation/{memory_id}` lists the uses.
+- `GET /skyline`: per active project, `floors` (distinct revisions whose tests passed), `working`, `waiting`, `conversations`.
+- `GET /briefing/{provider}?project_id=`: the approved, in-scope memories one AI may be told, ranked, capped at 4000
+  characters and hashed. `claude` may see `public` and `private`; `gemini`, `perplexity`, `antigravity` only `public`.
+- `POST /conversations/{id}/handoff {provider, question}` writes a ready-to-paste prompt (with that AI's briefing) and
+  `POST /conversations/{id}/handoff/reply {provider, reply}` files the pasted answer, attributed to that AI and marked
+  `unverified`. AIOS never contacts those AIs, and pasted answers are never mined for memories.
+- Memory candidates (`status: candidate`) are proposed from the owner's own "remember / always / never" sentences and from a
+  verification AIOS ran and saw pass. Never from AI text, repository text or pasted answers. They are never used until approved.
+- `GET /abilities`, `PUT /abilities/{name} {enabled, confirm}` (turning on needs `confirm: true`; otherwise 422
+  `confirmation_required`), `POST /pause`, `POST /resume`, `GET /receipts?changed_only=`. `paused` stops the dispatcher from
+  starting runs and makes every ability answer 423 `paused`; a disabled ability answers 403 `ability_off`.
+- `POST /system-scan` (needs the `system_scan` ability): reads memory, disk, temp-folder size and start-up count; returns
+  `suggestions` computed by fixed rules and `changed_anything: false`.
+- `POST /conversations/{id}/apply`: asks to merge the latest change into the owner's real project. 409 `nothing_to_apply`, `not_ready` (only a READY change qualifies), `already_applied`, `turn_in_progress`. It starts a `claude.apply` run that re-checks readiness, that the conversation branch still points at the reviewed revision, and that the project is on a branch with nothing uncommitted, then asks for an approval bound to the exact revision, branch and project HEAD (`type: apply_revision`, destructive). The merge is `git merge --no-ff` with the owner's hooks disabled; a conflict is aborted and reported. `changes.applied` carries the commit, the previous HEAD (for undo) and `tree_matches_reviewed`. Pending approvals in the conversation status carry a `type`.
+- Widgets are data, not code: `POST /widgets/preview`, `GET/POST /widgets`, `PUT /widgets/{id}`, `DELETE /widgets/{id}`. Kinds
+  `counter`, `checklist`, `note`; unknown settings are rejected; creating or editing needs the `widgets` ability, removing never does.
+
 ## Run state, execution honesty
 `state` is the machine contract (`queued, running, awaiting_approval, blocked, interrupted, succeeded, failed,
 cancelled`). `display_state` is the honest user-facing label: adds **`awaiting_provider_session`** (a user-started

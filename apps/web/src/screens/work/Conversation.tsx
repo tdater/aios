@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { ConversationView, Finding } from "../../core/types";
+import { sealOfChanges } from "../../core/seal";
 import { ACTIVE_RUN_STATES, findingsPrompt } from "../../core/work";
+import { ProofSeal } from "../../ui/Seal";
 import { useApp } from "../../ui/Context";
 import { go, useLoad, useViewport } from "../../ui/hooks";
 import { Badge, Btn, ErrorBox, Loading, Notice } from "../../ui/kit";
 import { useTabTitle } from "../../ui/useTabTitle";
+import { Handoff } from "./Handoff";
 import { ActivityPanel, ChangesPanel, OutcomePanel, StatusPanel, TestsPanel } from "./Panels";
 import { Busy, Composer, MessageList, PanelId } from "./Thread";
 
@@ -34,6 +37,7 @@ export function ConversationScreen({ id }: { id: string }) {
     );
   }
   const r = v.changes.readiness;
+  const seal = sealOfChanges(v.changes);
   const pending = v.status.pending_approvals.length;
   const tabs = (twoPane ? ["activity", "changes", "tests", "outcome", "status"] : ["chat", "activity", "changes", "tests", "outcome", "status"]) as PanelId[];
   const mark = (p: PanelId) =>
@@ -47,11 +51,12 @@ export function ConversationScreen({ id }: { id: string }) {
   );
   const body = shown === "chat" ? chat : shown === "activity" ? <ActivityPanel v={v} reload={view.reload} />
     : shown === "changes" ? <ChangesPanel v={v} /> : shown === "tests" ? <TestsPanel v={v} reload={view.reload} />
-    : shown === "outcome" ? <OutcomePanel v={v} reload={view.reload} sendFindings={draftFix} /> : <StatusPanel v={v} />;
+    : shown === "outcome" ? <OutcomePanel v={v} reload={view.reload} sendFindings={draftFix} /> : <><StatusPanel v={v} /><Handoff conversationId={id} onChanged={() => void view.reload()} /></>;
   return (
     <div className="screen work">
       <Btn kind="ghost" onClick={() => go({ tab: "work" })}>← Workspace</Btn>
       <div className="row">
+        {seal.show && <ProofSeal hash={seal.hash} view={seal.view} size={38} />}
         <h2>{v.conversation.title}</h2>
         {run && <Badge s={run.display_state} />}
         {r.head_revision && <Badge s={r.ready ? "completed" : "failed"} label={r.ready ? "ready" : "not ready"} />}
@@ -59,7 +64,9 @@ export function ConversationScreen({ id }: { id: string }) {
       <p className="muted small">{v.project.name} · {v.conversation.model ?? "account default model"}{v.conversation.branch ? ` · branch ${v.conversation.branch}` : ""}</p>
       <ErrorBox msg={view.error && v ? `Could not refresh (${view.error}). Showing the last data received.` : null} />
       {pending > 0 && (
-        <Notice tone="warn">Your approval is needed before AIOS runs the tests on Claude&apos;s change. <Btn kind="ghost" onClick={() => setPanel("tests")}>Review and decide</Btn></Notice>
+        v.status.pending_approvals.some((p) => p.type === "apply_revision")
+          ? <Notice tone="warn">Your approval is needed before this change is added to your real project. <Btn kind="ghost" onClick={() => setPanel("outcome")}>Review and decide</Btn></Notice>
+          : <Notice tone="warn">Your approval is needed before AIOS runs the tests on Claude&apos;s change. <Btn kind="ghost" onClick={() => setPanel("tests")}>Review and decide</Btn></Notice>
       )}
       <div className="tabs" role="tablist" aria-label="Conversation sections">
         {tabs.map((p) => (

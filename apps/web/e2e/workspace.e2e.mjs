@@ -139,7 +139,13 @@ try {
     expect(await approve.isDisabled(), "approve must be disabled until the risk is acknowledged");
     await page.getByLabel(/I understand this runs code that Claude just wrote/).check();
     await shot("05-approval");
-    await approve.click();
+    await approve.click();                                           // a plain mouse click does nothing: the door must be held
+    expect((await approve.innerText()).includes("Hold to open"), "a single click must not open a heavy door");
+    expect(!(await panel("Tests").getByText("tests passed").isVisible().catch(() => false)), "tests must not have run yet");
+    await approve.hover();                                           // holding it is what opens it
+    await page.mouse.down();
+    await sleep(1600);
+    await page.mouse.up();
     await panel("Tests").getByText("tests passed").waitFor({ timeout: 120000 });
     await panel("Tests").getByText(/run by AIOS, not by Claude/).waitFor();
     await shot("06-tests-passed");
@@ -180,6 +186,27 @@ try {
     expect(await page.locator("li.msg.aios.verification").count() >= 1, "verification message missing");
     expect(readFileSync(join(proj, "calc.py"), "utf8") === CALC, "project folder changed");
     expect(git("branch", "--list", "aios/*").trim().length > 0, "the conversation branch should exist");
+  });
+
+  await step("apply: AIOS asks first, then merges the reviewed change into the real project", async () => {
+    await tab(/^Outcome/);
+    expect(readFileSync(join(proj, "calc.py"), "utf8") === CALC, "project folder changed before apply was requested");
+    await page.getByRole("button", { name: /Apply to my project/ }).click();
+    const approve = page.getByRole("button", { name: "Approve and apply to my project" });
+    await approve.waitFor({ timeout: LONG });
+    expect(readFileSync(join(proj, "calc.py"), "utf8") === CALC, "the project must not change before the approval");
+    expect(await approve.isDisabled(), "approve must be disabled until the risk is acknowledged");
+    await page.getByLabel(/adds a new commit to my real project folder/).check();
+    await shot("10-apply-approval");
+    await approve.hover();                                           // the heavy door: hold it
+    await page.mouse.down();
+    await sleep(1600);
+    await page.mouse.up();
+    await page.getByRole("heading", { name: "Applied to your project" }).waitFor({ timeout: 60000 });
+    expect(readFileSync(join(proj, "calc.py"), "utf8").includes("return a + b"), "the fix should now be in the real project");
+    expect(git("status", "--porcelain").trim() === "", "the project folder should be clean after the merge");
+    expect(git("rev-list", "--parents", "-n", "1", "HEAD").trim().split(/\s+/).length === 3, "expected a merge commit");
+    await shot("11-applied");
   });
 
   await step("phone width: the same conversation is usable", async () => {

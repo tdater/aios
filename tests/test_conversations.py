@@ -410,3 +410,110 @@ def test_verification_times_out_and_redacts(tmp_path):
     leaky = verification.run_command([sys.executable, "-c", "print('token = abcdefghijklmnop1234')"], tmp_path,
                                      timeout_s=30)
     assert leaky["passed"] and "abcdefghijklmnop1234" not in leaky["output"]
+
+
+def test_a_rewritten_worktree_git_link_is_refused_and_no_hook_command_runs(repo, tmp_path):
+    """The provider can write the worktree's `.git` file. Pointing it at a gitdir with a
+    core.fsmonitor command must not make AIOS's own git calls run that command."""
+    wt = tmp_path / "wts" / "w1"
+    worktrees.create_worktree(repo, wt, "aios/pin-test")
+    (wt / "x.txt").write_text("hello")
+    fake_gitdir = wt / "evil.git"
+    fake_gitdir.mkdir()
+    marker = tmp_path / "pwned.txt"
+    (fake_gitdir / "config").write_text(
+        f"[core]\n\trepositoryformatversion = 0\n\tfsmonitor = echo x > {marker.as_posix()}\n")
+    (fake_gitdir / "HEAD").write_text("ref: refs/heads/main\n")
+    swap = wt / "git.swap"
+    swap.write_text(f"gitdir: {fake_gitdir.as_posix()}\n")
+    swap.replace(wt / ".git")                       # replaced the way an editor would, not overwritten in place
+    with pytest.raises(worktrees.GitError, match="link was changed"):
+        worktrees.commit_all(wt, "m", tmp_path / "nohooks")
+    assert not marker.exists()
+
+
+def test_an_untouched_worktree_still_commits_through_the_pinned_git_dir(repo, tmp_path):
+    wt = tmp_path / "wts" / "w2"
+    worktrees.create_worktree(repo, wt, "aios/pin-ok")
+    (wt / "y.txt").write_text("hi")
+    assert worktrees.commit_all(wt, "m", tmp_path / "nohooks")
+    assert worktrees.remove_worktree(repo, wt)
+    assert not worktrees._pin_file(wt).exists()
+
+
+def test_a_linked_worktree_without_a_recorded_git_dir_is_refused(repo, tmp_path):
+    wt = tmp_path / "wts" / "w3"
+    worktrees.create_worktree(repo, wt, "aios/pin-missing")
+    worktrees._pin_file(wt).unlink()
+    (wt / "z.txt").write_text("hi")
+    with pytest.raises(worktrees.GitError, match="no recorded git dir"):
+        worktrees.commit_all(wt, "m", tmp_path / "nohooks")
+    assert worktrees.worktree_ok(wt) is False
+
+
+# ---------------------------------------------------------------- hidden files and leftovers (security review findings)
+def test_verification_never_runs_files_that_are_not_part_of_the_approved_revision(repo, tmp_path):
+    (repo / ".gitignore").write_text("build/\n*.pyc\n")
+    git(repo, "add", "-A")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "ignore")
+    wt = tmp_path / "wts" / "v1"
+    worktrees.create_worktree(repo, wt, "aios/clean-test")
+    (wt / "build").mkdir()
+    (wt / "build" / "evil.py").write_text("raise SystemExit(0)")          # ignored: invisible to `git add -A` and to the diff
+    (wt / "conftest.pyc").write_text("x")
+    (wt / "extra.py").write_text("print(1)")                              # untracked
+    tip = worktrees.head(wt)
+    worktrees.prepare_clean_checkout(wt, tip)
+    assert sorted(p.name for p in wt.iterdir() if p.name != ".git") == [".gitignore", "calc.py", "test_calc.py"]
+    with pytest.raises(worktrees.GitError, match="no longer at the approved revision"):
+        worktrees.prepare_clean_checkout(wt, "0" * 40)
+
+
+def test_a_turn_that_fails_isolation_leaves_no_edits_behind_and_is_not_resumed(db, settings, engine, proj, repo, fake):
+    fake(edit=True, extra_tools=["Bash"], edit_files={"build/hidden.py": "x = 1"})
+    conv, rid = start_turn(db, engine, proj, "fix", mode="edit")
+    assert engine.execute(rid) == "failed"
+    c = conversations.get(db, conv["id"])
+    wt = Path(c["worktree_path"])
+    assert "return a - b" in (wt / "calc.py").read_text() and not (wt / "build").exists()      # edits discarded
+    assert git(wt, "status", "--porcelain", "--ignored").strip() == ""
+    assert c["session_id"] is None                                                             # never resumed
+    assert any("discarded" in m["content"] for m in conversations.messages(db, conv["id"]) if m["kind"] == "status")
+    fake(edit=True)                                                                            # the next, clean turn is unaffected
+    posted = conversations.post_user_message(db, engine, conv["id"], "try again", "edit")
+    assert engine.execute(posted["run"]["id"]) == "succeeded"
+    patch = [m for m in conversations.messages(db, conv["id"]) if m["kind"] == "patch" and m["meta"].get("changed")][-1]
+    assert [f["path"] for f in patch["meta"]["files"]] == ["calc.py"]
+
+
+def test_a_dirty_working_copy_is_reset_before_the_next_turn_in_any_mode(db, settings, engine, proj, repo, fake):
+    fake(edit=True)
+    conv, rid = start_turn(db, engine, proj, "fix", mode="edit")
+    assert engine.execute(rid) == "succeeded"
+    wt = Path(conversations.get(db, conv["id"])["worktree_path"])
+    good = git(wt, "rev-parse", "HEAD").strip()
+    (wt / "calc.py").write_text("tampered")                    # as if an interrupted turn left edits behind
+    (wt / "stray.py").write_text("x")
+    fake()
+    posted = conversations.post_user_message(db, engine, conv["id"], "just a question", "read")   # a READ turn still checks
+    assert engine.execute(posted["run"]["id"]) == "succeeded"
+    assert git(wt, "rev-parse", "HEAD").strip() == good and not (wt / "stray.py").exists()
+    assert "return a + b" in (wt / "calc.py").read_text() and git(wt, "status", "--porcelain", "--ignored").strip() == ""
+    assert any("had not recorded" in m["content"] for m in conversations.messages(db, conv["id"]) if m["kind"] == "status")
+
+
+def test_a_read_turn_that_fails_isolation_also_leaves_its_worktree_clean(db, settings, engine, proj, repo, fake):
+    fake(edit=True)
+    conv, rid = start_turn(db, engine, proj, "fix", mode="edit")
+    assert engine.execute(rid) == "succeeded"
+    wt = Path(conversations.get(db, conv["id"])["worktree_path"])
+    fake(extra_tools=["Bash"])
+    posted = conversations.post_user_message(db, engine, conv["id"], "look", "read")
+    assert engine.execute(posted["run"]["id"]) == "failed"
+    assert git(wt, "status", "--porcelain", "--ignored").strip() == ""
+
+
+def test_the_active_turn_carries_its_task_title_and_kind(db, settings, engine, proj, fake):
+    conv, rid = start_turn(db, engine, proj, "What does calc.py do?")
+    busy = conversations.active_turn(db, conv["id"])
+    assert (busy["id"], busy["task_kind"]) == (rid, "claude.turn") and busy["task_title"].startswith("What does")

@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ConversationScreen } from "../screens/work/Conversation";
+import { HOLD_MS } from "../ui/VaultDoor";
 import { WorkPicker } from "../screens/work/Picker";
 import { err, fakeServer, Handler } from "./fakeServer";
 import { ctxFor, resetRoute, setWidth, Wrap } from "./helpers";
@@ -208,7 +209,12 @@ describe("tests and approval", () => {
     expect(approve.disabled).toBe(true);                                                         // not until acknowledged
     fireEvent.click(screen.getByLabelText(/I understand this runs code that Claude just wrote/));
     expect(approve.disabled).toBe(false);
-    fireEvent.click(approve);
+    fireEvent.click(approve);                                                                    // one press only arms the heavy door
+    expect(approve.textContent).toContain("Press again to open");
+    expect(srv.count("POST", "/approvals/apr_1/decide")).toBe(0);
+    fireEvent.pointerDown(approve);                                                              // holding it is what opens it
+    await act(async () => { await new Promise((r) => setTimeout(r, HOLD_MS + 250)); });
+    fireEvent.pointerUp(approve);
     await waitFor(() => expect(srv.count("POST", "/approvals/apr_1/decide")).toBe(1));
     expect(srv.calls.find((c) => c.path === "/approvals/apr_1/decide")!.body).toEqual(
       { approve: true, expected_version: 4, action_hash: "h".repeat(64), confirm_destructive: true });
@@ -297,6 +303,43 @@ describe("outcome and review", () => {
     expect(box.value).not.toContain("Naming nit");
     expect((screen.getByLabelText(/Make changes/) as HTMLInputElement).checked).toBe(true);
     expect(srv.count("POST", "/conversations/cnv_1/messages")).toBe(0);                          // a person reads it and presses Send
+  });
+});
+
+describe("proof seal", () => {
+  it("shows an honest seal in the header and the outcome: rings are checks that passed", async () => {
+    await open(view());
+    const header = screen.getAllByRole("img", { name: /Proof seal/ });
+    expect(header.length).toBe(1);
+    expect(header[0].getAttribute("class")).toContain("ready");
+    expect(header[0].getAttribute("aria-label")).toContain("revision cccccccc");
+    expect(header[0].getAttribute("aria-label")).toContain("2 of 3 checks");                    // approved + tests; no review yet
+    tab(/^Outcome/);
+    const seals = screen.getAllByRole("img", { name: /Proof seal/ });
+    expect(seals.length).toBe(2);
+    expect(seals[1].querySelectorAll("circle.ring").length).toBe(2);
+    expect(screen.getByText(/each ring is a check that really passed \(2 of 3\)/)).toBeTruthy();
+  });
+
+  it("cracks when AIOS says NOT READY, even though the tests passed", async () => {
+    const lazy = view({}, {
+      review: msg(6, { author_kind: "provider", kind: "review", role: "assistant", author: "claude-code 2.1.310 (claude-opus-5-5), independent reviewer", content: "x",
+        meta: { review: { reviewed_revision: "c".repeat(40), findings: [], counts: { high: 1, medium: 0, low: 0 }, summary: "s", model: "m", separate_session: true } } }),
+      readiness: { ready: false, verified: true, reviewed: true, high_findings: 1, reasons: ["1 high-severity finding(s) in the review of this revision"], head_revision: "c".repeat(40) },
+    });
+    await open(lazy);
+    const seal = screen.getByRole("img", { name: /Proof seal/ });
+    expect(seal.getAttribute("class")).toContain("cracked");
+    expect(seal.querySelector("path.crack")).toBeTruthy();
+    expect(seal.getAttribute("aria-label")).toContain("independent review found a high-severity problem");
+  });
+
+  it("is hollow when nothing has been verified, and absent when there is no change", async () => {
+    await open(view({}, { verification: null, readiness: { ready: false, verified: null, reviewed: false, high_findings: 0, reasons: ["not verified: no verification has run"], head_revision: "c".repeat(40) } }));
+    expect(screen.getByRole("img", { name: /Proof seal/ }).getAttribute("class")).toContain("hollow");
+    cleanup();
+    await open(view({}, { patch: null, verification: null, readiness: { ready: false, verified: null, reviewed: false, high_findings: 0, reasons: [], head_revision: null } }));
+    expect(screen.queryByRole("img", { name: /Proof seal/ })).toBeNull();
   });
 });
 
@@ -398,5 +441,80 @@ describe("picker", () => {
     await screen.findByText(/You need a project first/);
     fireEvent.click(screen.getByRole("button", { name: "Register a project" }));
     expect(location.hash).toBe("#/projects");
+  });
+});
+
+describe("other AIs by copy and paste", () => {
+  it("writes a prompt, then files the pasted answer, and never claims AIOS ran the other AI", async () => {
+    const { srv } = await open(view(), {
+      "POST /conversations/cnv_1/handoff": () => ({ status: 201, body: { prompt: "PROMPT TEXT", message_id: "m1", briefing_items: 0, briefing_sha256: null } }),
+      "POST /conversations/cnv_1/handoff/reply": () => ({ status: 201, body: { message_id: "m2" } }),
+    });
+    tab(/^Status/);
+    fireEvent.click(await screen.findByRole("button", { name: /Ask another AI/ }));
+    expect(screen.getByText(/AIOS does not connect to Gemini/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "How should I name tests?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Write the prompt" }));
+    expect(await screen.findByDisplayValue("PROMPT TEXT")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Paste Gemini's answer here/), { target: { value: "Use descriptive names." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save the answer" }));
+    expect(await screen.findByText(/Gemini's answer was added to this conversation/)).toBeTruthy();
+    const sent = srv.calls.filter((c: { path: string }) => c.path.endsWith("/handoff") || c.path.endsWith("/handoff/reply")).map((c: { body: unknown }) => c.body);
+    expect(sent).toEqual([{ provider: "gemini", question: "How should I name tests?" }, { provider: "gemini", reply: "Use descriptive names." }]);
+  });
+});
+
+describe("apply a ready change to your real project", () => {
+  const APPLY_APPROVAL = { id: "apr_9", run_id: "run_1", summary: "Merge revision cccccccccccc (1 file(s)) into your project's branch 'main'", status: "pending", action_hash: "h".repeat(64), version: 2,
+    action: {}, destructive: true, requested_at: T0, expires_at: T0, age_s: 5, expires_in_s: 3000,
+    review: { type: "apply_revision", target: "C:\proj", side_effects: ["Adds a new commit to your real project folder, on its branch 'main'", "To undo it, run: git reset --hard aaaaaaaaaaaa (only before you commit more on top)"], content_preview: "{}", destructive: true } };
+
+  it("offers Apply only when AIOS says READY, and asking sends nothing but the request", async () => {
+    const { srv } = await open(view(), { "POST /conversations/cnv_1/apply": () => ({ status: 201, body: {} }) });
+    tab(/^Outcome/);
+    fireEvent.click(await screen.findByRole("button", { name: /Apply to my project/ }));
+    await waitFor(() => expect(srv.count("POST", "/conversations/cnv_1/apply")).toBe(1));
+    expect(screen.getByText(/Until then your folder is untouched/)).toBeTruthy();
+  });
+
+  it("a change that is not ready cannot be applied, and says why", async () => {
+    await open(view({}, { readiness: { ready: false, verified: false, reviewed: false, high_findings: 0, reasons: ["verification FAILED for this revision"], head_revision: "c".repeat(40) } }));
+    tab(/^Outcome/);
+    expect(screen.queryByRole("button", { name: /Apply to my project/ })).toBeNull();
+    expect(screen.getByText(/Available once AIOS says READY/)).toBeTruthy();
+  });
+
+  it("the approval is worded for adding to your real project, not for running tests, and needs the acknowledgement", async () => {
+    const waiting = view({}, {}, { run: RUN({ state: "awaiting_approval", display_state: "awaiting_approval" }), pending_approvals: [{ id: "apr_9", summary: "x", type: "apply_revision", requested_at: T0, expires_at: T0 }] });
+    const { srv } = await open(waiting, { "GET /approvals/apr_9": () => ({ body: APPLY_APPROVAL }), "POST /approvals/apr_9/decide": () => ({ body: { status: "approved" } }) });
+    expect(screen.getByText(/before this change is added to your real project/)).toBeTruthy();
+    expect(screen.queryByText(/before AIOS runs the tests/)).toBeNull();
+    tab(/^Outcome/);
+    expect(await screen.findByText(/git reset --hard aaaaaaaaaaaa/)).toBeTruthy();
+    const door = screen.getByRole("button", { name: "Approve and apply to my project" }) as HTMLButtonElement;
+    expect(door.disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText(/adds a new commit to my real project folder/));
+    expect(door.disabled).toBe(false);
+    fireEvent.click(door);                                                       // a plain click only arms the door
+    expect(srv.count("POST", "/approvals/apr_9/decide")).toBe(0);
+  });
+
+  it("after it is applied, says where and how to undo it, and warns when the result differs from what was tested", async () => {
+    const applied = { applied: true, commit: "d".repeat(40), previous_head: "a".repeat(40), tree_matches_reviewed: false, head_revision: "c".repeat(40), target_branch: "main", at: T0 };
+    await open(view({}, { applied }));
+    tab(/^Outcome/);
+    const card = (await screen.findByText("Applied to your project")).closest(".card") as HTMLElement;
+    expect(card.textContent).toContain("main");
+    expect(card.textContent).toContain("dddddddddddd");
+    expect(card.textContent).toContain("git reset --hard aaaaaaaaaaaa");
+    expect(card.textContent).toContain("not identical to what was tested");
+    expect(screen.queryByRole("button", { name: /Apply to my project/ })).toBeNull();
+  });
+
+  it("shows the server's reason when it refuses", async () => {
+    await open(view(), { "POST /conversations/cnv_1/apply": () => ({ status: 409, body: { error: { code: "not_ready", message: "AIOS does not consider this change ready: verification FAILED" } } }) });
+    tab(/^Outcome/);
+    fireEvent.click(await screen.findByRole("button", { name: /Apply to my project/ }));
+    expect((await screen.findByRole("alert")).textContent).toContain("does not consider this change ready");
   });
 });

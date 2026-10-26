@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { ApiError, NetworkError, newKey } from "../core/client";
 import { Draft } from "../core/drafts";
-import { Home as HomeData } from "../core/types";
+import { Home as HomeData, Skyline } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad } from "../ui/hooks";
+import { Today } from "../ui/Today";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } from "../ui/kit";
 
 export function Home() {
   const app = useApp();
   const { client, connected, partition, cache, drafts } = app;
   const home = useLoad(() => client.get<HomeData>("/home"), [client], 5000);
+  const sky = useLoad(() => client.get<Skyline>("/skyline"), [client], 30000);
   const [, bump] = useState(0);
   const cached = cache.get<{ counts: HomeData["counts"]; runs: { id: string; title: string; state: string }[] }>(partition, "home");
 
@@ -46,6 +48,7 @@ export function Home() {
       {home.loading && !home.data && <Loading />}
       {home.data && (
         <>
+          <Today input={{ approvals: home.data.counts.pending_approvals, blocked: home.data.counts.blocked_runs, running: home.data.counts.active_runs, toReview: home.data.counts.pending_candidates, verifiedOutcomes: sky.data?.totals.floors ?? 0, projects: sky.data ? sky.data.totals.projects : null }} />
           <div className="stats" role="group" aria-label="Work summary">
             <Stat label="Running" value={home.data.counts.active_runs} to={{ tab: "runs" }} />
             <Stat label="Blocked" value={home.data.counts.blocked_runs} tone={home.data.counts.blocked_runs ? "warn" : undefined} to={{ tab: "runs" }} />
