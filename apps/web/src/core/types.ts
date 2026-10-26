@@ -151,3 +151,13 @@ export interface StarEvidence {
 }
 export interface Building { id: string; name: string; floors: number; working: number; waiting: number; conversations: number }
 export interface Skyline { projects: Building[]; totals: { projects: number; floors: number; waiting: number } }
+
+// ---- Abilities, receipts, widgets, system scan (docs/api-v1.md, "Abilities")
+export interface AbilityInfo { name: string; title: string; can_see: string[]; can_do: string[]; cannot: string[]; enabled: boolean }
+export interface AbilityStatus { paused: boolean; abilities: AbilityInfo[]; planned: { name: string; title: string }[] }
+export interface Receipt { id: string; ts: string; actor: string; kind: string; summary: string; changed: number }
+export interface ScanResult { facts: Record<string, unknown>; suggestions: { id: string; level: "ok" | "info" | "attention"; text: string }[]; changed_anything: boolean }
+export type WidgetData =
+  | { id: string; kind: "counter"; title: string; config: { value: number; step: number } }
+  | { id: string; kind: "checklist"; title: string; config: { items: { text: string; done: boolean }[] } }
+  | { id: string; kind: "note"; title: string; config: { text: string } };

@@ -6,6 +6,7 @@ import { APP_VERSION, API_VERSION, Provider, SessionInfo } from "../core/types";
 import { useApp } from "../ui/Context";
 import { Icon } from "../ui/icons";
 import { useLoad } from "../ui/hooks";
+import { AbilitiesSection } from "./settings/Abilities";
 import { HistorySection } from "./settings/History";
 import { PublishSection } from "./settings/Publish";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } from "../ui/kit";
@@ -20,6 +21,7 @@ export function Settings({ section }: { section?: string }) {
     <div className="screen">
       <h2>Settings</h2>
       <AppearanceSection />
+      <AbilitiesSection />
       <HistorySection />
       <PublishSection />
       <ServerSection />
