@@ -121,6 +121,25 @@ passing verification of exactly this revision and no high-severity finding in a 
 - Widgets are data, not code: `POST /widgets/preview`, `GET/POST /widgets`, `PUT /widgets/{id}`, `DELETE /widgets/{id}`. Kinds
   `counter`, `checklist`, `note`; unknown settings are rejected; creating or editing needs the `widgets` ability, removing never does.
 
+## Home Base and the Rover (additive)
+- `GET /home/findings` (needs the `system_scan` ability) returns the findings from the last health check: `id` (`memory|disk|temp|startup`), `title`,
+  `explain`, `how_to` (numbered Windows steps), `safe_to_automate`, `action_class` (`read_only|reversible|never`) and `open_uri` (an `ms-settings:`
+  address the client may open, or null). `POST /home/actions {action, finding_id?}` is the only door for Home Base actions and is an allow-list:
+  `check_health` and `open_windows_page` (returns `open_uri`; AIOS deletes and changes nothing). Everything else, including the whole never class
+  (registry, services, drivers, antivirus, deleting files, installing or uninstalling, force-closing, switching start-up items) and any unknown name,
+  answers 403 `action_refused` and writes a receipt. `GET/PUT /home/check-up {enabled}` and `POST /home/check-up/run` are the optional weekly
+  check-up (`enabled`, `last_run`, `due`, `every_days`); it is off until turned on and only runs while `system_scan` is on and AIOS is not paused.
+- The Rover has levels 1 (Look) and 2 (Guide) only and needs the `rover` ability (off by default). `GET /rover` is always readable: `status`
+  (`idle|armed|looking|guiding|stopped|finished`), `ring` (true while a task is live: show the "Rover active" ring), the live `task` with its `steps`,
+  `last_task`, `levels` (3 Browser and 4 Screen are `available: false` with the reason; they are never attempted), `stop`, `input_injection: false`.
+  `POST /rover/tasks {goal, level, target, minutes?, opt_in: true}` starts one task (422 `opt_in_required`, `level_not_available`, `bad_time_limit`;
+  403 `ability_off`, `rover_blocked` when the goal or target is on the block list; 409 `task_active`). `POST /rover/tasks/{id}/step` takes one step:
+  Look saves a picture of the named foreground window under the state folder; Guide also asks Claude, through the Claude Code wrapper, for numbered
+  `instructions` for the person to follow. A step refuses with 403 `rover_blocked` (banking, payment, password manager, login, admin tool, system
+  settings window in front, checked before and after the picture) or 409 `wrong_window`, and returns `outcome: stopped` if Stop arrived mid-step. Nothing
+  clicks or types. `POST /rover/tasks/{id}/finish` ends a task; `POST /rover/stop` stops every live task and always works (even paused or with the
+  ability off); All Stop and turning the ability off do the same. Pictures are deleted when a task ends. Every step and refusal writes a receipt.
+
 ## Run state, execution honesty
 `state` is the machine contract (`queued, running, awaiting_approval, blocked, interrupted, succeeded, failed,
 cancelled`). `display_state` is the honest user-facing label: adds **`awaiting_provider_session`** (a user-started

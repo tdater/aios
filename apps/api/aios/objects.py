@@ -12,7 +12,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from . import abilities, auth, backup, briefing, conversations, improvements, memory_capture, providers, services, sharing, system_scan, widgets
+from . import abilities, auth, backup, briefing, conversations, homebase, improvements, memory_capture, providers, rover, services, sharing, system_scan, widgets
 from .config import Settings
 from .db import Database
 from .errors import ApiError, not_found
@@ -130,7 +130,8 @@ def build(db: Database, settings: Settings, skills_dir: Path | None = None) -> l
     startup = facts.get("startup_items")
     out.append(_o("home:launch", "module", "home", "Launch bay", "Programs that start with Windows.", "info" if (startup or 0) > 12 else "ok" if scan else "muted",
                   f"{startup} start with Windows" if startup is not None else "Not checked yet"))
-    out.append(_o("home:rover", "module", "home", "Rover bay", "A helper that can use the mouse and browser, only when you allow it.", "muted", "Off. Not built yet."))
+    rtone, rtext = rover.status_text(db)
+    out.append(_o("home:rover", "module", "home", "Rover bay", "A helper that looks at one window and guides you, only when you allow it. It never clicks or types.", rtone, rtext))
     sessions = [s for s in auth.list_sessions(db) if not s["revoked_at"]]
     out.append(_o("home:port", "module", "home", "Docking port", "Connections, devices and backups.", "ok", f"{_plural(len(sessions), 'device')} paired"))
     sizes = {"attention": 5, "info": 3, "ok": 2}
@@ -264,12 +265,23 @@ def card(db: Database, settings: Settings, oid: str, skills_dir: Path | None = N
                         help="Reads memory use, free disk space, the size of the temporary-files folder and how many programs start with Windows. It changes nothing."))
         basics.append(F("scan", "action", "Check this computer now", action="run_health_check"))
     elif obj["id"] == "home:rover":
-        basics.append(F("about", "info", "Status", "Not built yet. The mouse and browser helper will be off until you turn it on, and you will always be able to stop it."))
+        basics.append(F("ability_rover", "toggle", "Let the Rover look at one window and guide me", _ability(db, "rover"), confirm=True,
+                        help="It takes a picture of one window you name and writes steps for you to follow. It cannot click or type, and Stop always works."))
+        basics.append(F("about", "info", "Status", "Levels 1 (Look) and 2 (Guide) only. Levels 3 (Browser) and 4 (Screen) are not built yet: "
+                        + " ".join(lv["reason"] for lv in rover.LEVELS if not lv["available"])))
+        more.append(F("stop", "action", "Stop the Rover now", action="stop", help="Ends any Rover task immediately and deletes its pictures."))
     elif obj["id"] == "home:port":
         basics.append(F("pair", "action", "Pair another device", action="pair_device", help="Shows a one-time code to type on the other device. It works once and expires."))
         basics.append(F("backup", "action", "Back up AIOS now", action="backup_now", help="Copies your database and notes to a backup folder on this computer."))
         links.append({"label": "See paired devices", "to": {"tab": "settings"}})
     elif t == "rock":
+        f = homebase.finding(obj["meta"]["finding"], obj["job"], "attention" if obj["state"]["tone"] == "warn" else "info")
+        if f:
+            basics.append(F("explain", "info", "Explain", f["explain"]))
+            basics.append(F("how_to", "info", "Show me how", "\n".join(f"{i}. {s}" for i, s in enumerate(f["how_to"], 1)),
+                            help="You do these steps yourself. AIOS deletes and changes nothing."))
+            if f["open_uri"]:
+                links.append({"label": "Open the Windows page for it", "client": "open_uri", "uri": f["open_uri"]})
         links.append({"label": "Check this computer again", "client": "rescan"})
     return {"object": obj, "explain": EXPLAIN.get(t, ""), "panels": {"basics": basics, "more": more, "expert": expert}, "links": links}
 
@@ -303,10 +315,10 @@ def apply(db: Database, settings: Settings, oid: str, values: dict, confirm: boo
             if not isinstance(val, bool):
                 raise ApiError(422, "bad_value", "stopped is on or off")
             abilities.set_paused(db, val)
-        elif key == "ability_system_scan":
+        elif key in ("ability_system_scan", "ability_rover"):
             if not isinstance(val, bool):
                 raise ApiError(422, "bad_value", "this is on or off")
-            abilities.set_enabled(db, "system_scan", val, confirm)
+            abilities.set_enabled(db, key.removeprefix("ability_"), val, confirm)
         else:
             raise ApiError(422, "unknown_setting", f"{key} cannot be changed here")
     return card(db, settings, oid)
@@ -327,6 +339,8 @@ def act(db: Database, settings: Settings, oid: str, name: str) -> dict:
         abilities.set_flag(db, "last_scan", json.dumps(result))
         abilities.receipt(db, actor="system_scan", kind="system_scan.run", summary="Read memory, disk, temp-folder size and start-up count. Changed nothing.")
         return result
+    if name == "stop" and obj["id"] == "home:rover":
+        return rover.stop(db, settings)
     if name == "pair_device" and obj["id"] == "home:port":
         c = auth.new_pairing_code(db)
         abilities.receipt(db, actor="owner", kind="pairing.code", summary="Made a one-time code to pair another device.", changed=True)

@@ -16,13 +16,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import __version__, approvals, auth, backup, idempotency, providers, routines, services, workflow
+from . import __version__, approvals, auth, backup, homebase, idempotency, providers, rover, routines, services, workflow
 from .config import LOOPBACK_HOSTS, REPO_ROOT, Settings, load_settings
 from .db import Database
 from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
 from .assist_api import build_router as build_assist_router
+from .homebase_api import build_router as build_homebase_router
 from .objects_api import build_router as build_objects_router
+from .rover_api import build_router as build_rover_router
 from .conversations_api import build_router as build_conversations_router
 from .executors import apply_change, audit, capture, claude_review, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
 from .history import schedule
@@ -98,7 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     db = Database(settings.db_path)
     engine = Engine(settings, db)
-    engine.ticker = lambda: (workflow.advance_all(db, engine), routines.tick(db, engine, settings))
+    engine.ticker = lambda: (workflow.advance_all(db, engine), routines.tick(db, engine, settings), rover.sweep(db), homebase.tick(db, every=60.0))
     startup: dict = {}
 
     @asynccontextmanager
@@ -498,6 +500,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(build_insights_router(db, settings, require_auth))
     app.include_router(build_assist_router(db, engine, settings, require_auth))
     app.include_router(build_objects_router(db, settings, require_auth, REPO_ROOT / ".claude" / "skills"))
+    app.include_router(build_homebase_router(db, require_auth))
+    app.include_router(build_rover_router(db, settings, require_auth))
 
     # ---------------------------------------------------------------- static UI (public, no secrets)
     if WEB_DIST.exists():

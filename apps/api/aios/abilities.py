@@ -28,6 +28,14 @@ ABILITIES["routines"] = {
     "can_do": ["start a routine's saved request at its time, using your own Claude plan, and put the answer on your Home screen"],
     "cannot": ["run while AIOS is paused or Claude is not signed in", "run a routine more than once a day", "act on your computer or send anything anywhere"],
 }
+ABILITIES["rover"] = {
+    "title": "Rover: look at one window and guide me",
+    "can_see": ["one window you name, only for the task you start, and only while it is not on the block list (banking, passwords, payments, admin tools)"],
+    "can_do": ["take a picture of that window and keep it on this computer", "write numbered instructions for you to follow yourself"],
+    "cannot": ["click, type or press keys for you", "open a browser or take over the screen", "start by itself, or keep going after you press Stop",
+               "look at banking, payment, password or admin windows"],
+}
+ACTIVE_ROVER = ("armed", "looking", "guiding")
 PLANNED = {"computer_look": "Look at one window and explain it (not built yet)",
            "browser_control": "Control a browser in a separate profile (not built yet)",
            "app_control": "Control other apps (not built yet)"}
@@ -63,6 +71,8 @@ def set_paused(db: Database, paused: bool) -> None:
                ("1" if paused else "0", now()))
     receipt(db, actor="owner", kind="pause" if paused else "resume", changed=True,
             summary="Paused everything: no new runs start and abilities are blocked." if paused else "Resumed.")
+    if paused:
+        stop_rover_tasks(db, "All Stop was pressed")
 
 
 def status(db: Database) -> dict:
@@ -81,6 +91,18 @@ def set_enabled(db: Database, name: str, enabled: bool, confirm: bool) -> None:
                (name, 1 if enabled else 0, now()))
     receipt(db, actor="owner", kind="ability.enabled" if enabled else "ability.disabled", changed=True,
             summary=f"{'Turned on' if enabled else 'Turned off'}: {ABILITIES[name]['title']}.")
+    if name == "rover" and not enabled:
+        stop_rover_tasks(db, "the Rover was turned off")
+
+
+def stop_rover_tasks(db: Database, reason: str) -> int:
+    """End every live Rover task now. One conditional UPDATE, no lock and no ability check, so it works mid-step and while paused."""
+    n = db.execute(f"UPDATE rover_tasks SET status='stopped', stop_reason=?, ended_at=? WHERE status IN ({','.join('?' * len(ACTIVE_ROVER))})",
+                   (reason, now(), *ACTIVE_ROVER))
+    count = n if isinstance(n, int) else 0
+    if count:
+        receipt(db, actor="rover", kind="rover.stopped", changed=True, summary=f"Stopped the Rover: {reason}.")
+    return count
 
 
 def require(db: Database, name: str) -> None:

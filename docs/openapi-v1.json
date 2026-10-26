@@ -418,6 +418,43 @@
         "title": "HandoffReplyIn",
         "type": "object"
       },
+      "HomeActionIn": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "HomeActionIn",
+        "type": "object"
+      },
+      "HomeCheckupIn": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "HomeCheckupIn",
+        "type": "object"
+      },
       "ImportIn": {
         "properties": {
           "source": {
@@ -820,6 +857,45 @@
           }
         },
         "title": "RollbackIn",
+        "type": "object"
+      },
+      "RoverTaskIn": {
+        "properties": {
+          "goal": {
+            "title": "Goal",
+            "type": "string"
+          },
+          "level": {
+            "default": 1,
+            "title": "Level",
+            "type": "integer"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "opt_in": {
+            "default": false,
+            "title": "Opt In",
+            "type": "boolean"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "target"
+        ],
+        "title": "RoverTaskIn",
         "type": "object"
       },
       "RunIn": {
@@ -3414,6 +3490,124 @@
         "summary": "Home"
       }
     },
+    "/api/v1/home/actions": {
+      "post": {
+        "operationId": "action_api_v1_home_actions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeActionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Action"
+      }
+    },
+    "/api/v1/home/check-up": {
+      "get": {
+        "operationId": "checkup_status_api_v1_home_check_up_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Checkup Status"
+      },
+      "put": {
+        "operationId": "checkup_set_api_v1_home_check_up_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeCheckupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Checkup Set"
+      }
+    },
+    "/api/v1/home/check-up/run": {
+      "post": {
+        "operationId": "checkup_run_api_v1_home_check_up_run_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Checkup Run"
+      }
+    },
+    "/api/v1/home/findings": {
+      "get": {
+        "operationId": "findings_api_v1_home_findings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Findings"
+      }
+    },
     "/api/v1/import/paste": {
       "post": {
         "operationId": "import_paste_api_v1_import_paste_post",
@@ -4304,6 +4498,185 @@
           }
         },
         "summary": "Resume"
+      }
+    },
+    "/api/v1/rover": {
+      "get": {
+        "operationId": "state_api_v1_rover_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "State"
+      }
+    },
+    "/api/v1/rover/stop": {
+      "post": {
+        "operationId": "stop_api_v1_rover_stop_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stop"
+      }
+    },
+    "/api/v1/rover/tasks": {
+      "post": {
+        "operationId": "start_api_v1_rover_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoverTaskIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start"
+      }
+    },
+    "/api/v1/rover/tasks/{task_id}": {
+      "get": {
+        "operationId": "one_api_v1_rover_tasks__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One"
+      }
+    },
+    "/api/v1/rover/tasks/{task_id}/finish": {
+      "post": {
+        "operationId": "finish_api_v1_rover_tasks__task_id__finish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish"
+      }
+    },
+    "/api/v1/rover/tasks/{task_id}/step": {
+      "post": {
+        "operationId": "step_api_v1_rover_tasks__task_id__step_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Step"
       }
     },
     "/api/v1/runs": {
