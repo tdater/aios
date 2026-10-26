@@ -198,3 +198,77 @@ def test_http_route_refuses_when_there_is_nothing_to_apply(client, repo):
 
 
 CALC_OTHER = "def add(a, b):\n    return a * 0\n\n\ndef multiply(a, b):\n    return a * b\n"
+
+
+# ---------------------------------------------------------------- security review findings
+def commit_all(repo, msg):
+    git(repo, "add", "-A")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", msg)
+
+
+def test_a_merge_that_would_overwrite_your_ignored_files_is_refused_and_they_survive(db, engine, proj, repo, fake):
+    fake(edit=True, edit_files={"settings.local": "from the branch\n"})
+    conversations.set_verify_command(db, proj["id"], VERIFY)
+    conv, rid = start_turn(db, engine, proj, "fix the add bug", mode="edit")
+    assert engine.execute(rid) == "awaiting_approval"
+    engine.decide_approval(db.one("SELECT id FROM approvals WHERE run_id=?", (rid,))["id"], True, confirm_destructive=True)
+    assert engine.execute(rid) == "succeeded"
+    (repo / ".gitignore").write_text("settings.local\n")                  # the owner keeps a private, ignored file of that name
+    commit_all(repo, "ignore local settings")
+    (repo / "settings.local").write_text("MINE: private values\n")
+    arid = request(db, engine, conv)
+    assert engine.execute(arid) == "failed"
+    assert pending(db, arid) is None
+    assert (repo / "settings.local").read_text() == "MINE: private values\n" and "return a - b" in (repo / "calc.py").read_text()
+    assert any("already exist in your project as ignored files" in m["content"] for m in conversations.messages(db, conv["id"]))
+
+
+def test_a_change_to_gitattributes_is_never_merged_for_you(db, engine, proj, repo, fake):
+    fake(edit=True, edit_files={".gitattributes": "* filter=anything\n"})
+    conversations.set_verify_command(db, proj["id"], VERIFY)
+    conv, rid = start_turn(db, engine, proj, "fix the add bug", mode="edit")
+    assert engine.execute(rid) == "awaiting_approval"
+    engine.decide_approval(db.one("SELECT id FROM approvals WHERE run_id=?", (rid,))["id"], True, confirm_destructive=True)
+    assert engine.execute(rid) == "succeeded"
+    arid = request(db, engine, conv)
+    assert engine.execute(arid) == "failed"
+    assert pending(db, arid) is None and not (repo / ".gitattributes").exists()
+    assert any(".gitattributes" in m["content"] and "merge the branch yourself" in m["content"] for m in conversations.messages(db, conv["id"]))
+
+
+def test_a_cut_off_diff_cannot_be_applied(db, engine, proj, repo, fake):
+    conv = ready_change(db, engine, proj, fake)
+    row = db.one("SELECT id, meta_json FROM conversation_messages WHERE conversation_id=? AND kind='patch' AND meta_json LIKE '%changed\":true%'", (conv["id"],))
+    meta = json.loads(row["meta_json"])
+    meta["truncated"] = True
+    db.execute("UPDATE conversation_messages SET meta_json=? WHERE id=?", (json.dumps(meta), row["id"]))
+    rid = request(db, engine, conv)
+    assert engine.execute(rid) == "failed"
+    assert pending(db, rid) is None and "return a - b" in (repo / "calc.py").read_text()
+    assert any("cut off" in m["content"] for m in conversations.messages(db, conv["id"]))
+
+
+def test_the_approval_binds_the_whole_file_list_not_just_the_first_few(db, engine, proj, repo, fake):
+    from aios import worktrees
+    fake(edit=True, edit_files={f"gen/f{i:02d}.txt": "x\n" for i in range(60)})
+    conversations.set_verify_command(db, proj["id"], VERIFY)
+    conv, rid = start_turn(db, engine, proj, "fix and generate", mode="edit")
+    assert engine.execute(rid) == "awaiting_approval"
+    engine.decide_approval(db.one("SELECT id FROM approvals WHERE run_id=?", (rid,))["id"], True, confirm_destructive=True)
+    assert engine.execute(rid) == "succeeded"
+    arid = request(db, engine, conv)
+    assert engine.execute(arid) == "awaiting_approval"
+    action = json.loads(pending(db, arid)["action_json"])
+    assert action["file_count"] == 61 and len(action["files"]) == 50
+    assert action["paths_sha256"] == worktrees.paths_digest(worktrees.revision_paths(repo, action["head_revision"]))
+    text = " ".join(approvals.describe(action)["side_effects"])
+    assert "changing 61 file(s)" in text and "(first 8 shown)" in text
+
+
+def test_the_merge_helper_refuses_when_the_set_of_changed_files_is_not_the_approved_one(repo, tmp_path):
+    from aios import worktrees
+    head = git(repo, "rev-parse", "HEAD").strip()
+    with pytest.raises(worktrees.GitError, match="not the set you approved"):
+        worktrees.apply_revision(repo, revision=head, expected_branch="main", expected_head=head, message="m",
+                                 hooks_dir=tmp_path / "nohooks", expected_paths_digest=worktrees.paths_digest(["something.txt"]))
+    assert ".lfsconfig" in worktrees.sensitive_paths([".lfsconfig"])

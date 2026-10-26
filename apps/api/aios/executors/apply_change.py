@@ -46,17 +46,25 @@ def claude_apply(ctx: RunContext) -> dict:
     if not st["branch"]:
         raise _problem(ctx, conv, "your project is not on a branch (detached HEAD). Switch to a branch, then ask again.")
 
-    files = [f["path"] for f in pmeta.get("files", [])]
+    if pmeta.get("truncated"):
+        raise _problem(ctx, conv, "the stored diff for this change was cut off for being too large, so you could not have reviewed all of it. "
+                                  "Review the branch yourself and merge it with git.")
+    try:                                   # ask git what the merge would really change, and refuse anything unreviewable
+        files = worktrees.merge_preflight(repo, head)
+    except worktrees.GitError as e:
+        raise _problem(ctx, conv, str(e)) from e
     action = {"type": "apply_revision", "project_path": str(repo), "branch": conv["branch"], "head_revision": head,
               "base_revision": base, "target_branch": st["branch"], "target_head": st["head"],
-              "patch_sha256": pmeta.get("sha256"), "files": files[:50], "sensitive_paths": pmeta.get("sensitive_paths", [])}
+              "patch_sha256": pmeta.get("sha256"), "file_count": len(files), "paths_sha256": worktrees.paths_digest(files),
+              "files": files[:50], "sensitive_paths": worktrees.sensitive_paths(files)}
     title = (db.one("SELECT title FROM conversations WHERE id=?", (conv["id"],)) or {"title": "change"})["title"]
     message = f"Apply AIOS change: {title[:60]}\n\nRevision {head[:12]} from branch {conv['branch']}, checked by AIOS."
 
     def perform() -> dict:
         try:
             return worktrees.apply_revision(repo, revision=head, expected_branch=st["branch"], expected_head=st["head"],
-                                            message=message, hooks_dir=ctx.settings.empty_hooks_dir)
+                                            message=message, hooks_dir=ctx.settings.empty_hooks_dir,
+                                            expected_paths_digest=action["paths_sha256"])
         except worktrees.GitError as e:       # the approval is spent; record why nothing changed
             return {"applied": False, "reason": str(e)}
 

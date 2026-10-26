@@ -12,6 +12,7 @@ external diff drivers or text conversion filters.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
 import subprocess
 from pathlib import Path
@@ -22,7 +23,7 @@ MAX_DIFF_BYTES = 2_000_000
 # Paths whose change deserves extra review before a patch is applied to the real project: they
 # run code or change tool behaviour without being "the feature".
 SENSITIVE_PATTERNS = (
-    ".git", ".git/*", ".gitattributes", ".gitmodules", ".gitignore", ".github/*", ".gitlab-ci.yml",
+    ".git", ".git/*", ".gitattributes", ".gitmodules", ".lfsconfig", ".gitignore", ".github/*", ".gitlab-ci.yml",
     ".claude/*", ".cursor/*", ".vscode/*", ".idea/*", ".husky/*", ".pre-commit-config.yaml",
     "Jenkinsfile", "azure-pipelines.yml", ".circleci/*", "CLAUDE.md", "AGENTS.md",
     ".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "id_rsa*", "*.keystore", "*.jks",
@@ -208,8 +209,42 @@ def branch_tip(repo: Path, branch: str) -> str | None:
     return out or None
 
 
+MERGE_BLOCKED = (".gitattributes", ".lfsconfig", ".gitmodules")      # they steer which filters and submodules git runs
+
+
+def revision_paths(repo: Path, revision: str) -> list[str]:
+    """Every path a merge of `revision` into the project's current HEAD would change, as git itself computes it."""
+    base = _git(repo, "merge-base", "HEAD", revision).strip()
+    out = _git(repo, "diff", "--name-only", "-z", "--no-renames", base, revision)
+    return sorted(p for p in out.split("\0") if p)
+
+
+def paths_digest(paths: list[str]) -> str:
+    return hashlib.sha256("\0".join(sorted(paths)).encode("utf-8")).hexdigest()
+
+
+def merge_preflight(repo: Path, revision: str, *, expected_digest: str | None = None) -> list[str]:
+    """Refuse merges that could overwrite or steer something the owner has not seen. Returns the paths it would change."""
+    paths = revision_paths(repo, revision)
+    if expected_digest is not None and paths_digest(paths) != expected_digest:
+        raise GitError("the set of files this merge would change is not the set you approved; ask again")
+    blocked = sorted(p for p in paths if p.rsplit("/", 1)[-1] in MERGE_BLOCKED)
+    if blocked:
+        raise GitError("this change alters " + ", ".join(blocked) + ", which control how git filters and submodules behave, "
+                       "so AIOS will not merge it for you. Review it and merge the branch yourself with git")
+    ignored = []
+    for line in _git(repo, "status", "--porcelain", "--ignored", "-z").split("\0"):
+        if line.startswith("!! "):
+            ignored.append(line[3:])
+    hit = sorted({p for p in paths for ig in ignored if p == ig or (ig.endswith("/") and p.startswith(ig))})
+    if hit:
+        raise GitError("these files already exist in your project as ignored files and the merge would overwrite them: "
+                       + ", ".join(hit[:10]) + ". Move them away, then ask again")
+    return paths
+
+
 def apply_revision(repo: Path, *, revision: str, expected_branch: str, expected_head: str,
-                   message: str, hooks_dir: Path) -> dict:
+                   message: str, hooks_dir: Path, expected_paths_digest: str | None = None) -> dict:
     """Merge one exact, already-reviewed revision into the owner's real project, as a new merge commit.
 
     Refuses (raises GitError) unless the project is exactly where the owner approved: same branch, same HEAD, no
@@ -223,6 +258,7 @@ def apply_revision(repo: Path, *, revision: str, expected_branch: str, expected_
     if st["branch"] != expected_branch or st["head"] != expected_head:
         raise GitError("your project moved after you approved this (a different branch or a new commit); ask again so you approve the current state")
     _git(repo, "cat-file", "-e", f"{revision}^{{commit}}")
+    merge_preflight(repo, revision, expected_digest=expected_paths_digest)
     cfg = [f"core.hooksPath={hooks_dir}", "commit.gpgsign=false", "merge.verifySignatures=false"]
     if not _git(repo, "config", "user.name", check=False).strip():          # a fresh git install has no identity
         cfg += ["user.name=AIOS", "user.email=aios@localhost"]
