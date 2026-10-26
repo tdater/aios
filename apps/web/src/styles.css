@@ -363,3 +363,26 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .today { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 8px 0 14px; }
 .todaycard { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--panel); display: grid; gap: 6px; align-content: start; }
 .todaycard h3 { margin: 0; font-size: 1rem; } .todaycard p { margin: 0; overflow-wrap: anywhere; }
+
+/* The Universe */
+.universe-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .universe-grid { grid-template-columns: 1fr; } }
+.universe { width: 100%; height: auto; max-height: 70vh; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 10%, var(--panel)) 0%, var(--panel) 70%); border: 1px solid var(--border); border-radius: 12px; }
+.universe.paused { filter: grayscale(.7) brightness(.85); }
+.universe .orbit { fill: none; stroke: var(--border); stroke-dasharray: 2 5; } .universe .orbit.o-private { stroke: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.universe .sun { fill: var(--accent); } .universe .halo { fill: color-mix(in srgb, var(--accent) 22%, transparent); }
+.universe .corelabel { fill: var(--accent-ink, #fff); font-weight: 700; font-size: 13px; pointer-events: none; }
+.universe .core, .universe .planet, .universe .comet { cursor: pointer; } .universe .core.sel .sun { stroke: var(--text); stroke-width: 3; }
+.universe .planet circle { fill: var(--panel2, var(--panel)); stroke: var(--accent); stroke-width: 2; } .universe .planet.pl-real circle { fill: var(--accent); }
+.universe .planet.pl-manual circle { stroke-dasharray: 4 3; } .universe .planet.pl-down circle { stroke: var(--muted); fill: none; }
+.universe .planet.sel circle { stroke: var(--text); stroke-width: 3; } .universe .plabel { fill: var(--text); font-size: 11px; pointer-events: none; }
+.universe .beam { stroke: var(--accent); stroke-opacity: .55; stroke-width: 1; } .universe .star.told path { stroke: var(--text); }
+.universe .comet circle { fill: var(--warn, #f0b84f); } .universe .comet .tail { stroke: var(--warn, #f0b84f); stroke-width: 3; stroke-linecap: round; opacity: .6; }
+.universe .comet.sel circle { stroke: var(--text); stroke-width: 2; } .universe .pausedlabel { fill: var(--text); font-weight: 700; font-size: 13px; }
+.universe :focus-visible { outline: 2px solid var(--focus, var(--accent)); outline-offset: 2px; }
+.universe .clabel { font-size: 11px; }
+.universe-side { min-width: 0; } .universe-home { margin-bottom: 16px; }
+.legend-cards ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.legend-cards li { display: flex; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--panel); }
+.legend-cards .sym { font-size: 1.4rem; line-height: 1.2; color: var(--accent); } .legend-cards p { margin: 2px 0; }
+.field.inline { display: inline-block; margin: 0 8px 0 0; } .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

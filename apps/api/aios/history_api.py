@@ -77,6 +77,7 @@ class MemoryPatch(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=30)
     confidence: float | None = Field(default=None, ge=0, le=1)
     status: str | None = Field(default=None, pattern="^(candidate|approved|superseded|rejected)$")
+    sensitivity: str | None = Field(default=None, pattern="^(public|private|secret-adjacent)$")
     expected_version: int | None = None
 
 

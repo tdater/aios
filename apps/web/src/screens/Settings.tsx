@@ -94,7 +94,7 @@ function AppearanceSection() {
   );
 }
 
-const TAB_NAMES: Record<Tab, string> = { home: "Home", work: "Workspace", projects: "Projects", runs: "Runs", inbox: "Inbox", insights: "Insights", knowledge: "Knowledge", graph: "Graph", settings: "Settings" };
+const TAB_NAMES: Record<Tab, string> = { home: "Home", work: "Workspace", projects: "Projects", runs: "Runs", inbox: "Inbox", insights: "Insights", ais: "My AIs", knowledge: "Knowledge", graph: "Graph", settings: "Settings" };
 
 function ServerSection() {
   const { registry, server, switchServer, removeServer, isNative } = useApp();

@@ -8,6 +8,11 @@ export const closePalette = () => paletteStore.set({ open: false, query: "" });
 
 export const helpStore = new Store<boolean>(false);
 
+/** The on-screen tour: open or closed, and which step. Whether it was ever finished is remembered in settings. */
+export const tourStore = new Store<{ open: boolean; step: number }>({ open: false, step: 0 });
+export const openTour = (step = 0) => tourStore.set({ open: true, step });
+export const closeTour = () => tourStore.set({ open: false, step: 0 });
+
 /** Query string handed to the Knowledge screen (palette tag picks, clicks on #tags, etc.). */
 export const knowledgeQuery = new Store<string>("");
 

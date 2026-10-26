@@ -184,3 +184,14 @@ def test_http_routes_for_the_everyday_layer(client):
     assert e1.status_code == 201 and e1.json()["created"] is True and e2.json()["created"] is False
     kinds = {x["kind"] for x in client.get(f"{V}/receipts").json()["items"]}
     assert {"sharing.changed", "learning.changed", "memory.imported", "project.everyday"} <= kinds
+
+
+def test_a_memory_can_be_marked_public_or_private_and_that_changes_who_may_be_told(client):
+    r = client.post(f"{V}/memories", json={"scope": "global", "type": "preference", "title": "Likes short answers", "body": "Short answers first."})
+    mem = r.json()
+    told = lambda p: [i["title"] for i in client.get(f"{V}/briefing/{p}").json()["items"]]  # noqa: E731
+    assert told("claude") == ["Likes short answers"] and told("gemini") == []             # private: Claude yes, a paste-only AI no
+    ok = client.patch(f"{V}/memories/{mem['id']}", json={"sensitivity": "public", "expected_version": mem["version"]})
+    assert ok.status_code == 200 and ok.json()["sensitivity"] == "public"
+    assert told("gemini") == ["Likes short answers"]
+    assert client.patch(f"{V}/memories/{mem['id']}", json={"sensitivity": "everyone"}).status_code == 422
