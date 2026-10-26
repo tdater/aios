@@ -7,6 +7,7 @@ import { useApp } from "../../ui/Context";
 import { go, useLoad, useViewport } from "../../ui/hooks";
 import { Badge, Btn, ErrorBox, Loading, Notice } from "../../ui/kit";
 import { useTabTitle } from "../../ui/useTabTitle";
+import { Handoff } from "./Handoff";
 import { ActivityPanel, ChangesPanel, OutcomePanel, StatusPanel, TestsPanel } from "./Panels";
 import { Busy, Composer, MessageList, PanelId } from "./Thread";
 
@@ -50,7 +51,7 @@ export function ConversationScreen({ id }: { id: string }) {
   );
   const body = shown === "chat" ? chat : shown === "activity" ? <ActivityPanel v={v} reload={view.reload} />
     : shown === "changes" ? <ChangesPanel v={v} /> : shown === "tests" ? <TestsPanel v={v} reload={view.reload} />
-    : shown === "outcome" ? <OutcomePanel v={v} reload={view.reload} sendFindings={draftFix} /> : <StatusPanel v={v} />;
+    : shown === "outcome" ? <OutcomePanel v={v} reload={view.reload} sendFindings={draftFix} /> : <><StatusPanel v={v} /><Handoff conversationId={id} onChanged={() => void view.reload()} /></>;
   return (
     <div className="screen work">
       <Btn kind="ghost" onClick={() => go({ tab: "work" })}>← Workspace</Btn>

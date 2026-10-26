@@ -239,6 +239,48 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HandoffIn": {
+        "properties": {
+          "provider": {
+            "maxLength": 32,
+            "title": "Provider",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "question"
+        ],
+        "title": "HandoffIn",
+        "type": "object"
+      },
+      "HandoffReplyIn": {
+        "properties": {
+          "provider": {
+            "maxLength": 32,
+            "title": "Provider",
+            "type": "string"
+          },
+          "reply": {
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Reply",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "reply"
+        ],
+        "title": "HandoffReplyIn",
+        "type": "object"
+      },
       "ImportIn": {
         "properties": {
           "source": {
@@ -1973,6 +2015,100 @@
           }
         },
         "summary": "Conversation Changes"
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/handoff": {
+      "post": {
+        "operationId": "prepare_handoff_api_v1_conversations__conversation_id__handoff_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Handoff"
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/handoff/reply": {
+      "post": {
+        "operationId": "record_handoff_reply_api_v1_conversations__conversation_id__handoff_reply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffReplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Handoff Reply"
       }
     },
     "/api/v1/conversations/{conversation_id}/messages": {

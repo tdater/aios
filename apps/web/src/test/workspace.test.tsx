@@ -443,3 +443,23 @@ describe("picker", () => {
     expect(location.hash).toBe("#/projects");
   });
 });
+
+describe("other AIs by copy and paste", () => {
+  it("writes a prompt, then files the pasted answer, and never claims AIOS ran the other AI", async () => {
+    const { srv } = await open(view(), {
+      "POST /conversations/cnv_1/handoff": () => ({ status: 201, body: { prompt: "PROMPT TEXT", message_id: "m1", briefing_items: 0, briefing_sha256: null } }),
+      "POST /conversations/cnv_1/handoff/reply": () => ({ status: 201, body: { message_id: "m2" } }),
+    });
+    tab(/^Status/);
+    fireEvent.click(await screen.findByRole("button", { name: /Ask another AI/ }));
+    expect(screen.getByText(/AIOS does not connect to Gemini/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "How should I name tests?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Write the prompt" }));
+    expect(await screen.findByDisplayValue("PROMPT TEXT")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Paste Gemini's answer here/), { target: { value: "Use descriptive names." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save the answer" }));
+    expect(await screen.findByText(/Gemini's answer was added to this conversation/)).toBeTruthy();
+    const sent = srv.calls.filter((c: { path: string }) => c.path.endsWith("/handoff") || c.path.endsWith("/handoff/reply")).map((c: { body: unknown }) => c.body);
+    expect(sent).toEqual([{ provider: "gemini", question: "How should I name tests?" }, { provider: "gemini", reply: "Use descriptive names." }]);
+  });
+});
