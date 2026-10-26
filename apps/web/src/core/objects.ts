@@ -6,7 +6,7 @@ export interface Field {
   key: string; kind: FieldKind; label: string; value: unknown; help: string;
   options?: { value: string; label: string; preview?: string }[]; confirm?: boolean; to?: { tab: string; id?: string; sub?: string }; action?: string; client?: string;
 }
-export interface CardLink { label: string; to?: { tab: string; id?: string; sub?: string }; client?: string }
+export interface CardLink { label: string; to?: { tab: string; id?: string; sub?: string }; client?: string; uri?: string }
 export interface ObjectCardData { object: UObject; explain: string; panels: { basics: Field[]; more: Field[]; expert: Field[] }; links: CardLink[] }
 export interface ObjectList { items: UObject[]; version: number }
 

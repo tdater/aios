@@ -3,6 +3,8 @@ import { ApiError } from "../core/client";
 import { Field, LOCAL_DEFS, LocalDef, ObjectCardData, TIERS, objectPath } from "../core/objects";
 import { Settings } from "../core/settings";
 import { ReplayArrival } from "./ArrivalCaption";
+import { CheckUpToggle } from "./CheckUp";
+import { RoverPanel } from "./RoverPanel";
 import { useApp } from "./Context";
 import { go, useLoad } from "./hooks";
 import { Btn, ErrorBox, Loading } from "./kit";
@@ -36,8 +38,9 @@ export function ObjectCard({ id, onClose, onReplay, reload }: { id: string; onCl
     try { setResult(await client.post<Record<string, unknown>>(objectPath(id) + `/actions/${f.action}`).then((r) => r.data)); }
     catch (e) { setErr(say(e)); }
   };
-  const clientAction = (name: string) => {
-    if (name === "tour") openTour(0);
+  const clientAction = (name: string, uri?: string) => {
+    if (name === "open_uri" && uri && /^ms-settings:[a-z0-9\-:]*$/i.test(uri)) window.location.href = uri;      // only Windows' own settings pages
+    else if (name === "tour") openTour(0);
     else if (name === "open_companion") go({ tab: "ais" });
     else if (name === "rescan") void act({ key: "scan", kind: "action", label: "", value: null, help: "", action: "run_health_check" });
   };
@@ -69,6 +72,8 @@ export function ObjectCard({ id, onClose, onReplay, reload }: { id: string; onCl
         <FieldRow key={f.key} f={f} disabled={!connected} onChange={(v) => (f.confirm ? setPending({ key: f.key, value: v, label: f.label }) : void change(f.key, v))} onAction={() => void act(f)} onClient={clientAction} />
       ))}
       {shown && local.filter((d) => d.tier === shown).map((d) => <LocalRow key={d.key} d={d} settings={app.settings} set={(p) => { app.updateSettings(p); toast("Changed on this device"); }} />)}
+      {o.id === "home" && <CheckUpToggle />}
+      {o.id === "home:rover" && <RoverPanel onChanged={reload} />}
       {pending && (
         <div className="confirm" role="alertdialog" aria-label="Please confirm">
           <p><strong>{pending.label}</strong>: {pending.value === true ? "turn this on?" : pending.value === false ? "turn this off?" : "change this?"} You can undo it afterwards.</p>
@@ -81,7 +86,7 @@ export function ObjectCard({ id, onClose, onReplay, reload }: { id: string; onCl
       {result && <ActionResult r={result} />}
       {(c.links.length > 0 || onReplay) && (
         <nav className="links" aria-label="Go further">
-          {c.links.map((l) => <button key={l.label} type="button" className="btn btn-quiet" onClick={() => (l.to ? go(l.to as never) : l.client && clientAction(l.client))}>{l.label}</button>)}
+          {c.links.map((l) => <button key={l.label} type="button" className="btn btn-quiet" onClick={() => (l.to ? go(l.to as never) : l.client && clientAction(l.client, l.uri))}>{l.label}</button>)}
           {onReplay && <ReplayArrival onReplay={onReplay} />}
         </nav>
       )}
