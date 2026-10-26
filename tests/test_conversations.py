@@ -511,3 +511,9 @@ def test_a_read_turn_that_fails_isolation_also_leaves_its_worktree_clean(db, set
     posted = conversations.post_user_message(db, engine, conv["id"], "look", "read")
     assert engine.execute(posted["run"]["id"]) == "failed"
     assert git(wt, "status", "--porcelain", "--ignored").strip() == ""
+
+
+def test_the_active_turn_carries_its_task_title_and_kind(db, settings, engine, proj, fake):
+    conv, rid = start_turn(db, engine, proj, "What does calc.py do?")
+    busy = conversations.active_turn(db, conv["id"])
+    assert (busy["id"], busy["task_kind"]) == (rid, "claude.turn") and busy["task_title"].startswith("What does")

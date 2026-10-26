@@ -139,8 +139,8 @@ try {
     expect(await approve.isDisabled(), "approve must be disabled until the risk is acknowledged");
     await page.getByLabel(/I understand this runs code that Claude just wrote/).check();
     await shot("05-approval");
-    await approve.click();                                           // a plain click only arms the heavy door
-    expect((await approve.innerText()).includes("Press again"), "a single press must not open a heavy door");
+    await approve.click();                                           // a plain mouse click does nothing: the door must be held
+    expect((await approve.innerText()).includes("Hold to open"), "a single click must not open a heavy door");
     expect(!(await panel("Tests").getByText("tests passed").isVisible().catch(() => false)), "tests must not have run yet");
     await approve.hover();                                           // holding it is what opens it
     await page.mouse.down();

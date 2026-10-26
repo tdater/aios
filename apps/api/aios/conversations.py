@@ -156,7 +156,8 @@ def set_verify_command(db: Database, project_id: str, argv) -> list[str] | None:
 def active_turn(db: Database, conversation_id: str) -> dict | None:
     """The unfinished run (a turn or a review) attached to this conversation, if any."""
     marks = ",".join("?" * len(ACTIVE_STATES))
-    return db.one(f"SELECT DISTINCT r.* FROM runs r JOIN conversation_messages m ON m.run_id=r.id "
+    return db.one(f"SELECT DISTINCT r.*, t.title AS task_title, t.kind AS task_kind FROM runs r "
+                  f"JOIN tasks t ON t.id=r.task_id JOIN conversation_messages m ON m.run_id=r.id "
                   f"WHERE m.conversation_id=? AND r.state IN ({marks}) "
                   f"ORDER BY r.created_at DESC LIMIT 1", (conversation_id, *ACTIVE_STATES))
 

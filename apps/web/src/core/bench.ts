@@ -20,7 +20,7 @@ export function benchModel(v: ConversationView): Bench {
   const review = (v.changes.review?.meta as { review?: ReviewMeta } | null)?.review;
   const hasChange = !!r.head_revision;
   const active = !!run && ACTIVE.has(run.state);
-  const reviewing = active && run!.task_kind.includes("review");
+  const reviewing = active && (run!.task_kind ?? "").includes("review");
   const writing = active && !reviewing;
   const current = !!review && review.reviewed_revision === r.head_revision;
   const writerModel = v.status.last_turn?.model ?? v.conversation.model ?? null;

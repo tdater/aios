@@ -39,6 +39,11 @@ describe("benchModel", () => {
     const b = benchModel(view({ review: { rev: "OLD", model: "x", findings: [F("1", "high")] } }));
     expect([b.verdict, b.pinned.length, b.stage, b.seats[1].state]).toEqual(["stale", 0, "writer", "idle"]);
   });
+  it("a run without a task kind (older server) does not crash the bench", () => {
+    const v = view({});
+    (v.status as unknown as { run: object }).run = { state: "running" };
+    expect(benchModel(v).seats[0].state).toBe("working");
+  });
   it("flags a reviewer on the same model as the writer", () => {
     expect(benchModel(view({ writer: "m", review: { rev: "abc123def456", model: "m", findings: [] } })).sameModel).toBe(true);
   });
