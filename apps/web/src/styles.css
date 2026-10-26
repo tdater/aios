@@ -374,6 +374,7 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .universe .core, .universe .planet, .universe .comet { cursor: pointer; } .universe .core.sel .sun { stroke: var(--text); stroke-width: 3; }
 .universe .planet circle { fill: var(--panel2, var(--panel)); stroke: var(--accent); stroke-width: 2; } .universe .planet.pl-real circle { fill: var(--accent); }
 .universe .planet.pl-manual circle { stroke-dasharray: 4 3; } .universe .planet.pl-down circle { stroke: var(--muted); fill: none; }
+.universe .planet circle, .universe .core circle { pointer-events: all; }                       /* an unfilled planet (Claude not signed in) must still be clickable in the middle, not only on its outline */
 .universe .planet.sel circle { stroke: var(--text); stroke-width: 3; } .universe .plabel { fill: var(--text); font-size: 11px; pointer-events: none; }
 .universe .beam { stroke: var(--accent); stroke-opacity: .55; stroke-width: 1; } .universe .star.told path { stroke: var(--text); }
 .universe .comet circle { fill: var(--warn, #f0b84f); } .universe .comet .tail { stroke: var(--warn, #f0b84f); stroke-width: 3; stroke-linecap: round; opacity: .6; }
