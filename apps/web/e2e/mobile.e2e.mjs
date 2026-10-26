@@ -83,8 +83,8 @@ try {
     await page.getByText(/wrong, expired, or already used/).waitFor();
     await page.getByLabel("Pairing code").fill(pairCode());
     await page.getByRole("button", { name: "Pair" }).click();
-    await page.getByRole("heading", { name: "Home" }).waitFor();
-    await page.getByText("Connected").first().waitFor();
+    await page.locator(".cockpit").waitFor();                                              // Home is the universe, full screen
+    await page.locator(".pill.connected").first().waitFor();
     const cookies = await ctx.cookies();
     const sess = cookies.find((c) => c.name === "aios_session");
     expect(sess && sess.httpOnly && sess.sameSite === "Strict", "session cookie must be HttpOnly + SameSite=Strict");
@@ -102,28 +102,27 @@ try {
     await shot("01b-tour-claude");
     await dlg.getByRole("button", { name: "Skip the tour" }).click();
     await dlg.waitFor({ state: "detached" });
-    await page.getByRole("group", { name: /Your universe/ }).waitFor();                    // the map is the first thing on Home
-    await page.getByRole("region", { name: "What am I looking at?" }).waitFor();
+    await page.locator(".cockpit").waitFor();                                              // the universe is the first thing you see
+    await page.getByRole("navigation", { name: "Travel to a region" }).waitFor();
     await shot("01c-universe-phone");
   });
-  await step("universe: tapping a planet selects it and flies there; the keyboard turns the view; the flat map is one tap away", async () => {
-    const map = page.getByRole("group", { name: /Your universe/ });
-    await page.getByRole("button", { name: /^Claude:/ }).click();                          // a real click: pointer capture must not swallow it
-    await page.getByRole("region", { name: "About Claude" }).waitFor();
-    await until(page, () => document.querySelector("svg.space")?.getAttribute("data-dist") === "150", null);
-    const yaw = await map.getAttribute("data-yaw");
-    await map.focus();
-    await page.keyboard.press("ArrowRight");
-    expect((await map.getAttribute("data-yaw")) !== yaw, "an arrow key should turn the view");
-    await page.getByRole("button", { name: "Reset view" }).click();
-    await until(page, () => document.querySelector("svg.space")?.getAttribute("data-dist") === "760", null);
-    await page.getByRole("button", { name: "Flat map" }).click();
-    await page.getByRole("button", { name: "3D space" }).waitFor();
-    await page.getByRole("button", { name: "3D space" }).click();
-    await map.waitFor();
+  await step("universe: pressing a planet opens its card and flies there; Esc closes it; Go to and the list view work", async () => {
+    await page.getByRole("button", { name: /^Claude:/ }).click();                          // a real click on the label
+    await page.getByRole("complementary", { name: /Claude: details/ }).waitFor();
+    expect(page.url().includes("#/home/o/planet%3Aclaude") || (await page.evaluate(() => location.hash)).includes("planet"), "the address should name the planet");
+    await page.keyboard.press("Escape");
+    await page.getByRole("complementary", { name: /Claude: details/ }).waitFor({ state: "detached" });
+    await page.getByRole("button", { name: /Go to/ }).click();
+    await page.getByLabel("Where to?").fill("shipyards");
+    await page.getByRole("dialog", { name: "Go to" }).getByRole("button").first().click();
+    await page.getByRole("button", { name: "List view" }).click();
+    await page.getByLabel(/Everything in your universe, as a list/).waitFor();
+    await page.getByRole("button", { name: "Back to space" }).click();
+    await page.locator(".cockpit").waitFor();
   });
   await step("dashboard: one prompt box shows a plan that leaves out what a task does not need, and the four agents", async () => {
     await page.goto(`${BASE}/#/home`);
+    await page.locator(".ask-dock > summary").click();
     const box = page.locator("#ask-input");
     await box.fill("What is the capital of Australia?");
     const plan = page.getByRole("region", { name: "How AIOS will handle this" });
@@ -135,6 +134,7 @@ try {
     await page.getByText("A separate Claude reviews the change").waitFor();
     expect((await plan.locator("li.pstep.you").count()) >= 1, "a build has steps that need you");
     await box.fill("");
+    await page.goto(`${BASE}/#/home/details`);
     const agents = page.getByRole("region", { name: "Your agents" });
     await agents.waitFor();
     expect((await agents.getByRole("listitem").count()) === 4, "four agents are shown");
@@ -270,7 +270,7 @@ try {
     await page.getByRole("img", { name: /Knowledge graph\. \d+ nodes/ }).waitFor();
   });
   await step("daily note via Ctrl+Alt+D is created once and reused; pinned tab survives; settings shows history and publishing", async () => {
-    await page.goto(`${BASE}/#/home`);
+    await page.goto(`${BASE}/#/home/details`);
     await page.getByText("Quick capture").waitFor();
     await page.keyboard.press("Control+Alt+d");
     await until(page, (p) => location.hash.startsWith(p), "#/knowledge/mem_");
@@ -287,7 +287,7 @@ try {
     await page.getByRole("heading", { name: "Publishing" }).waitFor();
   });
   await step("offline: capture becomes a local draft; reconnect does not auto-send; explicit send creates exactly one task", async () => {
-    await page.goto(`${BASE}/#/home`);
+    await page.goto(`${BASE}/#/home/details`);
     await page.getByText("Quick capture").waitFor();
     await ctx.setOffline(true);
     await page.locator(".pill.disconnected, .pill.stale").first().waitFor({ timeout: 40000 });

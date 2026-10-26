@@ -18,6 +18,8 @@ import { InsightsScreen } from "./screens/Insights";
 import { MyAIs } from "./screens/MyAIs";
 import { Tour } from "./ui/Tour";
 import { Home } from "./screens/Home";
+import { AskBox } from "./ui/Ask";
+import { Cockpit } from "./ui/Cockpit";
 import { Inbox } from "./screens/Inbox";
 import { Knowledge } from "./screens/Knowledge";
 import { Projects } from "./screens/Projects";
@@ -232,7 +234,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
   });
 
   const badge = summary?.approvals ?? 0;
-  const flush = route.tab === "graph" || route.tab === "knowledge";
+  const flush = route.tab === "graph" || route.tab === "knowledge" || (route.tab === "home" && (!route.id || route.sub === "o"));
   return (
     <AppContext.Provider value={ctx}>
       <div className={`shell ${vp.mode} ${vp.landscape ? "landscape" : "portrait"}`} data-layout={vp.mode}>
@@ -265,7 +267,9 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
         <div className="workspace">
           <TabStrip />
           <main className={`content ${flush ? "flush" : ""}`} id="main">
-            {route.tab === "home" && (route.id ? <Task id={route.id} /> : <Home />)}
+            {route.tab === "home" && (route.sub === "details" ? <Home />
+              : route.id && route.sub !== "o" ? <Task id={route.id} />
+              : <Cockpit objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Cockpit>)}
             {route.tab === "work" && <Workspace id={route.id} />}
             {route.tab === "projects" && <Projects id={route.id} />}
             {route.tab === "runs" && <Runs id={route.id} />}

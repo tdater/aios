@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, Query, Response
 from pydantic import BaseModel, Field
 
-from . import assist, idempotency, triage
+from . import assist, idempotency, routines, triage
 from .config import Settings
 from .db import Database
 from .security import redact_obj
@@ -41,6 +41,11 @@ def build_router(db: Database, engine, settings: Settings, require_auth) -> APIR
     @r.get("/assist/{assist_id}")
     def one(assist_id: str):
         return assist.view(db, assist_id)
+
+    @r.post("/widgets/{widget_id}/run", status_code=201)
+    def run_routine(widget_id: str):
+        """Run a routine's saved request through the single prompt, now. Needs no ability: it is the same as typing it."""
+        return redact_obj(routines.run(db, engine, settings, widget_id))
 
     @r.get("/dashboard")
     def dashboard():

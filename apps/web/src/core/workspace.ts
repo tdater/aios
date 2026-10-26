@@ -21,7 +21,7 @@ export function defaultTitle(r: RouteLike): string {
   const short = (r.id ?? "").replace(/^[a-z]+_/, "").slice(0, 8);
   return short ? `${label} ${short}` : label;
 }
-export const isDocumentRoute = (r: RouteLike) => (!!r.id && r.tab !== "settings") || r.tab === "graph";   // #/settings/history is a section anchor, not a document
+export const isDocumentRoute = (r: RouteLike) => (!!r.id && r.tab !== "settings" && !(r.tab === "home" && (r as { sub?: string }).sub === "o")) || r.tab === "graph";   // a spot in the universe is not a document   // #/settings/history is a section anchor, not a document
 
 /** Over the limit, drop the oldest unpinned tabs first (pinned ones only go if everything is pinned). */
 function evict(tabs: Tab[]): Tab[] {

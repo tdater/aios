@@ -75,6 +75,22 @@
         "title": "CancelIn",
         "type": "object"
       },
+      "ConfigIn": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "title": "ConfigIn",
+        "type": "object"
+      },
       "ConversationIn": {
         "properties": {
           "model": {
@@ -309,6 +325,44 @@
         "title": "EditIn",
         "type": "object"
       },
+      "FromCatalogIn": {
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "template": {
+            "maxLength": 40,
+            "title": "Template",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "template"
+        ],
+        "title": "FromCatalogIn",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -362,6 +416,43 @@
           "reply"
         ],
         "title": "HandoffReplyIn",
+        "type": "object"
+      },
+      "HomeActionIn": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "HomeActionIn",
+        "type": "object"
+      },
+      "HomeCheckupIn": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "HomeCheckupIn",
         "type": "object"
       },
       "ImportIn": {
@@ -768,6 +859,45 @@
         "title": "RollbackIn",
         "type": "object"
       },
+      "RoverTaskIn": {
+        "properties": {
+          "goal": {
+            "title": "Goal",
+            "type": "string"
+          },
+          "level": {
+            "default": 1,
+            "title": "Level",
+            "type": "integer"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "opt_in": {
+            "default": false,
+            "title": "Opt In",
+            "type": "boolean"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "target"
+        ],
+        "title": "RoverTaskIn",
+        "type": "object"
+      },
       "RunIn": {
         "properties": {
           "deadline_s": {
@@ -1060,6 +1190,18 @@
             "additionalProperties": true,
             "title": "Config",
             "type": "object"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
         "required": [
@@ -3348,6 +3490,124 @@
         "summary": "Home"
       }
     },
+    "/api/v1/home/actions": {
+      "post": {
+        "operationId": "action_api_v1_home_actions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeActionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Action"
+      }
+    },
+    "/api/v1/home/check-up": {
+      "get": {
+        "operationId": "checkup_status_api_v1_home_check_up_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Checkup Status"
+      },
+      "put": {
+        "operationId": "checkup_set_api_v1_home_check_up_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeCheckupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Checkup Set"
+      }
+    },
+    "/api/v1/home/check-up/run": {
+      "post": {
+        "operationId": "checkup_run_api_v1_home_check_up_run_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Checkup Run"
+      }
+    },
+    "/api/v1/home/findings": {
+      "get": {
+        "operationId": "findings_api_v1_home_findings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Findings"
+      }
+    },
     "/api/v1/import/paste": {
       "post": {
         "operationId": "import_paste_api_v1_import_paste_post",
@@ -4238,6 +4498,185 @@
           }
         },
         "summary": "Resume"
+      }
+    },
+    "/api/v1/rover": {
+      "get": {
+        "operationId": "state_api_v1_rover_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "State"
+      }
+    },
+    "/api/v1/rover/stop": {
+      "post": {
+        "operationId": "stop_api_v1_rover_stop_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stop"
+      }
+    },
+    "/api/v1/rover/tasks": {
+      "post": {
+        "operationId": "start_api_v1_rover_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoverTaskIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start"
+      }
+    },
+    "/api/v1/rover/tasks/{task_id}": {
+      "get": {
+        "operationId": "one_api_v1_rover_tasks__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One"
+      }
+    },
+    "/api/v1/rover/tasks/{task_id}/finish": {
+      "post": {
+        "operationId": "finish_api_v1_rover_tasks__task_id__finish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish"
+      }
+    },
+    "/api/v1/rover/tasks/{task_id}/step": {
+      "post": {
+        "operationId": "step_api_v1_rover_tasks__task_id__step_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Step"
       }
     },
     "/api/v1/runs": {
@@ -5215,6 +5654,152 @@
         "summary": "Get Universe"
       }
     },
+    "/api/v1/universe/objects": {
+      "get": {
+        "operationId": "list_objects_api_v1_universe_objects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Objects"
+      }
+    },
+    "/api/v1/universe/objects/{object_id}/actions/{action}": {
+      "post": {
+        "operationId": "do_api_v1_universe_objects__object_id__actions__action__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "title": "Object Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "title": "Action",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Do"
+      }
+    },
+    "/api/v1/universe/objects/{object_id}/card": {
+      "get": {
+        "operationId": "one_api_v1_universe_objects__object_id__card_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "title": "Object Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One"
+      }
+    },
+    "/api/v1/universe/objects/{object_id}/config": {
+      "put": {
+        "operationId": "change_api_v1_universe_objects__object_id__config_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "title": "Object Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change"
+      }
+    },
     "/api/v1/widgets": {
       "get": {
         "operationId": "get_widgets_api_v1_widgets_get",
@@ -5265,6 +5850,58 @@
         "summary": "Post Widget"
       }
     },
+    "/api/v1/widgets/catalog": {
+      "get": {
+        "operationId": "widget_catalog_api_v1_widgets_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Widget Catalog"
+      }
+    },
+    "/api/v1/widgets/from-catalog": {
+      "post": {
+        "operationId": "widget_from_catalog_api_v1_widgets_from_catalog_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FromCatalogIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Widget From Catalog"
+      }
+    },
     "/api/v1/widgets/preview": {
       "post": {
         "operationId": "preview_widget_api_v1_widgets_preview_post",
@@ -5299,6 +5936,44 @@
           }
         },
         "summary": "Preview Widget"
+      }
+    },
+    "/api/v1/widgets/{widget_id}/run": {
+      "post": {
+        "description": "Run a routine's saved request through the single prompt, now. Needs no ability: it is the same as typing it.",
+        "operationId": "run_routine_api_v1_widgets__widget_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "widget_id",
+            "required": true,
+            "schema": {
+              "title": "Widget Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Routine"
       }
     },
     "/api/v1/widgets/{wid}": {

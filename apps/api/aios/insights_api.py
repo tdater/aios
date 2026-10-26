@@ -24,6 +24,13 @@ class WidgetIn(BaseModel):
 
 class WidgetConfigIn(BaseModel):
     config: dict
+    title: str | None = Field(default=None, max_length=60)
+
+
+class FromCatalogIn(BaseModel):
+    template: str = Field(max_length=40)
+    title: str | None = Field(default=None, max_length=60)
+    config: dict | None = None
 
 
 class LevelIn(BaseModel):
@@ -162,9 +169,17 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     def post_widget(body: WidgetIn):
         return redact_obj(widgets.create(db, body.kind, body.title, body.config))
 
+    @r.get("/widgets/catalog")
+    def widget_catalog():
+        return widgets.catalog()
+
+    @r.post("/widgets/from-catalog", status_code=201)
+    def widget_from_catalog(body: FromCatalogIn):
+        return redact_obj(widgets.from_catalog(db, body.template, body.title, body.config))
+
     @r.put("/widgets/{wid}")
     def put_widget(wid: str, body: WidgetConfigIn):
-        return redact_obj(widgets.update(db, wid, body.config))
+        return redact_obj(widgets.update(db, wid, body.config, body.title))
 
     @r.delete("/widgets/{wid}", status_code=204)
     def del_widget(wid: str):

@@ -1,89 +1,123 @@
 # AIOS
 
-A **personal, local-first project workspace for working with official AI coding tools**: pick a project, have Claude Code propose or make a change, inspect the real patch, and verify it with tests AIOS runs itself, on top of a durable run engine with exact-action approvals and a markdown knowledge vault. It runs on your own machine; it is not a hosted service and not an operating system. Product goal and roadmap: `docs/product-goal.md`.
+**Your AI, as a universe you can see, fly through and run.** AIOS is a local-first workspace that puts every AI you use, everything it remembers, your projects and your computer's health into one interactive 3D space. It runs on your own machine, uses your own sign-ins, and asks before it does anything that matters.
 
-> **Status: early personal project (v0.2, one author).** Built for one user on Windows 11. It has not had an external
-> security review. Do **not** expose it to the public internet. See "Safety model" and "Known limitations".
+<p align="center">
+  <img src="docs/assets/universe.png" alt="The AIOS universe: you at the centre, your AIs as planets, memories as stars, projects as stations" width="900">
+</p>
 
-## What works today (tested)
+> **Status: early personal project (v0.3, one author).** Built for one user on Windows 11. It has not had an external security review. Do **not** expose it to the public internet. See "Safety model" and "Known limits".
 
-- **Workspace (main screen)**: pick a project and talk to **real Claude Code** (your own subscription login, never an API
-  key). *Ask* is read-only; *Make changes* edits an isolated git worktree, never your project folder. You get the change as
-  a readable diff, AIOS runs your tests only after you approve that exact command, an **independent reviewer** (a fresh
-  read-only Claude session on a different model) can check the exact revision, and **AIOS**, not a model, decides READY or
-  NOT READY. Status shows the real provider facts and your real 5-hour and 7-day usage. Shown working on real Claude Code by
-  `scripts/demo_workspace.py` and `apps/web/e2e/workspace.e2e.mjs`. Antigravity and Perplexity remain manual handoffs; see
-  `docs/integration-findings.md` for why.
-- **One prompt for any task** (`docs/dashboard-design.md`): Home is a dashboard of your AI agents with one box. You type any request; AIOS works
-  out what kind of task it is and shows, before anything starts, the steps it will take and the ones it leaves out and why. A simple
-  question gets an answer and nothing else; a letter is a draft; a question that needs the web is answered and a Perplexity step is
-  offered (by copy and paste, never claimed as done); only a request to change a project gets build, check, review and correct. Shown
-  on real Claude by `scripts/demo_assist.py`.
-- **Start to finish** (branch `phase2-everyday`): give one request and AIOS carries it through build, your check (you approve it
-  every time), a separate Claude's review, automatic corrections, re-check and re-review, then a plain-words result and a few
-  memory candidates. It adds no power: Claude still edits only an isolated copy, nothing is merged without a separate approval, and
-  AIOS decides readiness. Shown on real Claude by `scripts/demo_workflow.py`. See `docs/product-direction.md`.
-- **Everyday use** (branch `phase2-everyday`): Home is a 3D map of you, your AIs and your memories (`docs/universe.md`); you choose
-  what each AI may be told; you can bring in memories from other AIs; a guided tour re-runs from Settings; a desktop icon starts
-  AIOS. Gemini and Perplexity subscriptions can be used from a separate window with prompts AIOS writes for you to paste. AIOS
-  never reads or controls those windows.
-- **A calmer daily interface** (branch `phase1-delight`, see `docs/expansion-plan.md`): Today cards, Simple / Standard / Power
-  menus, a proof seal on every checked change, a replay of what Claude did, a writer-and-reviewer view, a constellation of what
-  AIOS remembers (bright only when a memory was used and the tests then passed), a skyline of projects, other AIs by copy and
-  paste, and opt-in extras (a read-only PC check, small panels) behind a pause-everything switch and a plain-language receipts
-  list. Computer control is not built.
-- **Run engine**: queued → running → awaiting approval / blocked / interrupted → succeeded / failed / cancelled, with deadlines,
-  iteration limits, bounded retries, workspace locks, idempotent submission, restart reconciliation, and a rule that
-  side effects with unknown outcome are **never** replayed automatically.
-- **Approvals bound to the exact action** (hash of the payload), single use, expiring, race-safe, with explicit confirmation for
-  destructive actions.
-- **Read-only workspace audit** with recorded evidence; **memory** in a markdown vault (canonical) with a rebuildable SQLite/FTS index.
-- **History review pipeline** (deterministic, no model calls): parse approved exports/sessions → redact → dedupe → extract
-  candidate preferences/lessons/scripts with evidence and chronology → human review queue. Tested on synthetic fixtures only.
-- **Authenticated API v1** (device pairing; HttpOnly cookie + CSRF for browsers, bearer token for the Android app), structured
-  errors, pagination, record versions, idempotency keys, reconnectable run monitoring.
-- **Client**: responsive React/TypeScript app, installable PWA, and a Capacitor 8 Android shell (tested on an emulator).
-  Obsidian-inspired UI: themes and accent colours, tabs (pin with Alt+P), Ctrl+K command palette, safe markdown notes with
-  `[[wiki links]]`, `#tags`, callouts and backlinks, a vault explorer with search operators, a force-directed graph (colour by
-  type or project, time-lapse of how the vault grew), daily notes (Ctrl+Alt+D), skill-change review, and an imported-history screen.
-- **Publishing**: only notes you tag `#publish` and approve can be exported (Settings button or `scripts/export_published.py`;
-  files are written locally; nothing is uploaded).
-- **Nine Claude skills** with a deterministic structural evaluator, a **fail-closed PreToolUse safety hook**, and an
-  **evaluation-gated, versioned, reversible improvement loop** (no auto-promotion; the evaluator and safety files cannot be
-  changed by the loop). The skills' behavioural cases are specifications; they are not executed automatically.
-- Tests: Python `pytest`, web `vitest`, plus real-browser and Android-emulator end-to-end scripts (exact counts in `docs/HANDOFF.md`).
+## The idea in one minute
+
+Most AI tools are a text box. AIOS is a place.
+
+| In the universe | What it really is |
+|---|---|
+| **You** (the sun) | Your preferences, privacy and how much AIOS learns |
+| **Planets** | The AIs you use (Claude, Gemini, Perplexity, Antigravity). The closer a planet is, the more of your memories it may be told |
+| **Moons** | Ready-made skills that belong to an AI |
+| **Stars and clouds** | Everything AIOS remembers, plus old chats you imported |
+| **Stations and shuttles** | Your projects and the jobs running on them |
+| **Probes** | Small daily widgets you add yourself (see below) |
+| **Comets** | Things waiting for your approval |
+| **Home Base** | Your computer's health, and a helper for the mouse and browser |
+| **All Stop** | One red button that stops AIOS from starting anything new |
+
+Every object has a plain-words card that says what it is, with its settings in three levels (**Basics**, **More**, **Expert**). Nothing changes without you, and changes can be undone.
+
+<p align="center">
+  <img src="docs/assets/planet-card.png" alt="An AI's card: what it is and what it may be told" width="900">
+</p>
+
+## Travel
+
+Drag to look around, scroll to move closer, or use the **travel dock** to fly to a region: *You*, *The Fleet*, *The Star Fields*, *The Shipyards*, *Home Base*, *Mission Control*. **Go to** (Ctrl+G) finds anything by name, the **radar** shows where everything is, and every object has a link you can bookmark. Prefer text? **List view** is the whole universe as a plain list, and calm mode turns the motion off.
+
+When you add something new, it arrives: probes launch from the Shipyards, memory clouds flash into being, planets condense out of dust. A one-line caption says what happened, you can skip it, and an optional soft sound is off until you turn it on.
+
+## Daily widgets: your Day, ready-made
+
+**My Day** is a dock of small panels you pick from a catalog and make your own. Nothing needs a calendar, an email account or a bank. Everything lives on your computer.
+
+<p align="center">
+  <img src="docs/assets/my-day.png" alt="My Day: a top-three list, water counter, walking habit with streak, focus timer and a morning briefing" width="900">
+</p>
+
+- **Plan your day:** Top 3, Morning briefing, Shutdown wrap-up, Weekly review
+- **Capture:** Quick capture, Gratitude
+- **Track:** Water, Move, Read, Sleep, Budget (typed in by you)
+- **Focus:** Focus timer
+- **Lists:** Shopping, Reading, Meals
+- **For technical work:** Stand-up notes, Error log, Review queue, Release checklist
+
+Routines (the briefing, wrap-up and weekly review) run a saved request through the single prompt box, on demand or on a schedule you allow, using your own Claude plan. They run at most once a day, and never while All Stop is on.
+
+<p align="center">
+  <img src="docs/assets/widget-gallery.png" alt="The widget gallery: ready-made widgets grouped by purpose" width="900">
+</p>
+
+## Keep your computer healthy
+
+**Home Base** looks at memory, disk space, the temp folder and start-up programs, explains each finding in plain words, and shows you how to fix it with Windows' own screens. AIOS reads; it does not tidy behind your back. A fixed list of things it will never do (registry, services, drivers, antivirus, deleting your files, installing software) is refused in code.
+
+<p align="center">
+  <img src="docs/assets/home-base.png" alt="Home Base: computer health shown as an asteroid belt of findings" width="900">
+</p>
+
+**The Rover** (mouse and browser helper) is opt-in per task, always has a visible Stop, and has a code-enforced block list (banking, password managers, payments, admin consoles). Today it can **look** at a window and **guide** you with numbered steps. It does not click or type for you. Controlling a browser or the screen is not built; see `docs/universe-spec.md` for what would have to be proven first.
+
+## Everything else AIOS does
+
+- **Workspace:** talk to real Claude Code about a project. *Ask* is read-only; *Make changes* edits an isolated copy, never your folder. You see the diff, AIOS runs your tests only after you approve that exact command, an independent reviewer session checks the revision, and AIOS (not a model) decides READY or NOT READY.
+- **One prompt for any task:** type a request; AIOS shows the steps it will take and the ones it leaves out, then starts. A question gets an answer, a letter becomes a draft, and only a request to change a project builds, checks and reviews.
+- **Start to finish:** one request carried through build, your check, review, corrections and a plain-words result.
+- **Memory:** a markdown vault is the source of truth, with a rebuildable search index, a graph, daily notes, and a review queue for anything AIOS suggests remembering.
+- **Run engine:** queued, running, awaiting approval, blocked, succeeded or failed, with deadlines, limits, and a rule that side effects with an unknown outcome are never replayed automatically.
+- **Approvals bound to the exact action**, single use, expiring.
+- **Clients:** the web app (an installable PWA) and a Capacitor Android shell, tested on an emulator.
+
+<p align="center">
+  <img src="docs/assets/phone.png" alt="The universe on a phone" width="300">
+</p>
 
 ## Safety model (read this)
-- The server binds to **loopback only** and refuses anything else. Remote use is intended through a private network path
-  (for example Tailscale Serve) **plus HTTPS plus the app's own device login**. `docs/mobile-remote-access.md` explains it.
-- AIOS never reads, copies or stores provider OAuth tokens and makes no paid API calls by default. Claude runs through the
-  unmodified Claude Code CLI with your own sign-in, and AIOS strips API-billing variables before starting it. Antigravity and
-  Perplexity work happens in sessions **you** start, using a task packet; those results come back as unverified claims.
-- Private runtime state (database, vault, imported history, backups) lives **outside** this repository and is git-ignored.
-- Imported text (history, research, repo contents) is treated as untrusted data, never as instructions.
-- Path checks are application-level guards, **not an OS sandbox**.
+
+- The server binds to **loopback only**. Remote use is intended through a private network path plus HTTPS plus the app's own device login (`docs/mobile-remote-access.md`).
+- AIOS never reads, copies or stores provider OAuth tokens or API keys and makes no paid API calls by default. Claude runs through the unmodified Claude Code CLI with your own sign-in.
+- Private state (database, vault, imported history, backups, pictures) lives **outside** this repository.
+- Imported text, notes and repository contents are untrusted data, never instructions.
+- Safety is enforced in code (path guards, approvals, limits, block lists), not by asking a model nicely. Path checks are application-level guards, **not an OS sandbox**.
+- Gemini CLI is unsupported. Antigravity is a manual hand-off. Gemini and Perplexity are copy and paste only. Anything mocked or untested is labelled as such.
 
 ## Quick start (Windows, PowerShell)
+
 ```powershell
 scripts\setup.ps1              # Python venv, dependencies, web build
 scripts\start.ps1              # http://127.0.0.1:8765  (state in ..\aios-state by default)
-scripts\pair.ps1               # one-time code to sign a browser/phone in
+scripts\pair.ps1               # one-time code to sign a browser or phone in
 .\.venv\Scripts\python.exe -m pytest        # backend tests
 cd apps\web; npm test; npm run build        # web tests and production build
 ```
-Android: `scripts\android-build.ps1 -Variant debug` (see `docs/mobile-android.md`). Release signing keys are yours to create
-and are never committed.
+
+If you update AIOS while it is running, restart it (`scripts\stop.ps1`, then `scripts\start.ps1`) and refresh with Ctrl+Shift+R, or the universe will say it needs a restart.
+
+Android: `scripts\android-build.ps1 -Variant debug` (see `docs/mobile-android.md`). Release signing keys are yours to create and are never committed.
+
+## Known limits
+
+- One author, one user, Windows 11. No external security review.
+- The 3D view needs WebGL 2; without it AIOS draws a flat version of the same universe.
+- The Rover cannot click, type or drive a browser. Those levels are specified but unverified.
+- The skills' behavioural cases are specifications; they are not executed automatically.
+- Real-Claude behaviour is shown by the demo scripts in `scripts/`, not by the automatic test suite, which uses a fake.
 
 ## Layout
-`apps/api` FastAPI app and SQLite migrations · `apps/web` React client, PWA, Capacitor Android project, e2e scripts ·
-`tests` backend tests · `scripts` setup/run/build/scan helpers · `docs` architecture, API, mobile and handoff notes.
-Start with `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
 
-## Known limitations
-No push notifications or SSE yet; no scheduled jobs; Gemini CLI is removed; Antigravity is manual handoff only; applying a READY change to your project is an approval-gated merge (Outcome tab), with undo shown; two writers at once is untried; the new Workspace screens have not been run on the Android shell;
-the Android app has not been tested on a physical phone; Windows is the only supported host; the history parsers are unvalidated
-against real exports.
+`apps/api` FastAPI app and SQLite migrations · `apps/web` React client, WebGL renderer, PWA, Capacitor Android project, e2e scripts · `tests` backend tests · `scripts` setup, run, build, demo and scan helpers · `docs` architecture, API, mobile and handoff notes.
 
-## License
-No license has been chosen yet, so by default **all rights are reserved**: you may read the code but have no permission to reuse
-or redistribute it until a license is added.
+Start with `docs/universe-spec.md` (the design), `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
+
+---
+
+*Pictures in `docs/assets/` are generated from invented sample data by `apps/web/e2e/readme-shots.mjs`, never from a real AIOS.*
