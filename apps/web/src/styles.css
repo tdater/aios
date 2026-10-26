@@ -532,3 +532,8 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .tl-offer .companion, .tl-offer .card { margin-top: 8px; }
 
 .task-head { margin-bottom: 28px; } .timeline { margin-top: 4px; }
+
+/* Arrivals: the caption shown while something new appears in the universe. */
+.arrival-caption { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(92vw, 560px); padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--surface, #111) 88%, transparent); border: 1px solid var(--border, #345); z-index: 30; }
+.arrival-caption:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .arrival-caption { transition: none; } }
