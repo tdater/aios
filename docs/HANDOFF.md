@@ -2,27 +2,60 @@
 
 Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Course correction (2026-10-24, read first)
+## Course correction (updated 2026-10-25, read first)
 
-The product goal changed: see `docs/product-goal.md`. Steps 1 and 2 are done (`docs/integration-findings.md`):
-- Claude Code is classified A (supported integrated execution). Transport: `apps/api/aios/claude_code.py`, tests:
-  `tests/test_claude_code.py` (stand-in executable). **Real connection demonstrated 2026-10-25**: the owner ran
-  `scripts/demo_claude_connection.py` on the Windows PC three times, all PASS (fix, scope check: only calc.py,
-  AIOS's own test re-run green, resumed session). Those runs loaded the owner's user settings, and a personal
-  Stop hook ran pytest in the workspace; since then no settings files load in AIOS runs (`--setting-sources ""`)
-  and the demo has an isolation step. Windows run 2026-10-25 15:29 (commit `cfc0dc6`): demo PASS on all seven steps
-  including isolation (only Claude Code's three built-in plugins loaded, no MCP servers); backend suite 348 passed,
-  1 warning (Starlette/httpx test-client deprecation). Web, browser e2e and Android e2e were not re-run (no changes there).
-- Antigravity is D for AIOS-started runs (Google consumer terms), C via manual handoff. Gemini CLI removed.
-- Reviewer decided (2026-10-25): option 3, Claude reviewer by default and Antigravity on demand; design in
-  `docs/integration-findings.md`.
-- **Next: Step 3** (`docs/product-goal.md`), on the Windows PC: project selection, one conversation, a real Claude
-  turn through `claude_code.py`, persisted attributed messages, AIOS-supplied context, the real patch artifact, real
-  verification output, honest provider/session/permission status, then the Claude reviewer. Not started. Work
-  moves from the cloud session to the owner's PC from here; one writer per branch.
-- The Linux sandbox that wrote this ran the backend suite: 344 passed, 1 skipped, 3 failed. The 3 failures are
-  Windows-path tests (`test_claude_guard` backslash case, `test_core` workspace roots and `resolve_within`) that
-  cannot pass on Linux and were failing before this change. Windows CI is the reference.
+Product goal and order of work: `docs/product-goal.md`. Provider rules, official sources and everything learned from
+real runs: `docs/integration-findings.md`. Branch `step3-workspace` carries Step 3 (not yet merged to `main`).
+
+| Step | State |
+|---|---|
+| 1 Verify the findings | Done |
+| 2 Resolve the integration blocker | Done. Claude Code is category A; Antigravity D for AIOS-started runs, C by hand; Gemini removed |
+| 3 First real workspace | **Done and demonstrated** (below) |
+| 3 Second independent reviewer | **Done and demonstrated** (below) |
+| 4 Real collaboration | **Partly.** Exists: one isolated worktree and branch per conversation, writer then independent reviewer at a pinned revision, findings in the same workspace, verification of the resulting revision, AIOS-decided readiness, a draft-a-fix-request flow a person sends. **Not done:** applying an accepted revision to the project folder (the owner merges the `aios/...` branch with git), automatic re-verify and re-review after a fix, concurrent writers (separate conversations have separate worktrees, but running two at once has not been tried) |
+| 5 Memory useful to execution | **Partly.** Exists: only owner-approved notes are supplied per run and recorded with version and hash (`context_supplied`); the demo proves a rule from an approved note reaches Claude. **Not done:** retrieving preferences, provider operating notes and skills, proposing a lesson after verified work, demonstrating retrieval in a fresh session |
+| Perplexity | Manual handoff, unchanged |
+
+### What is real and what is a stand-in
+- **Real, on this Windows PC, with your Claude subscription:** `scripts/demo_workspace.py` (engine, real Claude Code,
+  real git worktrees, real approval, real review; `--calibrate` also shows the reviewer flagging a lazy patch that passes
+  its tests) and `apps/web/e2e/workspace.e2e.mjs` (the same flow through the real UI, server dispatcher and Edge, 12/12).
+  `scripts/demo_claude_connection.py` still passes.
+- **Stand-in:** `tests/fake_claude.py` is a fake `claude` executable used by the backend tests. It proves AIOS's side of
+  the contract (flags, environment, parsing, isolation checks, approvals, readiness), not Claude. It mirrors shapes seen on
+  the real CLI, and two real-run findings exist because it did not (the `StructuredOutput` tool, the missing tool allowlist).
+- **Not exercised:** a physical or emulated Android device with the new screens; the existing mobile browser e2e and
+  Android emulator e2e were not re-run; GitHub CI has not run on the Step 3 branch; two simultaneous writers; Antigravity
+  (never started by AIOS by design).
+
+### Tests (Windows, 2026-10-25)
+Backend `pytest`: **394 passed** (3 new modules of conversation tests plus HTTP-level route tests). Web `vitest`: **307 passed**,
+`tsc` clean, production build OK. Secret scan clean. Real UI e2e: 12/12.
+
+### How to run things
+```
+.venv\Scripts\python.exe scripts\demo_workspace.py --auto-approve --model sonnet --calibrate   # real Claude, ~6 runs
+$env:AIOS_E2E_REAL_CLAUDE = "1"; node apps\web\e2e\workspace.e2e.mjs                              # real Claude through the UI
+```
+Both use your Claude subscription (a few short turns) and never an API key. The first is interactive unless
+`--auto-approve` is given (use that only for the disposable repo it creates).
+
+### Decisions to know about
+- Reviewer: Claude by default on a different model from the writer; Antigravity only by manual handoff.
+- Claude Code runs with an allowlist of tools (`--tools`), no settings files, no CLAUDE.md or auto memory, and AIOS
+  checks what Claude Code reports about itself after every run and fails the run if anything unexpected was there.
+- Verification (the owner's test command) runs AI-written code with your Windows rights. It is approval-gated per
+  exact command and revision, credentials are stripped from its environment, but it is **not a sandbox**.
+- The Workspace is the main screen; Knowledge and Graph are kept but demoted. No note-taking features were added.
+
+### Next actions (in order)
+1. Merge `step3-workspace` into `main` (PR) once you have looked at it; let CI run.
+2. Step 4 remainder: an approval-gated "apply this revision to my project" (merge the branch safely), then re-verify
+   and re-review automatically after a fix, then try two conversations at once.
+3. Step 5 remainder: lessons proposed from verified work, preference and procedure retrieval, fresh-session demo.
+4. Run the mobile browser e2e and the Android emulator e2e against the new Workspace screens.
+5. Ideas are listed at the end of the conversation that produced this branch; none were implemented unasked.
 
 ## Environment (verified)
 A local Windows 11 Pro PC (10.0.26200; **not** a cloud VM), 16 GB RAM, PowerShell 7.6,
@@ -58,8 +91,11 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Deterministic workspace audit | IMPLEMENTED+TESTED |
 | Memory service (vault canonical, FTS5 index, edit/forget/export/rebuild) | IMPLEMENTED+TESTED |
 | History ingestion → candidates → review queue (parsers, dedupe, redaction/quarantine, chronology, incremental, deletion) | IMPLEMENTED+TESTED on **synthetic fixtures only**. Parsers follow public knowledge of Claude Code / claude.ai / ChatGPT formats and are **unvalidated against real exports**. No real history has been read |
-| Provider discovery + honest billing/mode reporting | IMPLEMENTED (claude/gemini tested live; mock provider is MOCKED by design) |
-| Claude handoff (task packet → your own session → import as UNVERIFIED) | IMPLEMENTED+TESTED with a faked `interactive` mode; never exercised with a real Claude session |
+| Provider discovery + honest billing/mode reporting | IMPLEMENTED (claude tested live; Antigravity is detected by presence only and never started; mock provider is MOCKED by design) |
+| Claude handoff (task packet → your own session → import as UNVERIFIED) | IMPLEMENTED+TESTED with a faked `interactive` mode; never exercised with a real Claude session. No longer the main path: Claude now runs for real through conversations (next rows) |
+| Conversations: real Claude Code turns, isolated git worktree per conversation, patch at a pinned revision, approval-gated verification, attributed messages, context supplied from approved notes, honest status | IMPLEMENTED+TESTED (stand-in executable) **and demonstrated with the real CLI** (`scripts/demo_workspace.py`, `apps/web/e2e/workspace.e2e.mjs`) |
+| Independent reviewer (fresh read-only session, different model, pinned revision, AIOS-grounded findings, AIOS-decided readiness) | IMPLEMENTED+TESTED and demonstrated with the real CLI, including a calibration run (one example, not a quality measurement) |
+| Workspace UI (Ask / Make changes, activity, diff, tests and approval, outcome and review, status with real quota) | IMPLEMENTED+TESTED (28 component tests incl. axe; real-browser e2e 12/12 with real Claude; screenshots checked on desktop and phone width). Not run on the Android shell |
 | Gemini execution | REMOVED (owner decision 2026-10-24). Antigravity: manual handoff only, see integration-findings.md |
 | Backup + restore to a separate directory | IMPLEMENTED+TESTED |
 | Web/PWA client (6 screens, offline drafts, opt-in summary cache, service worker) | IMPLEMENTED+TESTED (see mobile-handoff) |
@@ -78,7 +114,7 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 | Schedules / bounded scheduled review, research-import UI | PLANNED |
 | Quota detection from real providers | PLANNED (state and UI exist; tested via a test executor) |
 
-## Test status (last run 2026-10-24)
+## Test status (older detail from 2026-10-24; the current numbers are in the Course correction section above)
 - Backend `pytest`: **326 passed**. Web `vitest` + `tsc`: **270 passed**, typecheck clean. Production
   build OK. Secret scan clean; `scripts/skill_eval.py`: all 9 skills pass structural checks (their behavioural cases are *not executed*).
 - **GitHub Actions (public repo), commit 91631b5: all 4 jobs green** (secret scan, backend on Windows/py3.14, web, real-browser e2e 14/14).
@@ -104,7 +140,7 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
 - `docs/history-bootstrap.md` predates the full brief; ingestion is implemented but its real-data pilot has not happened.
 - No LICENSE file (owner decision).
 
-## Next actions (in order)
+## Earlier next actions (2026-10-24; still open unless the Course correction section says otherwise)
 1. User decides on a LICENSE (until then all rights are reserved).
 2. User approves a small real history sample (copy into `C:\aios-state\imports\approved`), then pilot `review-new` and
    validate parser assumptions against real files.

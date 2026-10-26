@@ -115,7 +115,7 @@ export function RunDetailView({ id }: { id: string }) {
   );
 }
 
-function CancelPanel({ run, open, connected, onError, onDone }: { run: Run; open: boolean; connected: boolean; onError: (s: string | null) => void; onDone: (d: RunDetail) => void }) {
+export function CancelPanel({ run, open, connected, onError, onDone }: { run: Run; open: boolean; connected: boolean; onError: (s: string | null) => void; onDone: (d: RunDetail) => void }) {
   const { client } = useApp();
   const c = run.cancellation;
   const [confirm, setConfirm] = useState(false);
@@ -148,7 +148,7 @@ function CancelPanel({ run, open, connected, onError, onDone }: { run: Run; open
   ) : <Btn kind="ghost" disabled={!connected} onClick={() => setConfirm(true)}>Request cancellation…</Btn>;
 }
 
-function ResumeButton({ runId, connected, onError }: { runId: string; connected: boolean; onError: (s: string | null) => void }) {
+export function ResumeButton({ runId, connected, onError }: { runId: string; connected: boolean; onError: (s: string | null) => void }) {
   const { client } = useApp();
   const resume = useOnce(async () => {
     onError(null);

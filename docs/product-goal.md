@@ -9,6 +9,9 @@ vault, history review) is kept; note-taking features are demoted, not expanded.
 
 ## Order of work
 
+Status on 2026-10-25: steps 1 and 2 done; step 3 and the second reviewer done and demonstrated with the real Claude
+Code CLI; steps 4 and 5 partly done. Exact state and what is still open: `docs/HANDOFF.md`.
+
 1. Verify what the repository really does (done: `docs/integration-findings.md`).
 2. Resolve the integration blocker before adding UI: official docs and terms, then the smallest real supported
    connection outside the UI. No token extraction, no unofficial subscription proxy, no paid API use without

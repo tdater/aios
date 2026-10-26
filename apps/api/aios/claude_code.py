@@ -41,7 +41,13 @@ BILLING_ENV = (
 
 READ_TOOLS = ["Read", "Glob", "Grep"]
 EDIT_TOOLS = ["Read", "Glob", "Grep", "Edit", "Write"]
-DENIED_TOOLS = ["Bash", "WebFetch", "WebSearch", "NotebookEdit", "Agent", "Task"]
+# Belt and braces only. A denylist cannot be the control: the first real run showed Claude Code
+# 2.1.310 still offering RemoteTrigger, CronCreate, PushNotification, SendMessage and Skill
+# because they were not on it. `--tools` (an allowlist of built-in tools) is the control, and
+# run() checks the tool list Claude reports at startup against it.
+DENIED_TOOLS = ["Bash", "PowerShell", "WebFetch", "WebSearch", "NotebookEdit", "Agent", "Task",
+                "RemoteTrigger", "CronCreate", "CronDelete", "ScheduleWakeup", "PushNotification",
+                "SendMessage", "Skill"]
 
 MODES = {"read": READ_TOOLS, "edit": EDIT_TOOLS}
 
@@ -98,31 +104,79 @@ class RunResult:
     model: str | None
     plugins: list = field(default_factory=list)
     mcp_servers: list = field(default_factory=list)
+    tools: list = field(default_factory=list)            # as reported by Claude Code at startup
+    allowed_tools: list = field(default_factory=list)    # what AIOS asked for
+    api_key_source: str | None = None                    # "none" when the subscription login is used
+    permission_mode: str | None = None
+    client_version: str | None = None
+    rate_limit: dict | None = None                       # last rate_limit_event, compacted
+    structured_output: dict | None = None                # only when a json_schema was requested
     events: list[dict] = field(default_factory=list)
     stderr: str = ""
     timed_out: bool = False
+    cancelled: bool = False
 
     @property
     def external_plugins(self) -> list:
         return [p for p in self.plugins if not is_builtin_plugin(p)]
 
     @property
+    def unexpected_tools(self) -> list:
+        """Tools Claude Code reports that AIOS did not ask for. Empty when nothing was reported."""
+        return sorted(t for t in self.tools if t not in self.allowed_tools)
+
+    @property
     def isolated(self) -> bool:
-        """No personal, repository, or marketplace plugins and no MCP servers loaded."""
-        return not self.external_plugins and not self.mcp_servers
+        """No personal, repository, or marketplace plugins, no MCP servers, no tool beyond the
+        allowlist, and no API key in use."""
+        return (not self.external_plugins and not self.mcp_servers and not self.unexpected_tools
+                and self.api_key_source in (None, "none"))
 
     def summary(self) -> dict:
         return {"ok": self.ok, "exit_code": self.exit_code, "session_id": self.session_id,
                 "subtype": self.subtype, "num_turns": self.num_turns,
                 "duration_ms": self.duration_ms, "model": self.model,
+                "client_version": self.client_version, "permission_mode": self.permission_mode,
                 "cost_estimate_usd": self.cost_estimate_usd,
                 "cost_note": "client-side estimate printed by Claude Code; billed to the "
                              "subscription, not the API, because API variables are removed",
                 "permission_denials": self.permission_denials, "timed_out": self.timed_out,
+                "cancelled": self.cancelled, "tools": list(self.tools),
+                "unexpected_tools": self.unexpected_tools, "api_key_source": self.api_key_source,
+                "rate_limit": self.rate_limit,
                 "builtin_plugins": _names(p for p in self.plugins if is_builtin_plugin(p)),
                 "external_plugins": _names(self.external_plugins),
                 "mcp_servers": _names(self.mcp_servers),
                 "result": redact(self.result_text)[:4000]}
+
+
+def compact_rate_limit(ev: dict) -> dict | None:
+    """Reduce a `rate_limit_event` to the non-secret facts worth showing. Shape observed in
+    Claude Code 2.1.310: rate_limit_info.{status, overageStatus, unifiedWindows.{five_hour,
+    seven_day}.{utilization, resetsAt, status}}. Anything missing stays out; nothing is invented."""
+    info = ev.get("rate_limit_info")
+    if not isinstance(info, dict):
+        return None
+    out: dict = {"status": info.get("status"), "overage": info.get("overageStatus")}
+    wins = info.get("unifiedWindows")
+    if isinstance(wins, dict):
+        for name in ("five_hour", "seven_day"):
+            w = wins.get(name)
+            if isinstance(w, dict):
+                out[name] = {"utilization": w.get("utilization"), "resets_at": w.get("resetsAt"),
+                             "status": w.get("status")}
+    return out
+
+
+def kill_tree(proc: subprocess.Popen) -> None:
+    """Kill the process and anything it started. Plain kill() leaves grandchildren on Windows."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True,
+                           timeout=15)
+        proc.kill()
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 def parse_version(text: str) -> tuple[int, ...]:
@@ -130,10 +184,19 @@ def parse_version(text: str) -> tuple[int, ...]:
     return tuple(int(x) for x in m.groups()) if m else ()
 
 
+# Set for every Claude Code process AIOS starts. Without them Claude Code also loads the owner's
+# personal ~/.claude/CLAUDE.md, the project's CLAUDE.md, and its own auto-memory notes: real
+# instructions that AIOS did not write down, so a result could not be traced to what the provider
+# was told, and auto memory would write notes outside the worktree. AIOS supplies approved notes
+# itself (context_pack.py) and records exactly which ones.
+ISOLATION_ENV = {"CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1", "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+
+
 def child_env(base: dict | None = None) -> dict:
     env = dict(os.environ if base is None else base)
     for var in BILLING_ENV:
         env.pop(var, None)
+    env.update(ISOLATION_ENV)
     return env
 
 
@@ -189,7 +252,7 @@ def preflight(exe: list[str] | None = None, env: dict | None = None) -> Prefligh
 
 def build_command(exe: list[str], prompt: str, *, mode: str = "read", max_turns: int = 10,
                   resume: str | None = None, append_system_prompt: str | None = None,
-                  model: str | None = None) -> list[str]:
+                  model: str | None = None, json_schema: dict | None = None) -> list[str]:
     if mode not in MODES:
         raise ValueError(f"mode must be one of {sorted(MODES)}")
     if not prompt.strip():
@@ -198,6 +261,7 @@ def build_command(exe: list[str], prompt: str, *, mode: str = "read", max_turns:
            "--output-format", "stream-json", "--verbose",
            "--permission-mode", "acceptEdits" if mode == "edit" else "dontAsk",
            "--permission-prompts", "none",
+           "--tools", ",".join(MODES[mode]),
            "--allowedTools", ",".join(MODES[mode]),
            "--disallowedTools", ",".join(DENIED_TOOLS),
            "--setting-sources", NO_SETTING_SOURCES,
@@ -210,6 +274,8 @@ def build_command(exe: list[str], prompt: str, *, mode: str = "read", max_turns:
         cmd += ["--model", model]
     if append_system_prompt:
         cmd += ["--append-system-prompt", append_system_prompt]
+    if json_schema is not None:   # verified on 2.1.310: arrives as `structured_output` in the result event
+        cmd += ["--json-schema", json.dumps(json_schema, separators=(",", ":"))]
     # "--" ends options so a prompt that starts with "-" is never read as a flag.
     cmd += ["--", prompt]
     return cmd
@@ -240,13 +306,19 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
         max_turns: int = 10, timeout_s: int = 900, resume: str | None = None,
         append_system_prompt: str | None = None, model: str | None = None,
         env: dict | None = None, on_event: Callable[[dict], None] | None = None,
-        transcript: Path | None = None) -> RunResult:
-    """Runs one Claude Code turn in `workspace`. Call preflight() first and pass its exe."""
+        transcript: Path | None = None, should_cancel: Callable[[], bool] | None = None,
+        poll_s: float = 1.0, json_schema: dict | None = None) -> RunResult:
+    """Runs one Claude Code turn in `workspace`. Call preflight() first and pass its exe.
+
+    `should_cancel` is polled every `poll_s` seconds from a watchdog thread, independent of the
+    event stream, so a silent or hung child is still stopped. It is also the place for a
+    heartbeat. An exception from it or from `on_event` never stops the run or orphans the child."""
     workspace = Path(workspace).resolve()
     if not workspace.is_dir():
         raise ValueError(f"workspace does not exist: {workspace}")
     cmd = build_command(exe or default_exe(), prompt, mode=mode, max_turns=max_turns,
-                        resume=resume, append_system_prompt=append_system_prompt, model=model)
+                        resume=resume, append_system_prompt=append_system_prompt, model=model,
+                        json_schema=json_schema)
     proc = subprocess.Popen(cmd, cwd=workspace, env=child_env(env), stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                             encoding="utf-8", errors="replace")
@@ -255,13 +327,25 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
     t_err = threading.Thread(target=lambda: err_chunks.append(proc.stderr.read()), daemon=True)
     t_err.start()
     out_f = transcript.open("w", encoding="utf-8") if transcript else None
-    expired = threading.Event()
+    expired, cancelled, done = threading.Event(), threading.Event(), threading.Event()
 
     def _expire() -> None:
         expired.set()
-        proc.kill()
+        kill_tree(proc)
+
+    def _watch() -> None:
+        while not done.wait(poll_s):
+            try:
+                if should_cancel and should_cancel():
+                    cancelled.set()
+                    kill_tree(proc)
+                    return
+            except Exception:  # noqa: BLE001  a faulty probe must not end the run
+                pass
     killer = threading.Timer(timeout_s, _expire)
     killer.start()
+    watcher = threading.Thread(target=_watch, daemon=True)
+    watcher.start()
     try:
         for line in proc.stdout:
             lines.append(line)
@@ -270,11 +354,14 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
             if on_event and line.strip():
                 try:
                     on_event(json.loads(line))
-                except json.JSONDecodeError:
+                except Exception:  # noqa: BLE001  logging must never orphan the child process
                     pass
         proc.wait()
     finally:
+        done.set()
         killer.cancel()
+        if proc.poll() is None:
+            kill_tree(proc)
         if out_f:
             out_f.close()
     timed_out = expired.is_set()
@@ -285,8 +372,13 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
                                 "(--setting-sources \"\"). Run `claude update` and try again.")
     events, init, res = parse_events(lines)
     is_error = bool(res.get("is_error", True)) if res else True
+    rate = None
+    for ev in events:
+        if ev.get("type") == "rate_limit_event":
+            rate = compact_rate_limit(ev) or rate
     return RunResult(
-        ok=proc.returncode == 0 and bool(res) and not is_error and not timed_out,
+        ok=(proc.returncode == 0 and bool(res) and not is_error and not timed_out
+            and not cancelled.is_set()),
         exit_code=proc.returncode,
         session_id=res.get("session_id") or init.get("session_id"),
         subtype=res.get("subtype"),
@@ -298,7 +390,17 @@ def run(workspace: Path, prompt: str, *, exe: list[str] | None = None, mode: str
         model=init.get("model"),
         plugins=list(init.get("plugins") or []),
         mcp_servers=list(init.get("mcp_servers") or []),
+        tools=[t for t in (init.get("tools") or []) if isinstance(t, str)],
+        # Claude Code 2.1.310 adds a synthetic `StructuredOutput` tool, and only when --json-schema is
+        # used: it is how the schema is enforced, not a capability. Expected then, unexpected otherwise.
+        allowed_tools=list(MODES[mode]) + (["StructuredOutput"] if json_schema is not None else []),
+        api_key_source=init.get("apiKeySource"),
+        permission_mode=init.get("permissionMode"),
+        client_version=init.get("claude_code_version"),
+        rate_limit=rate,
+        structured_output=res.get("structured_output") if isinstance(res.get("structured_output"), dict) else None,
         events=events,
         stderr=redact(stderr)[-4000:],
         timed_out=timed_out,
+        cancelled=cancelled.is_set(),
     )

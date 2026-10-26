@@ -21,7 +21,8 @@ from .config import LOOPBACK_HOSTS, REPO_ROOT, Settings, load_settings
 from .db import Database
 from .engine import EXECUTORS, Engine
 from .errors import ApiError, check_version, not_found
-from .executors import audit, capture, demo, provider_task  # noqa: F401  (registers executors)
+from .conversations_api import build_router as build_conversations_router
+from .executors import audit, capture, claude_review, claude_turn, demo, provider_task  # noqa: F401  (registers executors)
 from .history import schedule
 from .history_api import build_router
 from .skills_api import build_router as build_skills_router
@@ -34,7 +35,10 @@ CAPABILITIES = {
     "pagination": True, "idempotency": True, "record_versions": True, "run_events_after": True,
     "run_snapshot": True, "cancel_two_phase": True, "approvals_exact_binding": True,
     "history_review": True, "memory": True, "sse_stream": False, "push_notifications": False,
-    "provider_execution": "user_started_session_only",
+    # Claude runs through the official CLI in print mode (conversations, claude.turn tasks).
+    # Antigravity and Perplexity remain manual handoffs.
+    "provider_execution": "claude_code_print_mode",
+    "conversations": True,
 }
 
 
@@ -484,6 +488,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(v1)
     app.include_router(build_router(db, settings, require_auth))
     app.include_router(build_skills_router(db, settings, require_auth))
+    app.include_router(build_conversations_router(db, engine, settings, require_auth))
 
     # ---------------------------------------------------------------- static UI (public, no secrets)
     if WEB_DIST.exists():

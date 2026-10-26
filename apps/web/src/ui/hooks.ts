@@ -69,8 +69,8 @@ export function useViewport() {
 }
 
 // ---- hash router: Android back / browser back / swipe-back all just work via history ----
-export interface Route { tab: "home" | "projects" | "runs" | "inbox" | "knowledge" | "graph" | "settings"; id?: string; sub?: string }
-const TABS = ["home", "projects", "runs", "inbox", "knowledge", "graph", "settings"] as const;
+export interface Route { tab: "home" | "work" | "projects" | "runs" | "inbox" | "knowledge" | "graph" | "settings"; id?: string; sub?: string }
+const TABS = ["home", "work", "projects", "runs", "inbox", "knowledge", "graph", "settings"] as const;
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const tab = (TABS as readonly string[]).includes(parts[0]) ? (parts[0] as Route["tab"]) : "home";

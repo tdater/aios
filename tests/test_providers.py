@@ -10,9 +10,11 @@ def test_retired_gemini_row_is_removed_on_discovery(db):
 
 
 def test_antigravity_is_never_started_by_aios(db, monkeypatch):
+    started = []
     monkeypatch.setattr(providers.shutil, "which", lambda n: "/usr/bin/agy" if n == "agy" else None)
-    monkeypatch.setattr(providers, "_run", lambda cmd, timeout=20: (0, "agy 1.2.3"))
+    monkeypatch.setattr(providers, "_run", lambda cmd, timeout=20: started.append(cmd) or (0, "agy 1.2.3"))
     providers.discover(db)
     cap = providers.capability(db, "antigravity")
-    assert cap["mode"] == "manual_handoff"
+    assert cap["mode"] == "manual_handoff" and cap["detail"]["found"] is True
     assert "suspension" in cap["detail"]["note"]
+    assert not any("agy" in str(cmd[0]) for cmd in started), "AIOS must not run agy, even for --version"

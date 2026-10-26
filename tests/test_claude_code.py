@@ -5,6 +5,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -65,6 +66,54 @@ def test_older_claude_rejecting_empty_sources_is_reported_not_hidden(fake, tmp_p
         claude_code.run(tmp_path, "hello", exe=FAKE)
 
 
+def test_tools_are_an_allowlist_not_just_a_denylist():
+    """The first real run showed a denylist leaves RemoteTrigger, CronCreate and friends available."""
+    read = claude_code.build_command(["claude"], "x", mode="read")
+    edit = claude_code.build_command(["claude"], "x", mode="edit")
+    assert read[read.index("--tools") + 1] == "Read,Glob,Grep"
+    assert edit[edit.index("--tools") + 1] == "Read,Glob,Grep,Edit,Write"
+    denied = read[read.index("--disallowedTools") + 1].split(",")
+    assert {"Bash", "PowerShell", "RemoteTrigger", "CronCreate", "SendMessage", "Skill"} <= set(denied)
+
+
+@pytest.mark.parametrize("cfg,field", [({"extra_tools": ["RemoteTrigger"]}, "unexpected_tools"),
+                                       ({"api_key_source": "ANTHROPIC_API_KEY"}, "api_key_source")])
+def test_isolation_is_checked_against_what_claude_reports(fake, tmp_path, cfg, field):
+    fake(**cfg)
+    r = claude_code.run(tmp_path, "hello", exe=FAKE)
+    assert r.ok and not r.isolated
+    assert r.summary()[field]
+
+
+def test_structured_output_tool_is_expected_only_when_a_schema_was_requested(fake, tmp_path):
+    """Observed on the real CLI: --json-schema makes Claude Code report a synthetic StructuredOutput tool."""
+    schema = {"type": "object", "properties": {}}
+    with_schema = claude_code.run(tmp_path, "hello", exe=FAKE, json_schema=schema)
+    assert "StructuredOutput" in with_schema.tools and with_schema.isolated
+    assert with_schema.structured_output == {"summary": "Looks correct.", "findings": []}
+    fake(extra_tools=["StructuredOutput"])                       # reported although no schema was requested
+    without = claude_code.run(tmp_path, "hello", exe=FAKE)
+    assert without.unexpected_tools == ["StructuredOutput"] and not without.isolated
+    fake(extra_tools=["Bash"])                                   # a schema never excuses anything else
+    still_bad = claude_code.run(tmp_path, "hello", exe=FAKE, json_schema=schema)
+    assert still_bad.unexpected_tools == ["Bash"] and not still_bad.isolated
+
+
+def test_a_faulty_event_callback_never_orphans_or_aborts_the_run(fake, tmp_path):
+    def boom(_ev):
+        raise RuntimeError("logging bug")
+    r = claude_code.run(tmp_path, "hello", exe=FAKE, on_event=boom, should_cancel=lambda: 1 / 0)
+    assert r.ok and r.exit_code == 0 and not r.cancelled
+
+
+def test_should_cancel_kills_the_child_even_when_it_is_silent(fake, tmp_path):
+    fake(outcome="hang")                                            # prints nothing for 60s
+    t0 = time.time()
+    r = claude_code.run(tmp_path, "hello", exe=FAKE, poll_s=0.2, should_cancel=lambda: time.time() - t0 > 1.5)
+    assert r.cancelled and not r.ok
+    assert time.time() - t0 < 20
+
+
 def test_read_mode_cannot_edit():
     cmd = claude_code.build_command(["claude"], "look", mode="read")
     assert cmd[cmd.index("--permission-mode") + 1] == "dontAsk"
@@ -75,9 +124,10 @@ def test_read_mode_cannot_edit():
         claude_code.build_command(["claude"], "   ")
 
 
-def test_billing_variables_are_removed_from_the_child_environment():
+def test_billing_variables_are_removed_and_memory_isolation_flags_are_added():
     env = claude_code.child_env({"PATH": "x", "ANTHROPIC_API_KEY": "k", "CLAUDE_CODE_USE_BEDROCK": "1"})
-    assert env == {"PATH": "x"}
+    assert env == {"PATH": "x", "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+                   "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
 
 
 def test_preflight_accepts_only_a_signed_in_claude_ai_login(fake):
@@ -113,7 +163,11 @@ def test_run_parses_the_stream_and_redacts_the_transcript(fake, tmp_path, monkey
     assert r.ok and r.exit_code == 0 and r.subtype == "success"
     assert r.num_turns == 3 and r.model == "fake-model" and r.session_id
     assert any(e.get("type") == "raw" for e in r.events)  # non-JSON line kept, not fatal
-    assert len(seen) == 3
+    assert len(seen) == 4                                           # init, assistant, rate limit, result
+    assert r.tools == ["Read", "Glob", "Grep"] and r.unexpected_tools == [] and r.api_key_source == "none"
+    assert r.rate_limit == {"status": "allowed", "overage": "rejected",
+                            "five_hour": {"utilization": 0.1, "resets_at": 1792975200, "status": "allowed"},
+                            "seven_day": {"utilization": 0.02, "resets_at": 1793484000, "status": "allowed"}}
     text = t.read_text(encoding="utf-8")
     assert "sk-ant-" not in text and "[REDACTED:anthropic-key]" in text
     last = calls(log)[-1]

@@ -92,6 +92,29 @@ Claude reviewer by default, Antigravity review on demand.
 - **Known limits:** two Claude runs per reviewed task count against the subscription; two sessions from the same
   vendor can share blind spots, which the on-demand Antigravity review exists to catch.
 
+## What the real runs taught us (Claude Code 2.1.310, Windows, 2026-10-25)
+
+Each of these was found by looking at what the real CLI actually reported, not from documentation.
+
+| Finding | What AIOS does about it |
+|---|---|
+| A denylist of tools is not a control: the first real run still offered `RemoteTrigger`, `CronCreate`, `PushNotification`, `SendMessage` and `Skill` | `--tools` allowlist (`Read,Glob,Grep`, plus `Edit,Write` for changes); the tool list Claude Code reports at startup is checked against it after every run, and any extra tool fails the run |
+| Claude Code's own auto-memory index (your `MEMORY.md`) was loaded into a run; `CLAUDE.md` files were not, because no settings sources were loaded | `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` and `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`; confirmed by asking Claude what it had been given |
+| Claude Code ships three plugins inside its binary (`cc-plugin-agents-md`, `-telemetry`, `-plugin-authoring`) | Allowed only when both markers match (`path: builtin`, `source: <name>@builtin`) and always listed; anything else counts as external |
+| `--json-schema` works together with `--output-format stream-json` and returns `structured_output`; it also makes Claude Code report a synthetic `StructuredOutput` tool | Reviewer findings are schema-validated; `StructuredOutput` is expected only when a schema was requested |
+| The stream carries a `rate_limit_event` with real 5-hour and 7-day subscription utilisation and reset times, and `apiKeySource: none` | Shown in the Status panel as the real numbers; an API key source other than `none` fails the run |
+| `--resume` works across working directories (a session started in the project folder continued inside the worktree) | One Claude session per conversation, resumed for every writer turn; the reviewer deliberately never resumes it |
+| The cost figure is Claude Code's own estimate | Shown as an estimate, never as a bill |
+
+## Reviewer (implemented)
+
+Decision of 2026-10-25 (option 3) is built: `claude.review` starts a fresh read-only Claude session in a detached checkout of
+the exact reviewed revision, on a different model from the writer by default, with only the owner's request, the diff and
+the recorded verification as input. It returns schema-validated findings; AIOS checks each cited file and line against the
+checkout (`grounded`), and `reviewer.readiness()` decides READY from recorded facts. Calibration on 2026-10-25: a patch
+that special-cased the test inputs passed its tests and was still flagged high severity by the reviewer, so AIOS marked it
+NOT READY. This is one example, not a measurement of reviewer quality.
+
 ## Sources (opened 2026-10-24)
 
 - [Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)

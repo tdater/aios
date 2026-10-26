@@ -53,8 +53,19 @@ class Settings:
     def runs_dir(self) -> Path:
         return self.state_dir / "runs"
 
+    @property
+    def worktrees_dir(self) -> Path:
+        """Isolated git worktrees where provider edits happen, one per conversation. Private state."""
+        return self.state_dir / "worktrees"
+
+    @property
+    def empty_hooks_dir(self) -> Path:
+        """An empty directory used as core.hooksPath so AIOS's own commits never run git hooks."""
+        return self.state_dir / "empty-hooks"
+
     def ensure_dirs(self) -> None:
         for d in (self.state_dir / "db", self.artifacts_dir, self.backups_dir, self.runs_dir,
+                  self.worktrees_dir, self.empty_hooks_dir,
                   self.approved_dir, self.state_dir / "imports" / "quarantine",
                   *(self.vault_dir / s for s in
                     ("projects", "decisions", "lessons", "procedures", "preferences", "facts",

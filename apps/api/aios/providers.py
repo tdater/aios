@@ -42,10 +42,10 @@ def _claude() -> dict:
                     detail={"reason": "claude CLI not found on PATH"})
     _, ver = _run([exe, "--version"])
     detail: dict = {"version": ver.strip(), "usage": "unknown",
-                    "integration": "aios/claude_code.py starts the official CLI in print mode with "
-                                   "your own subscription login (supported: see "
-                                   "docs/integration-findings.md). Not yet wired into the run "
-                                   "engine; proven only by scripts/demo_claude_connection.py."}
+                    "integration": "Conversations start the official CLI in print mode with your "
+                                   "own subscription login (supported: see "
+                                   "docs/integration-findings.md). Read and edit tools only, no "
+                                   "shell, edits in an isolated git worktree."}
     rc, out = _run([exe, "auth", "status"])
     logged_in, plan = None, None
     try:  # keep only non-secret fields
@@ -78,9 +78,9 @@ def _antigravity() -> dict:
     if not exe:
         return dict(provider="antigravity", mode="unavailable", billing="n/a", detail={
             "reason": "Antigravity CLI (agy) not found on PATH", "note": ANTIGRAVITY_NOTE})
-    _, ver = _run([exe, "--version"])
+    # Presence check only. AIOS never starts agy, not even for --version (docs/integration-findings.md).
     return dict(provider="antigravity", mode="manual_handoff", billing="unknown (manual)",
-                detail={"version": ver.strip(), "usage": "unknown", "note": ANTIGRAVITY_NOTE})
+                detail={"found": True, "version": "not queried", "usage": "unknown", "note": ANTIGRAVITY_NOTE})
 
 
 def _perplexity() -> dict:

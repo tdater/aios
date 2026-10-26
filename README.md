@@ -7,9 +7,12 @@ A **personal, local-first project workspace for working with official AI coding 
 
 ## What works today (tested)
 
-- **Claude Code transport (new, real connection not yet demonstrated)**: starts the official `claude` CLI with your
-  own subscription login, read or edit tools only, no shell, and records the patch and test results. Try it with
-  `scripts/demo_claude_connection.py`. Antigravity and Perplexity are manual handoffs; see
+- **Workspace (main screen)**: pick a project and talk to **real Claude Code** (your own subscription login, never an API
+  key). *Ask* is read-only; *Make changes* edits an isolated git worktree, never your project folder. You get the change as
+  a readable diff, AIOS runs your tests only after you approve that exact command, an **independent reviewer** (a fresh
+  read-only Claude session on a different model) can check the exact revision, and **AIOS**, not a model, decides READY or
+  NOT READY. Status shows the real provider facts and your real 5-hour and 7-day usage. Shown working on real Claude Code by
+  `scripts/demo_workspace.py` and `apps/web/e2e/workspace.e2e.mjs`. Antigravity and Perplexity remain manual handoffs; see
   `docs/integration-findings.md` for why.
 - **Run engine**: queued → running → awaiting approval / blocked / interrupted → succeeded / failed / cancelled, with deadlines,
   iteration limits, bounded retries, workspace locks, idempotent submission, restart reconciliation, and a rule that
@@ -59,7 +62,7 @@ and are never committed.
 Start with `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
 
 ## Known limitations
-No push notifications or SSE yet; no scheduled jobs; Gemini CLI is removed; Antigravity is manual handoff only; the Claude transport is not yet in the UI or run engine;
+No push notifications or SSE yet; no scheduled jobs; Gemini CLI is removed; Antigravity is manual handoff only; applying an accepted change to your project is still a manual `git merge` of the `aios/...` branch; two writers at once is untried; the new Workspace screens have not been run on the Android shell;
 the Android app has not been tested on a physical phone; Windows is the only supported host; the history parsers are unvalidated
 against real exports.
 
