@@ -12,8 +12,10 @@ from test_workflow import approve_pending, calls
 
 
 @pytest.fixture()
-def ready(app, fake):
-    providers.discover(app.state.db)                           # the stand-in is what Claude Code resolves to in these tests
+def ready(app, fake, monkeypatch):
+    # Provider discovery looks for a real `claude` on PATH, which CI does not have. Turns still run on the stand-in (fixture `fake`),
+    # and the not-signed-in blocker has its own test below.
+    monkeypatch.setattr(assist, "claude_ready", lambda db: True)
 
 
 def wait_state_of(client, aid, states, timeout=60):
