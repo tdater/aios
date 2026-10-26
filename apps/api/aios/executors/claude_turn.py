@@ -152,12 +152,12 @@ def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack
     ctx.add_artifact("claude_transcript", "claude-transcript.jsonl",
                      stream.read_text(encoding="utf-8", errors="replace") if stream.exists() else "",
                      provenance=f"claude-code {res.client_version or pf.version}, stream-json, secrets redacted")
-    conversations.set_session(db, conv["id"], res.session_id)
-
     summary = res.summary()
     summary["role"] = "writer"
     text = summary.pop("result")
     problems = isolation_problems(res, summary)
+    if not problems:                       # a session that failed its isolation check is never resumed
+        conversations.set_session(db, conv["id"], res.session_id)
     why = failure_reason(res, timeout)
 
     turn_meta = {"turn": summary, "mode": mode, "context_items": len(pack.items)}
@@ -184,6 +184,23 @@ def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack
                      f"api_key_source {res.api_key_source}, isolated={res.isolated}")
     return {"ok": res.ok, "why": why, "problems": problems, "session_id": res.session_id,
             "num_turns": res.num_turns, "model": res.model, "rate_limit": res.rate_limit}
+
+
+def _discard_unfinished(ctx: RunContext, conv: dict, wt: dict) -> dict:
+    """A turn that was cancelled, timed out, failed or failed isolation may have left edits behind. They were never
+    reviewed, so put the worktree back at the last recorded revision rather than let the next turn commit them."""
+    fresh = conversations.get(ctx.db, conv["id"]) or conv
+    base = fresh.get("head_revision") or wt["base_revision"]
+    try:
+        worktrees.restore(Path(wt["path"]), base)
+    except worktrees.GitError as e:
+        conversations.add_message(ctx.db, conv["id"], role="system", author_kind="aios", author="aios", kind="status",
+                                  run_id=ctx.run_id, content=f"AIOS could not discard this turn's unfinished edits: {e}")
+        raise RunError(f"could not discard unfinished edits: {e}") from e
+    conversations.add_message(ctx.db, conv["id"], role="system", author_kind="aios", author="aios", kind="status",
+                              run_id=ctx.run_id, content=f"This turn did not finish cleanly, so any edits it left behind were "
+                                                         f"discarded. The worktree is back at revision {base[:12]}.")
+    return {"restored_to": base}
 
 
 def _collect_patch(ctx: RunContext, conv: dict, wt: dict, msg: dict) -> dict:
@@ -243,15 +260,16 @@ def _verify(ctx: RunContext, conv: dict, argv: list[str], cwd: Path, patch: dict
 
     def perform() -> dict:
         try:
+            worktrees.prepare_clean_checkout(cwd, patch["head"])      # only the approved revision may run
             return verification.run_command(argv, cwd, timeout_s=timeout)
-        except verification.VerifyError as e:   # the approval is spent; record why nothing ran
+        except (verification.VerifyError, worktrees.GitError) as e:   # the approval is spent; record why nothing ran
             return {"argv": argv, "program": None, "cwd": str(cwd), "exit_code": None, "passed": False,
                     "timed_out": False, "duration_s": 0, "output_truncated": False, "error": True,
                     "output": f"AIOS could not start the command: {e}"}
 
     result = ctx.guarded_action(
         action, f"Run `{shown}` against revision {patch['head'][:12]} ({len(patch['files'])} file(s) changed) "
-                "in an isolated worktree", perform)
+                "in an isolated worktree, after removing any file that is not part of that revision", perform)
     return ctx.step("verification_record", lambda: _record_verification(ctx, conv, result, patch))
 
 
@@ -319,6 +337,8 @@ def claude_turn(ctx: RunContext) -> dict:
     pack = context_pack.ContextPack(text=packed["text"], items=packed["items"])
 
     out = ctx.step("claude", lambda: _run_turn(ctx, conv, msg, mode, cwd, pack, pf), side_effect=True)
+    if mode == "edit" and wt and (not out["ok"] or out["problems"]):
+        ctx.step("discard", lambda: _discard_unfinished(ctx, conv, wt))
     ctx.check()                                    # a cancel requested during the turn stops here
     if not out["ok"]:
         raise RunError(f"Claude Code turn did not complete: {out['why']}")

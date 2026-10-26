@@ -449,3 +449,38 @@ def test_a_linked_worktree_without_a_recorded_git_dir_is_refused(repo, tmp_path)
     with pytest.raises(worktrees.GitError, match="no recorded git dir"):
         worktrees.commit_all(wt, "m", tmp_path / "nohooks")
     assert worktrees.worktree_ok(wt) is False
+
+
+# ---------------------------------------------------------------- hidden files and leftovers (security review findings)
+def test_verification_never_runs_files_that_are_not_part_of_the_approved_revision(repo, tmp_path):
+    (repo / ".gitignore").write_text("build/\n*.pyc\n")
+    git(repo, "add", "-A")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "ignore")
+    wt = tmp_path / "wts" / "v1"
+    worktrees.create_worktree(repo, wt, "aios/clean-test")
+    (wt / "build").mkdir()
+    (wt / "build" / "evil.py").write_text("raise SystemExit(0)")          # ignored: invisible to `git add -A` and to the diff
+    (wt / "conftest.pyc").write_text("x")
+    (wt / "extra.py").write_text("print(1)")                              # untracked
+    tip = worktrees.head(wt)
+    worktrees.prepare_clean_checkout(wt, tip)
+    assert sorted(p.name for p in wt.iterdir() if p.name != ".git") == [".gitignore", "calc.py", "test_calc.py"]
+    with pytest.raises(worktrees.GitError, match="no longer at the approved revision"):
+        worktrees.prepare_clean_checkout(wt, "0" * 40)
+
+
+def test_a_turn_that_fails_isolation_leaves_no_edits_behind_and_is_not_resumed(db, settings, engine, proj, repo, fake):
+    fake(edit=True, extra_tools=["Bash"], edit_files={"build/hidden.py": "x = 1"})
+    conv, rid = start_turn(db, engine, proj, "fix", mode="edit")
+    assert engine.execute(rid) == "failed"
+    c = conversations.get(db, conv["id"])
+    wt = Path(c["worktree_path"])
+    assert "return a - b" in (wt / "calc.py").read_text() and not (wt / "build").exists()      # edits discarded
+    assert git(wt, "status", "--porcelain", "--ignored").strip() == ""
+    assert c["session_id"] is None                                                             # never resumed
+    assert any("discarded" in m["content"] for m in conversations.messages(db, conv["id"]) if m["kind"] == "status")
+    fake(edit=True)                                                                            # the next, clean turn is unaffected
+    posted = conversations.post_user_message(db, engine, conv["id"], "try again", "edit")
+    assert engine.execute(posted["run"]["id"]) == "succeeded"
+    patch = [m for m in conversations.messages(db, conv["id"]) if m["kind"] == "patch" and m["meta"].get("changed")][-1]
+    assert [f["path"] for f in patch["meta"]["files"]] == ["calc.py"]

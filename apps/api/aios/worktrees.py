@@ -203,6 +203,24 @@ def commit_all(wt: Path, message: str, hooks_dir: Path) -> str | None:
     return head(wt)
 
 
+def restore(wt: Path, revision: str) -> None:
+    """Throw away everything in the worktree that is not in `revision`: edits, new files and ignored files.
+    Used when a turn did not finish or failed its isolation check, so its half-done work cannot leak into a later patch."""
+    _git(wt, "reset", "--hard", "-q", revision)
+    _git(wt, "clean", "-ffdxq")
+
+
+def prepare_clean_checkout(wt: Path, expected_head: str) -> None:
+    """Make the worktree contain exactly the revision that was reviewed and approved, and nothing else.
+    The patch an owner approves holds tracked and added files only; ignored or untracked files would
+    otherwise run during verification without ever appearing in it."""
+    if head(wt) != expected_head:
+        raise GitError("the worktree is no longer at the approved revision; refusing to run tests on it")
+    _git(wt, "clean", "-ffdxq")
+    if _git(wt, "status", "--porcelain", "--ignored").strip():
+        raise GitError("the worktree still holds files that are not part of the approved revision")
+
+
 def diff_text(wt: Path, base: str, tip: str) -> tuple[str, bool]:
     """Unified diff base..tip without external drivers. Returns (text, truncated)."""
     text = _git(wt, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", base, tip)
