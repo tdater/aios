@@ -17,7 +17,27 @@ import { ObjectField } from "./ObjectField";
 import { useArrivals, prefersReducedMotion } from "./useArrivals";
 
 const UniverseGL = lazy(() => import("./UniverseGL"));
-const LABELLED = new Set(["sun", "planet", "station", "probe", "home", "allstop", "log", "comet", "wormhole", "beacon"]);
+const PRIORITY = ["sun", "planet", "home", "allstop", "station", "comet", "log", "wormhole", "beacon", "probe"];
+const LABEL_W = 110, LABEL_H = 20;
+
+/** Which labels to draw: the important ones first, and never two on top of each other. The selected and hovered ones always show. */
+function declutter(world: NonNullable<ReturnType<typeof layoutWorld>>, cam: Camera, view: ReturnType<typeof viewFor>, t: number, selected: string | null, hovered: string | null) {
+  const cand = world.bodies.flatMap((b) => {
+    const rank = PRIORITY.indexOf(b.type);
+    const force = b.id === selected || b.id === hovered;
+    if (rank < 0 && !force) return [];
+    const p = project(cam, posAtExact(world, b, t), view);
+    if (!p || p.depth <= 0 || p.x < 0 || p.y < 0 || p.x > view.w || p.y > view.h) return [];
+    return [{ b, x: p.x, y: p.y, r: b.r * p.scale, rank: force ? -1 : rank }];
+  }).sort((a, c) => a.rank - c.rank);
+  const taken: { x: number; y: number }[] = [], out: typeof cand = [];
+  for (const c of cand) {
+    const ly = c.y + Math.max(8, c.r) + 4;
+    if (c.rank >= 0 && taken.some((o) => Math.abs(o.x - c.x) < LABEL_W && Math.abs(o.y - ly) < LABEL_H)) continue;
+    taken.push({ x: c.x, y: ly }); out.push(c);
+  }
+  return out;
+}
 
 /** The whole app is this: your universe, full screen. Travel with the dock, Go to or by dragging; open anything to see and change it. */
 export function Cockpit({ objectId, children }: { objectId?: string; children?: ReactNode }) {
@@ -134,14 +154,9 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
       ) : (
         <ObjectField world={shown} cam={cam} view={view} selected={selected} hovered={hovered} frames={arrivals.frames} simT={simT} onPick={open} onHover={setHovered} />
       ))}
-      {!listView && shown.bodies.map((b) => {
-        if (!LABELLED.has(b.type) && b.id !== selected && b.id !== hovered) return null;
-        const p = project(cam, posAtExact(shown, b, simT), view);
-        if (!p || p.depth <= 0) return null;
-        return (
-          <button key={b.id} type="button" className={`u-label ${selected === b.id ? "on" : ""}`} style={{ left: p.x, top: p.y + Math.max(8, b.r * p.scale) + 4, opacity: arrivals.frames.get(b.id)?.alpha ?? 1 }}
-            onClick={() => open(b.id)} onPointerEnter={() => setHovered(b.id)} onPointerLeave={() => setHovered(null)} aria-label={`${b.name}: ${b.state.text}`}>{b.name}</button>);
-      })}
+      {!listView && declutter(shown, cam, view, simT, selected, hovered).map(({ b, x, y, r }) => (
+        <button key={b.id} type="button" className={`u-label ${selected === b.id ? "on" : ""}`} style={{ left: x, top: y + Math.max(8, r) + 4, opacity: arrivals.frames.get(b.id)?.alpha ?? 1 }}
+          onClick={() => open(b.id)} onPointerEnter={() => setHovered(b.id)} onPointerLeave={() => setHovered(null)} aria-label={`${b.name}: ${b.state.text}`}>{b.name}</button>))}
       {listView && <ListView world={world} onPick={(id) => { setListView(false); open(id); }} />}
 
       <div className="topbar">

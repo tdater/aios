@@ -595,3 +595,23 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .mydock { position: absolute; left: 210px; top: 52px; width: min(380px, calc(100% - 220px)); max-height: calc(100% - 200px); overflow: auto; z-index: 5; }
 .cockpit .gallery-pop { position: absolute; inset: 52px 16px 16px 210px; overflow: auto; z-index: 15; background: color-mix(in srgb, var(--surface, #0d1426) 96%, transparent); color: var(--text, #e8eefc); border: 1px solid #456; border-radius: 12px; padding: 12px; }
 @media (max-width: 700px) { .cockpit .mydock { left: 8px; width: calc(100% - 16px); } .cockpit .gallery-pop { inset: 52px 8px 8px 8px; } }
+.cockpit .btn-quiet { background: rgba(5,10,24,.72); color: #e8eefc; border: 1px solid rgba(143,180,255,.3); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.cockpit .btn-quiet[aria-pressed="true"] { border-color: #ffd37a; }
+.cockpit .mydock { max-height: calc(100% - 140px); }
+.cockpit .object-card h2 { margin: 0; white-space: nowrap; font-size: 20px; }
+.cockpit .object-card input[type="radio"], .cockpit .object-card input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; flex: none; padding: 0; margin: 0 6px 0 0; }
+.cockpit .object-card fieldset { border: 1px solid rgba(143,180,255,.25); border-radius: 8px; margin: 8px 0; padding: 6px 10px; }
+.cockpit .object-card label.row { align-items: center; gap: 6px; flex-wrap: wrap; }
+.cockpit .btn-quiet { min-height: 0; white-space: nowrap; font-size: 13px; }
+.cockpit .topbar { flex-wrap: wrap; }
+.cockpit .gallery-pop { background: var(--surface, #0d1426); }
+@media (max-width: 700px) { .cockpit .topbar kbd { display: none; } .cockpit .crumbs { flex-basis: 100%; } .cockpit .dock button { padding: 4px 8px; font-size: 13px; min-height: 0; } }
+.cockpit .object-card header.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cockpit .object-card header.row .pill { flex: none; position: static; }
+.cockpit .object-card label.row { display: flex; justify-content: flex-start; text-align: left; }
+.cockpit .object-card .field-row { margin: 8px 0; }
+.cockpit .object-card header.row h2 { flex: 0 0 auto; min-width: max-content; margin-right: 6px; }
+.cockpit .mydock .myday { position: static; width: 100%; max-height: none; background: color-mix(in srgb, #0d1426 94%, transparent); color: #e8eefc; }
+.cockpit .mydock { background: transparent; }
+.cockpit .myday-card button { min-height: 0; padding: 4px 10px; }
+.cockpit .myday-card input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; flex: none; }
