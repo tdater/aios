@@ -26,7 +26,7 @@ async function loadIndex(client: AiosClient, partition: string): Promise<Index> 
 }
 export const invalidatePaletteIndex = () => { cache = null; };
 
-const GO: { id: string; label: string; icon: IconName; route: { tab: "home" | "work" | "projects" | "runs" | "inbox" | "knowledge" | "graph" | "insights" | "settings" } }[] = [
+const GO: { id: string; label: string; icon: IconName; route: { tab: "home" | "work" | "projects" | "runs" | "inbox" | "knowledge" | "graph" | "insights" | "ais" | "settings" } }[] = [
   { id: "go-home", label: "Home", icon: "home", route: { tab: "home" } }, { id: "go-work", label: "Workspace (talk to Claude)", icon: "chat", route: { tab: "work" } },
   { id: "go-projects", label: "Projects", icon: "folder", route: { tab: "projects" } },
   { id: "go-runs", label: "Runs", icon: "play", route: { tab: "runs" } }, { id: "go-inbox", label: "Inbox", icon: "inbox", route: { tab: "inbox" } },
@@ -46,6 +46,7 @@ const COMMANDS: { id: string; label: string; icon: IconName; keywords?: string }
   { id: "close-tab", label: "Close current tab", icon: "x" },
   { id: "history", label: "Review imported history", icon: "history", keywords: "sessions sources" },
   { id: "pair", label: "Pair another device", icon: "link", keywords: "phone qr code" },
+  { id: "tour", label: "Take the tour", icon: "star", keywords: "tutorial help welcome guide setup" },
   { id: "help", label: "Show keyboard shortcuts", icon: "keyboard" },
   { id: "refresh", label: "Refresh search index", icon: "clock" },
   { id: "signout", label: "Sign out this device", icon: "x" },
@@ -180,7 +181,7 @@ function PaletteDialog({ initial, commands, app }: { initial: string; commands: 
 
 function routeFromHref(href: string) {
   const parts = href.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const tab = (["home", "work", "projects", "runs", "inbox", "knowledge", "graph", "insights", "settings"] as const).find((t) => t === parts[0]) ?? "home";
+  const tab = (["home", "work", "projects", "runs", "inbox", "knowledge", "graph", "insights", "ais", "settings"] as const).find((t) => t === parts[0]) ?? "home";
   return tab === "inbox" && parts[2] ? { tab, sub: parts[1], id: parts[2] } : { tab, id: parts[1] };
 }
 export { hrefFor };

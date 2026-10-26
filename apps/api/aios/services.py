@@ -33,6 +33,21 @@ def register_project(db: Database, settings: Settings, name: str, path: str, kin
     return {"id": pid, "slug": slug, "name": name, "workspace_id": wid, "path": str(root)}
 
 
+EVERYDAY_NAME = "Everyday"
+
+
+def ensure_everyday_project(db: Database, settings: Settings) -> dict:
+    """A place to chat that is not a code project: an empty folder under the workspaces folder, registered once.
+    Safe to call repeatedly. Used by the tutorial and the empty Workspace screen, never silently at startup."""
+    row = db.one("SELECT p.id, p.name, w.id AS workspace_id, w.path FROM projects p JOIN workspaces w ON w.project_id=p.id "
+                 "WHERE p.name=? ORDER BY p.created_at LIMIT 1", (EVERYDAY_NAME,))
+    if row:
+        return {**row, "created": False}
+    folder = settings.workspaces_dir / EVERYDAY_NAME
+    folder.mkdir(parents=True, exist_ok=True)
+    return {**register_project(db, settings, EVERYDAY_NAME, str(folder)), "created": True}
+
+
 BLOCK_DISPLAY = {"awaiting_provider_session": "awaiting_provider_session", "quota_exhausted": "blocked_quota"}
 
 

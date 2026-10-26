@@ -6,7 +6,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, Query, Response
 from pydantic import BaseModel, Field
 
-from . import conversations, handoff, idempotency, services
+from . import conversations, handoff, idempotency, services, workflow
 from .config import Settings
 from .db import Database
 from .errors import not_found
@@ -37,6 +37,12 @@ class HandoffIn(BaseModel):
 class HandoffReplyIn(BaseModel):
     provider: str = Field(max_length=32)
     reply: str = Field(min_length=1, max_length=handoff.MAX_REPLY)
+
+
+class WorkflowIn(BaseModel):
+    request: str = Field(min_length=1, max_length=workflow.MAX_REQUEST)
+    profile: str = Field(default="build_and_check", max_length=32)
+    max_rounds: int | None = Field(default=None, ge=0, le=workflow.HARD_MAX_ROUNDS)
 
 
 class VerifyCommandIn(BaseModel):
@@ -118,6 +124,21 @@ def build_router(db: Database, engine, settings: Settings, require_auth) -> APIR
     def conversation_changes(conversation_id: str):
         conversations.require(db, conversation_id)
         return redact_obj(conversations.changes(db, conversation_id))
+
+    @r.post("/conversations/{conversation_id}/workflow", status_code=201)
+    def start_workflow(conversation_id: str, body: WorkflowIn):
+        """Carry one request through build, check, independent review and corrections. Every step is an ordinary run
+        under the same approvals; the workflow cannot approve anything or merge anything."""
+        return redact_obj(workflow.start(db, engine, conversation_id, body.request, body.profile, body.max_rounds))
+
+    @r.get("/conversations/{conversation_id}/workflow")
+    def get_workflow(conversation_id: str):
+        conversations.require(db, conversation_id)
+        return redact_obj({"workflow": workflow.latest_for(db, conversation_id), "profiles": workflow.profiles()})
+
+    @r.post("/workflows/{workflow_id}/cancel")
+    def cancel_workflow(workflow_id: str):
+        return redact_obj(workflow.cancel(db, engine, workflow_id))
 
     @r.get("/projects/{project_id}/verify-command")
     def get_verify_command(project_id: str):

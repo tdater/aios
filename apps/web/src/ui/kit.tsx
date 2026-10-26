@@ -64,11 +64,11 @@ export const Untrusted = ({ text, max = 6000 }: { text: string; max?: number }) 
   );
 };
 
-export function Btn({ children, onClick, kind = "primary", disabled, busy, type = "button", label }: {
-  children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "danger"; disabled?: boolean; busy?: boolean; type?: "button" | "submit"; label?: string;
+export function Btn({ children, onClick, kind = "primary", disabled, busy, type = "button", label, id }: {
+  children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "danger"; disabled?: boolean; busy?: boolean; type?: "button" | "submit"; label?: string; id?: string;
 }) {
   return (
-    <button type={type} className={`btn ${kind}`} onClick={onClick} disabled={disabled || busy} aria-busy={busy} aria-label={label}>
+    <button id={id} type={type} className={`btn ${kind}`} onClick={onClick} disabled={disabled || busy} aria-busy={busy} aria-label={label}>
       {busy ? "Working…" : children}
     </button>
   );

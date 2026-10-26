@@ -5,6 +5,7 @@ import { Home as HomeData, Skyline } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad } from "../ui/hooks";
 import { Today } from "../ui/Today";
+import { UniverseHome } from "../ui/UniverseHome";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } from "../ui/kit";
 
 export function Home() {
@@ -48,6 +49,7 @@ export function Home() {
       {home.loading && !home.data && <Loading />}
       {home.data && (
         <>
+          <UniverseHome />
           <Today input={{ approvals: home.data.counts.pending_approvals, blocked: home.data.counts.blocked_runs, running: home.data.counts.active_runs, toReview: home.data.counts.pending_candidates, verifiedOutcomes: sky.data?.totals.floors ?? 0, projects: sky.data ? sky.data.totals.projects : null }} />
           <div className="stats" role="group" aria-label="Work summary">
             <Stat label="Running" value={home.data.counts.active_runs} to={{ tab: "runs" }} />

@@ -9,7 +9,7 @@ import { useTabTitle } from "../ui/useTabTitle";
 
 type Tab = "constellation" | "skyline";
 
-function Evidence({ star, onClose }: { star: Star; onClose: () => void }) {
+export function Evidence({ star, onClose }: { star: Star; onClose: () => void }) {
   const { client } = useApp();
   const ev = useLoad(() => client.get<StarEvidence>(`/constellation/${star.id}`), [client, star.id]);
   return (

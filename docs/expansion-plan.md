@@ -126,7 +126,10 @@ Earned autonomy for repeated low-risk verification runs; a one-click "apply this
 | Widgets | Built and tested as validated data. Habit-based suggestions are **not** built |
 | Computer control (look, browser, apps) | **Not built.** The consent gate, pause switch and receipts it needs exist; the controller, redaction and kill hotkey do not. Spike result below |
 | Apply a READY change to the real project | Built and tested, including a real-Claude UI run |
-| "What AIOS knows" page, earned autonomy, plain-language onboarding, seals gallery | Not built |
+| "What AIOS knows" page (My AIs), plain-language onboarding (first-run tour) | Built and tested on branch `phase2-everyday`. Earned autonomy and the seals gallery are not built |
+| The Universe (3D Home), per-AI sharing levels, bringing in memories from other AIs | Built and tested (`docs/universe.md`) |
+| Companion windows for Gemini and Perplexity subscriptions | Built and tested. AIOS opens the official site in a separate window and writes prompts to paste; it never reads or drives that window. Not an integration: nothing is automated |
+| Start to finish (implement, check, independent review, corrections, result, memory candidates) | Built and tested with a stand-in Claude; real-Claude proof in `docs/product-direction.md`. Capability profiles are code-enforced step lists |
 
 ### Spike result (2026-10-25)
 `claude -p` with read-only tools could read a screenshot PNG through its Read tool and return schema-valid structured output

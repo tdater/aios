@@ -75,6 +75,7 @@ try {
   for (const [name, w, h, target, theme] of SHOTS) {
     if (filter && !name.includes(filter)) continue;
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: w < 500 ? 2 : 1, isMobile: w < 500, hasTouch: w < 500, colorScheme: "dark" });
+    await ctx.addInitScript(() => { try { localStorage.setItem("aios.settings.v1", JSON.stringify({ tourSeen: true })); } catch { /* storage unavailable */ } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(15000);
     try {

@@ -63,6 +63,7 @@ try {
   await startServer();
   browser = await chromium.launch({ channel: "msedge", headless: true });
   const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctx.addInitScript(() => { try { localStorage.setItem("aios.settings.v1", JSON.stringify({ tourSeen: true })); } catch { /* storage unavailable */ } });   // the first-run tour has its own test
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
   dbgPage = page;

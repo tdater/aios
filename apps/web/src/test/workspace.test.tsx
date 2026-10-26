@@ -435,12 +435,24 @@ describe("picker", () => {
     await screen.findByText(/might bill it instead of your subscription/);
   });
 
-  it("sends you to register a project when there are none", async () => {
+  it("with no projects, offers a project-free Everyday space or registering a folder", async () => {
     fakeServer({ ...routes(), "GET /projects": () => ({ body: { items: [], next_cursor: null, limit: 200 } }), "GET /conversations": () => ({ body: { items: [], next_cursor: null, limit: 50 } }) });
     render(<Wrap ctx={ctxFor().ctx}><WorkPicker /></Wrap>);
-    await screen.findByText(/You need a project first/);
-    fireEvent.click(screen.getByRole("button", { name: "Register a project" }));
+    await screen.findByText(/Chat about anything with no setup/);
+    fireEvent.click(screen.getByRole("button", { name: "Register a project folder" }));
     expect(location.hash).toBe("#/projects");
+  });
+
+  it("the Everyday button creates the space and then offers the new project", async () => {
+    let made = false;
+    const srv = fakeServer({ ...routes(),
+      "GET /projects": () => ({ body: { items: made ? [{ id: "prj_e", name: "Everyday", slug: "everyday", status: "active", created_at: T0, updated_at: T0 }] : [], next_cursor: null, limit: 200 } }),
+      "GET /conversations": () => ({ body: { items: [], next_cursor: null, limit: 50 } }),
+      "POST /everyday": () => { made = true; return { status: 201, body: { id: "prj_e", created: true } }; } });
+    render(<Wrap ctx={ctxFor().ctx}><WorkPicker /></Wrap>);
+    fireEvent.click(await screen.findByRole("button", { name: "Start with an Everyday space" }));
+    await waitFor(() => expect(srv.count("POST", "/everyday")).toBe(1));
+    expect((await screen.findByRole("option", { name: "Everyday" }))).toBeTruthy();
   });
 });
 
@@ -516,5 +528,67 @@ describe("apply a ready change to your real project", () => {
     tab(/^Outcome/);
     fireEvent.click(await screen.findByRole("button", { name: /Apply to my project/ }));
     expect((await screen.findByRole("alert")).textContent).toContain("does not consider this change ready");
+  });
+});
+
+describe("ask several AIs together", () => {
+  const withMessages = (extra: object[]) => { const v = view(); return { ...v, messages: [...v.messages, ...extra] }; };
+  const reply = (provider: string, text: string) => ({ id: `msg_${provider}`, conversation_id: "cnv_1", seq: 50, role: "assistant", author_kind: "provider", author: `${provider} (pasted by you; AIOS did not run or verify it)`,
+    kind: "message", content: text, run_id: null, meta: { handoff: { provider, step: "reply", unverified: true } }, created_at: new Date(Date.now() + 5000).toISOString() });
+
+  it("sends the question to Claude and writes a prompt for each other AI you ticked, then keeps pasted answers beside each name", async () => {
+    let current: object = view();
+    const srv = fakeServer(base(current, {
+      "GET /conversations/cnv_1": () => ({ body: current }),
+      "POST /conversations/cnv_1/handoff": (c) => ({ status: 201, body: { prompt: `PROMPT FOR ${(c.body as { provider: string }).provider}`, message_id: "m", briefing_items: 0, briefing_sha256: null } }),
+      "POST /conversations/cnv_1/messages": () => ({ status: 201, body: {} }),
+      "POST /conversations/cnv_1/handoff/reply": () => { current = withMessages([reply("gemini", "Gemini says use descriptive names.")]); return { status: 201, body: { message_id: "x" } }; },
+    }));
+    render(<Wrap ctx={ctxFor().ctx}><ConversationScreen id="cnv_1" /></Wrap>);
+    await screen.findByRole("heading", { name: "Fix the add bug" });
+    tab(/^Together/);
+    fireEvent.click(screen.getByLabelText(/Perplexity/));                           // untick one
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "How should I name tests?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask together" }));
+    await screen.findByRole("article", { name: "Gemini's answer" });
+    const posts = srv.calls.filter((c) => c.method === "POST");
+    expect(posts.map((c) => c.path).sort()).toEqual(["/conversations/cnv_1/handoff", "/conversations/cnv_1/messages"]);   // Claude and Gemini only
+    expect(posts.find((c) => c.path.endsWith("/handoff"))!.body).toEqual({ provider: "gemini", question: "How should I name tests?" });
+    expect(posts.find((c) => c.path.endsWith("/messages"))!.body).toEqual({ content: "How should I name tests?", mode: "read" });
+    expect(screen.queryByRole("article", { name: "Perplexity's answer" })).toBeNull();
+    expect(screen.getByDisplayValue("PROMPT FOR gemini")).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Gemini's answer" }), { target: { value: "Gemini says use descriptive names." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Gemini's answer" }));
+    await waitFor(() => expect(within(screen.getByRole("article", { name: "Gemini's answer" })).getByText(/Gemini says use descriptive names/)).toBeTruthy());
+    expect(screen.getByText(/AIOS did not run or check this/)).toBeTruthy();
+  });
+
+  it("will not ask Claude when it is not signed in, and needs at least one AI and a question", async () => {
+    const v = view({}, {}, { provider: { name: "claude", mode: "unavailable", billing: "subscription", logged_in: false } });
+    fakeServer(base(v));
+    render(<Wrap ctx={ctxFor().ctx}><ConversationScreen id="cnv_1" /></Wrap>);
+    await screen.findByRole("heading", { name: "Fix the add bug" });
+    tab(/^Together/);
+    expect((screen.getByRole("checkbox", { name: /^Claude/ }) as HTMLInputElement).disabled).toBe(true);
+    const ask = screen.getByRole("button", { name: "Ask together" }) as HTMLButtonElement;
+    expect(ask.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "hello there" } });
+    expect(ask.disabled).toBe(false);
+    for (const n of [/Gemini/, /Perplexity/]) fireEvent.click(screen.getByRole("checkbox", { name: n }));
+    expect(ask.disabled).toBe(true);                                                 // only Claude is left, and it cannot answer: nothing real is picked
+  });
+
+  it("in Simple mode a chat with no code changes shows only Chat, Together and Status", async () => {
+    const quiet = view({ conversation: { ...view().conversation, worktree_path: null, branch: null, head_revision: null } }, { patch: null, verification: null, review: null, readiness: { ready: false, verified: null, reviewed: false, high_findings: 0, reasons: [], head_revision: null } });
+    fakeServer(base(quiet));
+    const c = ctxFor();
+    render(<Wrap ctx={{ ...c.ctx, settings: { ...c.ctx.settings, mode: "simple" } }}><ConversationScreen id="cnv_1" /></Wrap>);
+    await screen.findByRole("heading", { name: "Fix the add bug" });
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Together", "Status"]);        // wide layout: chat is its own column
+    cleanup();
+    fakeServer(base(view()));                                                         // but a conversation that has code changes keeps every tab
+    render(<Wrap ctx={{ ...c.ctx, settings: { ...c.ctx.settings, mode: "simple" } }}><ConversationScreen id="cnv_1" /></Wrap>);
+    await screen.findByRole("heading", { name: "Fix the add bug" });
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/[^A-Za-z]/g, ""))).toEqual(["Activity", "Starttofinish", "Together", "Changes", "Tests", "Outcome", "Status"]);
   });
 });

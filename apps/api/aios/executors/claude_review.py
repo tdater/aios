@@ -66,9 +66,14 @@ def claude_review(ctx: RunContext) -> dict:
     cid, repo = conv["id"], Path(ctx.workspace["path"])
     head, base = pmeta["head_revision"], pmeta["base_revision"]
     model = ctx.spec.get("model") or default_reviewer_model(conv["model"])
-    task_row = db.one("SELECT content FROM conversation_messages WHERE conversation_id=? AND run_id=? "
+    task_row = db.one("SELECT content, meta_json FROM conversation_messages WHERE conversation_id=? AND run_id=? "
                       "AND role='user'", (cid, patch_msg["run_id"]))
     task = task_row["content"] if task_row else "(the request that produced this change could not be found)"
+    original = ((json.loads(task_row["meta_json"] or "{}").get("workflow") or {}).get("request") if task_row else None)
+    if original:          # a workflow correction round: the reviewer judges the change against the owner's request,
+        task = original   # not against the earlier reviewer's findings
+
+
 
     pf = None
     if not _step_done(ctx, "claude"):

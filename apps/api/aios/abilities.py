@@ -37,6 +37,16 @@ def receipts(db: Database, *, changed_only: bool = False, limit: int = 100) -> l
     return db.query(f"SELECT id, ts, actor, kind, summary, changed FROM receipts {where} ORDER BY ts DESC, id DESC LIMIT ?", (min(limit, 500),))
 
 
+def get_flag(db: Database, key: str, default: str = "") -> str:
+    row = db.one("SELECT value FROM flags WHERE key=?", (key,))
+    return row["value"] if row else default
+
+
+def set_flag(db: Database, key: str, value: str) -> None:
+    db.execute("INSERT INTO flags(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+               (key, value, now()))
+
+
 def is_paused(db: Database) -> bool:
     row = db.one("SELECT value FROM flags WHERE key='paused'")
     return bool(row and row["value"] == "1")

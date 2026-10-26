@@ -69,6 +69,8 @@ def build(db: Database, settings: Settings, *, project_id: str, prompt: str, mod
     lines.append(v)
     items.append(_item("verification", project_id, None, v))
 
+    from . import sharing
+    allowed = sharing.allowed_sensitivities(db, "claude")          # the owner's choice of what Claude may be told
     notes: list[str] = []
     seen: set[str] = set()
     for hit in memory.search(db, prompt, status="approved", limit=MAX_MEMORIES * 3):
@@ -77,7 +79,7 @@ def build(db: Database, settings: Settings, *, project_id: str, prompt: str, mod
         if hit["scope"] == "project" and hit["project_id"] != project_id:
             continue
         mem = memory.get(db, settings, hit["id"])
-        if not mem or mem["status"] != "approved" or mem["sensitivity"] == "secret-adjacent":
+        if not mem or mem["status"] != "approved" or mem["sensitivity"] == "secret-adjacent" or mem["sensitivity"] not in allowed:
             continue
         seen.add(hit["id"])
         body = " ".join(mem["body"].split())[:MAX_MEMORY_CHARS]

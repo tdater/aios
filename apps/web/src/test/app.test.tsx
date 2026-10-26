@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { closeTour } from "../ui/uiState";
 import { createRuntime } from "../core/runtime";
 import { MemoryKV } from "../core/storage";
 import { webPlatform } from "../platform";
@@ -11,11 +12,12 @@ import { Settings } from "../screens/Settings";
 import { err, fakeServer, HOME, META } from "./fakeServer";
 import { ctxFor, newPlatform, resetRoute, setWidth, Wrap } from "./helpers";
 
-beforeEach(() => { resetRoute(""); setWidth(390, 844); document.documentElement.removeAttribute("data-theme"); });
+beforeEach(() => { closeTour(); resetRoute(""); setWidth(390, 844); document.documentElement.removeAttribute("data-theme"); });
 
-const boot = (routes: Parameters<typeof fakeServer>[0], opts: { kv?: MemoryKV; platform?: ReturnType<typeof newPlatform> } = {}) => {
+const boot = (routes: Parameters<typeof fakeServer>[0], opts: { kv?: MemoryKV; platform?: ReturnType<typeof newPlatform>; tour?: boolean } = {}) => {
   const srv = fakeServer(routes);
   const rt = createRuntime(opts.platform ?? webPlatform, opts.kv ?? new MemoryKV());
+  if (!opts.tour) rt.settings.update({ tourSeen: true });              // the first-run tour is tested on its own below
   const r = render(<App platform={opts.platform ?? webPlatform} runtime={rt} />);
   return { srv, rt, ...r };
 };
@@ -35,6 +37,31 @@ describe("boot, auth and honesty", () => {
     const pair = srv.calls.find((c) => c.path === "/auth/pair")!;
     expect(pair.body).toMatchObject({ code: "ABCD-EFGH", kind: "browser" });
     expect(JSON.stringify(localStorage)).not.toMatch(/token/i);                  // browser build stores no credential
+  });
+
+  it("the desktop shortcut's link fills in the code but never submits it by itself; pressing Pair signs in and clears the address bar", async () => {
+    let authed = false;
+    location.hash = "#pair=abcd-efgh";
+    const { srv } = boot({ ...signedIn, "GET /auth/me": () => (authed ? { body: { session_id: "s" } } : err(401, "unauthenticated")),
+      "POST /auth/pair": () => { authed = true; return { body: { session_id: "s" } }; } });
+    await screen.findByText(/Your sign-in code was filled in for you/);
+    expect((screen.getByLabelText("Pairing code") as HTMLInputElement).value).toBe("ABCD-EFGH");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(srv.count("POST", "/auth/pair")).toBe(0);                              // nothing is sent until the person presses Pair
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+    await screen.findByText("Current runs");
+    expect(srv.count("POST", "/auth/pair")).toBe(1);
+    expect(srv.calls.find((c) => c.path === "/auth/pair")!.body).toMatchObject({ code: "ABCD-EFGH", kind: "browser" });
+    expect(location.hash.startsWith("#pair=")).toBe(false);
+  });
+
+  it("a stale or wrong link code shows the error and leaves the form for a new code", async () => {
+    location.hash = "#pair=WRONG-CODE";
+    boot({ ...signedIn, "GET /auth/me": () => err(401, "unauthenticated"), "POST /auth/pair": () => err(401, "invalid_pairing_code", "Pairing code is wrong, expired, or already used.") });
+    await screen.findByText(/filled in for you/);
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+    expect(await screen.findByText(/wrong, expired, or already used/)).toBeTruthy();
+    expect((screen.getByLabelText("Pairing code") as HTMLInputElement).value).toBe("WRONG-CODE");
   });
 
   it("wrong pairing code and lockout are shown clearly", async () => {
@@ -386,5 +413,31 @@ describe("Today cards on Home", () => {
     const today = await screen.findByRole("region", { name: "Today" });
     expect(within(today).queryByText("Ask anything")).toBeNull();
     expect(within(today).getByText("Needs you")).toBeTruthy();
+  });
+});
+
+
+describe("the first-run tour", () => {
+  it("opens once after sign-in, is remembered when finished, and can be run again from Settings", async () => {
+    const { rt } = boot(signedIn, { tour: true });
+    const dlg = await screen.findByRole("dialog");
+    expect(within(dlg).getByRole("heading", { name: "Welcome to AIOS" })).toBeTruthy();
+    fireEvent.click(within(dlg).getByRole("button", { name: "Skip the tour" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(rt.settings.store.get().tourSeen).toBe(true);
+    await screen.findByText("Current runs");
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Main" })).getByRole("button", { name: /Settings/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Take the tour again" }));
+    expect(within(await screen.findByRole("dialog")).getByRole("heading", { name: "Welcome to AIOS" })).toBeTruthy();
+  });
+
+  it("does not open for someone who has already seen it, and never before signing in", async () => {
+    boot(signedIn);
+    await screen.findByText("Current runs");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    cleanup();
+    boot({ ...signedIn, "GET /auth/me": () => err(401, "unauthenticated") }, { tour: true });
+    await screen.findByText("Sign in to this device");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

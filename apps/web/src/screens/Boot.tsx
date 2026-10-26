@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError, NetworkError } from "../core/client";
 import { checkServerUrl } from "../core/servers";
 import { Btn, ErrorBox, Notice, useOnce } from "../ui/kit";
@@ -39,15 +39,24 @@ export function Pair({ serverLabel, deviceDefault, onPair, onSwitch }: { serverL
     setErr(null);
     try {
       await onPair(code, device);
+      if (location.hash.startsWith("#pair=")) history.replaceState(null, "", location.pathname + location.search);   // the code is spent: do not keep it in the address bar
     } catch (e) {
       setErr(e instanceof ApiError ? (e.code === "pairing_locked" ? "Too many wrong codes. Wait 15 minutes, then ask the desktop for a new code." : e.message)
         : e instanceof NetworkError ? "Could not reach the server." : (e as Error).message);
     }
   });
+  const [linked, setLinked] = useState(false);
+  useEffect(() => {
+    // The desktop shortcut opens http://127.0.0.1:8765/#pair=ABCD-EFGH. It only FILLS the code: a page that links here
+    // must not be able to spend failed attempts against the pairing lockout, so the person still presses Pair.
+    const m = /^#pair=([A-Za-z0-9-]{8,12})$/.exec(location.hash);
+    if (m) { setCode(m[1].toUpperCase()); setLinked(true); }
+  }, []);
   return (
     <Frame title="Sign in to this device">
       <p>Server: <strong>{serverLabel}</strong></p>
-      <p>On the computer running AIOS, run <code>scripts\pair.ps1</code> (or choose “Pair another device” in Settings on a signed-in device) and type the one-time code here. Codes work once and expire after 10 minutes.</p>
+      <p>On the computer running AIOS, double-click <strong>AIOS sign-in code</strong> on your desktop (or run <code>scripts\pair.ps1</code>, or choose “Pair another device” in Settings on a signed-in device) and type the one-time code here. Codes work once and expire after 10 minutes.</p>
+      {linked && !err && <Notice tone="info">Your sign-in code was filled in for you. Press <strong>Pair</strong> to finish.</Notice>}
       <ErrorBox msg={err} />
       <form onSubmit={(e) => { e.preventDefault(); void go.run(); }}>
         <label className="field"><span>Pairing code</span><input value={code} autoCapitalize="characters" autoCorrect="off" autoComplete="one-time-code" placeholder="ABCD-EFGH" onChange={(e) => setCode(e.target.value.toUpperCase())} /></label>

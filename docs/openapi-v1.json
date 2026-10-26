@@ -102,6 +102,32 @@
         "title": "ConversationReviewIn",
         "type": "object"
       },
+      "CopiedIn": {
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "suggestion_id": {
+            "maxLength": 32,
+            "title": "Suggestion Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suggestion_id"
+        ],
+        "title": "CopiedIn",
+        "type": "object"
+      },
       "DecideIn": {
         "properties": {
           "action_hash": {
@@ -321,6 +347,33 @@
         "title": "ImportIn",
         "type": "object"
       },
+      "LearningIn": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "LearningIn",
+        "type": "object"
+      },
+      "LevelIn": {
+        "properties": {
+          "level": {
+            "maxLength": 16,
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "LevelIn",
+        "type": "object"
+      },
       "MemoryIn": {
         "properties": {
           "body": {
@@ -423,6 +476,18 @@
               }
             ],
             "title": "Expected Version"
+          },
+          "sensitivity": {
+            "anyOf": [
+              {
+                "pattern": "^(public|private|secret-adjacent)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensitivity"
           },
           "status": {
             "anyOf": [
@@ -541,6 +606,26 @@
           "kind"
         ],
         "title": "PairIn",
+        "type": "object"
+      },
+      "PasteIn": {
+        "properties": {
+          "provider": {
+            "maxLength": 16,
+            "title": "Provider",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 40000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "text"
+        ],
+        "title": "PasteIn",
         "type": "object"
       },
       "ProjectIn": {
@@ -968,6 +1053,40 @@
           "config"
         ],
         "title": "WidgetIn",
+        "type": "object"
+      },
+      "WorkflowIn": {
+        "properties": {
+          "max_rounds": {
+            "anyOf": [
+              {
+                "maximum": 3.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rounds"
+          },
+          "profile": {
+            "default": "build_and_check",
+            "maxLength": 32,
+            "title": "Profile",
+            "type": "string"
+          },
+          "request": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Request",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "title": "WorkflowIn",
         "type": "object"
       }
     }
@@ -1899,6 +2018,106 @@
         "summary": "Supersede"
       }
     },
+    "/api/v1/companion/{provider}": {
+      "get": {
+        "operationId": "get_companion_api_v1_companion__provider__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Companion"
+      }
+    },
+    "/api/v1/companion/{provider}/copied": {
+      "post": {
+        "operationId": "companion_copied_api_v1_companion__provider__copied_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopiedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Companion Copied"
+      }
+    },
     "/api/v1/constellation": {
       "get": {
         "operationId": "get_constellation_api_v1_constellation_get",
@@ -2443,6 +2662,105 @@
         "summary": "Request Review"
       }
     },
+    "/api/v1/conversations/{conversation_id}/workflow": {
+      "get": {
+        "operationId": "get_workflow_api_v1_conversations__conversation_id__workflow_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Workflow"
+      },
+      "post": {
+        "description": "Carry one request through build, check, independent review and corrections. Every step is an ordinary run\nunder the same approvals; the workflow cannot approve anything or merge anything.",
+        "operationId": "start_workflow_api_v1_conversations__conversation_id__workflow_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Workflow"
+      }
+    },
+    "/api/v1/everyday": {
+      "post": {
+        "operationId": "make_everyday_api_v1_everyday_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Make Everyday"
+      }
+    },
     "/api/v1/graph": {
       "get": {
         "operationId": "knowledge_graph_api_v1_graph_get",
@@ -2807,6 +3125,130 @@
           }
         },
         "summary": "Home"
+      }
+    },
+    "/api/v1/import/paste": {
+      "post": {
+        "operationId": "import_paste_api_v1_import_paste_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Paste"
+      }
+    },
+    "/api/v1/import/prompt": {
+      "get": {
+        "operationId": "import_prompt_api_v1_import_prompt_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "default": "other",
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Prompt"
+      }
+    },
+    "/api/v1/learning": {
+      "get": {
+        "operationId": "get_learning_api_v1_learning_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Learning"
+      },
+      "put": {
+        "operationId": "put_learning_api_v1_learning_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearningIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Learning"
       }
     },
     "/api/v1/memories": {
@@ -3975,6 +4417,69 @@
         "summary": "Resume"
       }
     },
+    "/api/v1/sharing": {
+      "get": {
+        "operationId": "get_sharing_api_v1_sharing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Sharing"
+      }
+    },
+    "/api/v1/sharing/{provider}": {
+      "put": {
+        "operationId": "put_sharing_api_v1_sharing__provider__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LevelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Sharing"
+      }
+    },
     "/api/v1/skills": {
       "get": {
         "operationId": "overview_api_v1_skills_get",
@@ -4473,6 +4978,22 @@
         "summary": "Task Detail"
       }
     },
+    "/api/v1/universe": {
+      "get": {
+        "operationId": "get_universe_api_v1_universe_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Universe"
+      }
+    },
     "/api/v1/widgets": {
       "get": {
         "operationId": "get_widgets_api_v1_widgets_get",
@@ -4634,6 +5155,43 @@
           }
         },
         "summary": "Put Widget"
+      }
+    },
+    "/api/v1/workflows/{workflow_id}/cancel": {
+      "post": {
+        "operationId": "cancel_workflow_api_v1_workflows__workflow_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Workflow"
       }
     }
   }

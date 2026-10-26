@@ -4,6 +4,7 @@ import { ACCENTS, THEME_MODES } from "../core/settings";
 import { CARD_IDS, CARD_NAMES } from "../core/today";
 import { APP_VERSION, API_VERSION, Provider, SessionInfo } from "../core/types";
 import { useApp } from "../ui/Context";
+import { openTour } from "../ui/uiState";
 import { Icon } from "../ui/icons";
 import { useLoad } from "../ui/hooks";
 import { AbilitiesSection } from "./settings/Abilities";
@@ -20,6 +21,11 @@ export function Settings({ section }: { section?: string }) {
   return (
     <div className="screen">
       <h2>Settings</h2>
+      <section className="card" aria-labelledby="tour-h">
+        <h3 id="tour-h">Help</h3>
+        <p className="muted small">A short walk through setting AIOS up and what each part of the map means. You can run it as often as you like.</p>
+        <Btn onClick={() => openTour(0)}>Take the tour again</Btn>
+      </section>
       <AppearanceSection />
       <AbilitiesSection />
       <HistorySection />
@@ -94,7 +100,7 @@ function AppearanceSection() {
   );
 }
 
-const TAB_NAMES: Record<Tab, string> = { home: "Home", work: "Workspace", projects: "Projects", runs: "Runs", inbox: "Inbox", insights: "Insights", knowledge: "Knowledge", graph: "Graph", settings: "Settings" };
+const TAB_NAMES: Record<Tab, string> = { home: "Home", work: "Workspace", projects: "Projects", runs: "Runs", inbox: "Inbox", insights: "Insights", ais: "My AIs", knowledge: "Knowledge", graph: "Graph", settings: "Settings" };
 
 function ServerSection() {
   const { registry, server, switchServer, removeServer, isNative } = useApp();

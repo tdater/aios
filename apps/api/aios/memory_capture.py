@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 
-from . import memory
+from . import abilities, memory
 from .config import Settings
 from .db import Database
 from .security import find_secret_kinds
@@ -21,6 +21,11 @@ _CUES = (("remember that ", "fact"), ("remember: ", "fact"), ("remember ", "fact
          ("always ", "preference"), ("never ", "preference"), ("please always ", "preference"), ("please never ", "preference"),
          ("i prefer ", "preference"), ("don't ever ", "preference"), ("do not ever ", "preference"))
 _SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def learning_on(db: Database) -> bool:
+    """The owner's switch for learning from what they type. On by default; off stops every automatic suggestion."""
+    return abilities.get_flag(db, "learning", "1") == "1"
 
 
 def _exists(db: Database, source: str) -> bool:
@@ -36,6 +41,8 @@ def _title(sentence: str) -> str:
 def from_user_message(db: Database, settings: Settings, conv: dict, message: dict) -> list[str]:
     """Candidate memories from one message the owner typed. Returns the new memory ids."""
     if message.get("author_kind") != "user" or message.get("kind", "message") != "message":
+        return []
+    if not learning_on(db):
         return []
     made: list[str] = []
     for raw in _SPLIT.split(message["content"] or ""):
@@ -54,11 +61,16 @@ def from_user_message(db: Database, settings: Settings, conv: dict, message: dic
             body=f"{s}\n\nCaptured automatically from something you wrote in the conversation \"{conv['title']}\". "
                  "Check that it says what you meant before approving it.",
             basis="observation", confidence=0.6, status="candidate", sources=[source], tags=["captured"]))
+    if made:
+        abilities.receipt(db, actor="learning", kind="memory.proposed", changed=True,
+                          summary=f"Noticed {len(made)} thing{'s' if len(made) > 1 else ''} you asked to remember and suggested {'them' if len(made) > 1 else 'it'} for your approval.")
     return made
 
 
 def from_passed_verification(db: Database, settings: Settings, conv: dict, argv: list[str], revision: str) -> str | None:
     """One candidate per project and command: the owner's verification command passed on a real change."""
+    if not learning_on(db):
+        return None
     key = hashlib.sha256(" ".join(argv).encode()).hexdigest()[:12]
     source = f"verification:{conv['project_id']}:{key}"
     if _exists(db, source):

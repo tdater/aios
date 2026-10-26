@@ -3,13 +3,13 @@ import type { Settings } from "./settings";
 // Simple / Standard / Power decide which sections the menu lists. Switching never deletes or disables anything:
 // a hidden section is still reachable by link, the command palette, or by switching mode back.
 export type Mode = "simple" | "standard" | "power";
-export type Tab = "home" | "work" | "projects" | "runs" | "inbox" | "insights" | "knowledge" | "graph" | "settings";
+export type Tab = "home" | "work" | "projects" | "runs" | "inbox" | "insights" | "ais" | "knowledge" | "graph" | "settings";
 export const MODES: { id: Mode; label: string; hint: string }[] = [
   { id: "simple", label: "Simple", hint: "Home, chat, things waiting for you, what AIOS remembers" },
   { id: "standard", label: "Standard", hint: "Adds projects and runs" },
   { id: "power", label: "Power", hint: "Everything, including the knowledge graph" },
 ];
-const SIMPLE: Tab[] = ["home", "work", "inbox", "insights", "knowledge", "settings"];
+const SIMPLE: Tab[] = ["home", "work", "inbox", "ais", "insights", "knowledge", "settings"];
 const STANDARD: Tab[] = [...SIMPLE, "projects", "runs"];
 export const MODE_TABS: Record<Mode, Tab[]> = { simple: SIMPLE, standard: STANDARD, power: [...STANDARD, "graph"] };
 /** Home and Settings can never be hidden, so there is always a way back. */

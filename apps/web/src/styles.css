@@ -363,3 +363,51 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .today { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 8px 0 14px; }
 .todaycard { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--panel); display: grid; gap: 6px; align-content: start; }
 .todaycard h3 { margin: 0; font-size: 1rem; } .todaycard p { margin: 0; overflow-wrap: anywhere; }
+
+/* The Universe */
+.universe-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+.universe { width: 100%; height: auto; max-height: 70vh; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 10%, var(--panel)) 0%, var(--panel) 70%); border: 1px solid var(--border); border-radius: 12px; }
+.universe.paused { filter: grayscale(.7) brightness(.85); }
+.universe .orbit { fill: none; stroke: var(--border); stroke-dasharray: 2 5; } .universe .orbit.o-private { stroke: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.universe .sun { fill: var(--accent); } .universe .halo { fill: color-mix(in srgb, var(--accent) 22%, transparent); }
+.universe .corelabel { fill: var(--accent-ink, #fff); font-weight: 700; font-size: 13px; pointer-events: none; }
+.universe .core, .universe .planet, .universe .comet { cursor: pointer; } .universe .core.sel .sun { stroke: var(--text); stroke-width: 3; }
+.universe .planet circle { fill: var(--panel2, var(--panel)); stroke: var(--accent); stroke-width: 2; } .universe .planet.pl-real circle { fill: var(--accent); }
+.universe .planet.pl-manual circle { stroke-dasharray: 4 3; } .universe .planet.pl-down circle { stroke: var(--muted); fill: none; }
+.universe .planet circle, .universe .core circle { pointer-events: all; }                       /* an unfilled planet (Claude not signed in) must still be clickable in the middle, not only on its outline */
+.universe .planet.sel circle { stroke: var(--text); stroke-width: 3; } .universe .plabel { fill: var(--text); font-size: 11px; pointer-events: none; }
+.universe .beam { stroke: var(--accent); stroke-opacity: .55; stroke-width: 1; } .universe .star.told path { stroke: var(--text); }
+.universe .comet circle { fill: var(--warn, #f0b84f); } .universe .comet .tail { stroke: var(--warn, #f0b84f); stroke-width: 3; stroke-linecap: round; opacity: .6; }
+.universe .comet.sel circle { stroke: var(--text); stroke-width: 2; } .universe .pausedlabel { fill: var(--text); font-weight: 700; font-size: 13px; }
+.universe :focus-visible { outline: 2px solid var(--focus, var(--accent)); outline-offset: 2px; }
+.universe .clabel { font-size: 11px; }
+.universe-side { min-width: 0; } .universe-home { margin-bottom: 16px; }
+.legend-cards ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.legend-cards li { display: flex; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--panel); }
+.legend-cards .sym { font-size: 1.4rem; line-height: 1.2; color: var(--accent); } .legend-cards p { margin: 2px 0; }
+.field.inline { display: inline-block; margin: 0 8px 0 0; } .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* The tour */
+.tour-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, #000 55%, transparent); }
+.tour { width: min(620px, 100%); max-height: 90vh; overflow: auto; display: grid; gap: 10px; }
+.tour .tour-head { display: flex; align-items: center; gap: 10px; } .tour .tour-head progress { flex: 1; min-width: 0; height: 8px; }
+.tour h2:focus { outline: none; } .tour .lead { font-size: 1.05rem; margin: 0; } .tour ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.tour .tour-nav { display: flex; justify-content: space-between; margin-top: 6px; }
+.tour-pill { position: fixed; right: 16px; bottom: 56px; z-index: 55; display: flex; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); box-shadow: 0 6px 24px color-mix(in srgb, #000 30%, transparent); }
+@media (max-width: 600px) { .universe .plabel { font-size: 14px; } .universe .clabel { font-size: 14px; } .universe .corelabel { font-size: 16px; } }
+
+/* The 3D universe */
+.space3d { display: grid; gap: 6px; min-width: 0; }
+.space-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.space-bar button, .space-bar select { padding: 4px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font: inherit; min-height: 32px; cursor: pointer; }
+.space-bar button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink, #fff); border-color: var(--accent); }
+.universe.space { touch-action: none; cursor: grab; user-select: none; } .universe.space:active { cursor: grabbing; }
+.universe.space .planet circle, .universe.space .sun { transition: none; }
+.space-help { margin: 0; }
+.universe .halo { pointer-events: none; }
+.universe.space .orbit { stroke: color-mix(in srgb, var(--accent) 45%, var(--muted)); stroke-opacity: .55; stroke-width: 1.2; stroke-dasharray: none; }
+.universe.space .orbit.o-public { stroke-dasharray: 6 5; } .universe.space .orbit.o-none { stroke-dasharray: 2 6; }
+.universe.space g:focus, .universe.space g:focus-visible { outline: none; }
+.universe.space g:focus-visible circle, .universe.space g:focus-visible path { stroke: var(--text); stroke-width: 3; }
+.universe.space .planet.sel circle, .universe.space .core.sel .sun { stroke: var(--text); stroke-width: 3; stroke-dasharray: none; }
+.universe .hudlabel { font-size: 14px; fill: var(--text); }

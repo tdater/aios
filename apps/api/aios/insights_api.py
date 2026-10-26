@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from . import abilities, briefing, constellation, overview, system_scan, widgets
+from . import abilities, briefing, companion, constellation, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
 from .config import Settings
 from .db import Database
 from .errors import ApiError
@@ -24,6 +24,24 @@ class WidgetIn(BaseModel):
 
 class WidgetConfigIn(BaseModel):
     config: dict
+
+
+class LevelIn(BaseModel):
+    level: str = Field(max_length=16)
+
+
+class PasteIn(BaseModel):
+    provider: str = Field(max_length=16)
+    text: str = Field(max_length=memory_import.MAX_TEXT)
+
+
+class CopiedIn(BaseModel):
+    suggestion_id: str = Field(max_length=32)
+    conversation_id: str | None = Field(default=None, max_length=64)
+
+
+class LearningIn(BaseModel):
+    enabled: bool
 
 
 def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
@@ -49,6 +67,58 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
         if provider not in briefing.CEILING:
             raise ApiError(404, "unknown_provider", f"provider must be one of {briefing.providers()}")
         return redact_obj(briefing.build(db, settings, provider=provider, project_id=project_id))
+
+    @r.get("/universe")
+    def get_universe():
+        return redact_obj(universe.build(db, settings))
+
+    @r.get("/sharing")
+    def get_sharing():
+        out = []
+        for p in sharing.providers():
+            b = briefing.build(db, settings, provider=p)
+            out.append({"provider": p, "name": sharing.LABEL[p], "level": sharing.level(db, p), "default_level": sharing.DEFAULT_LEVEL[p],
+                        "told_count": len(b["items"])})
+        return {"items": out, "levels": list(sharing.LEVELS)}
+
+    @r.put("/sharing/{provider}")
+    def put_sharing(provider: str, body: LevelIn):
+        sharing.set_level(db, provider, body.level)
+        return get_sharing()
+
+    @r.get("/companion/{provider}")
+    def get_companion(provider: str, conversation_id: str | None = None):
+        return redact_obj(companion.suggestions(db, settings, provider, conversation_id))
+
+    @r.post("/companion/{provider}/copied", status_code=201)
+    def companion_copied(provider: str, body: CopiedIn):
+        return companion.record_copied(db, settings, provider, body.suggestion_id, body.conversation_id)
+
+    @r.get("/learning")
+    def get_learning():
+        return {"enabled": memory_capture.learning_on(db)}
+
+    @r.put("/learning")
+    def put_learning(body: LearningIn):
+        abilities.set_flag(db, "learning", "1" if body.enabled else "0")
+        abilities.receipt(db, actor="owner", kind="learning.changed", changed=True,
+                          summary="Turned on learning from what you ask AIOS to remember." if body.enabled else "Turned off learning: AIOS will not suggest memories on its own.")
+        return {"enabled": body.enabled}
+
+    @r.get("/import/prompt")
+    def import_prompt(provider: str = "other"):
+        return memory_import.prompt_for(provider)
+
+    @r.post("/import/paste", status_code=201)
+    def import_paste(body: PasteIn):
+        return redact_obj(memory_import.import_paste(db, settings, body.provider, body.text))
+
+    @r.post("/everyday", status_code=201)
+    def make_everyday():
+        out = services.ensure_everyday_project(db, settings)
+        abilities.receipt(db, actor="owner", kind="project.everyday", changed=True,
+                          summary="Created the Everyday space for chatting without a project.") if out["created"] else None
+        return out
 
     @r.get("/abilities")
     def get_abilities():

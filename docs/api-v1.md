@@ -93,6 +93,20 @@ passing verification of exactly this revision and no high-severity finding in a 
 - `POST /system-scan` (needs the `system_scan` ability): reads memory, disk, temp-folder size and start-up count; returns
   `suggestions` computed by fixed rules and `changed_anything: false`.
 - `POST /conversations/{id}/apply`: asks to merge the latest change into the owner's real project. 409 `nothing_to_apply`, `not_ready` (only a READY change qualifies), `already_applied`, `turn_in_progress`. It starts a `claude.apply` run that re-checks readiness, that the conversation branch still points at the reviewed revision, and that the project is on a branch with nothing uncommitted, then asks for an approval bound to the exact revision, branch and project HEAD (`type: apply_revision`, destructive). The merge is `git merge --no-ff` with the owner's hooks disabled; a conflict is aborted and reported. `changes.applied` carries the commit, the previous HEAD (for undo) and `tree_matches_reviewed`. Pending approvals in the conversation status carry a `type`.
+- `GET /companion/{provider}?conversation_id=` (`gemini` or `perplexity`; 404 `unknown_companion` otherwise, and Antigravity has none because AIOS never starts it)
+  returns the official `url`, the sharing `level`, a `notice`, and suggested prompts (`id`, `title`, `why`, `prompt`, `chars`,
+  `includes_project_text`, `includes_memories`): `second_opinion` and `explain` (from the conversation's change and Claude's last answer),
+  `research` (conversation title and project name only) and `introduce` (the memories that AI may be told). Project text is run
+  through the secret scrubber and capped. `POST /companion/{provider}/copied {suggestion_id, conversation_id?}` writes a receipt naming the
+  kind and size, never the text. AIOS never opens, reads or controls those sites; the browser opens them in a separate window.
+- `POST /conversations/{id}/workflow {request, profile?, max_rounds?}` carries one request through implement, the owner's check,
+  independent review, corrections, re-check and re-review (409 `no_verify_command`, `workflow_active`; 422 `bad_profile`, `bad_rounds`).
+  `GET /conversations/{id}/workflow` returns the latest `workflow` (`state` working | waiting_you | finished | cancelled; `outcome`
+  ready | needs_you | no_change | failed | cancelled; `round`, `max_rounds`, `steps`, `needs_you`, `pending_approvals`) and the capability
+  `profiles` with their plain-language `permissions`. `POST /workflows/{id}/cancel` stops it. A workflow has no power of its own: every
+  step is an ordinary run, the check still needs the owner's approval every time, the reviewer is a separate read-only session, readiness is
+  still computed by AIOS, and merging stays a separate approval. Pausing AIOS stops it from moving on. Correction requests are authored by
+  AIOS (`author_kind: aios`) and are never mined for memories; only AIOS-observed facts become memory candidates.
 - Widgets are data, not code: `POST /widgets/preview`, `GET/POST /widgets`, `PUT /widgets/{id}`, `DELETE /widgets/{id}`. Kinds
   `counter`, `checklist`, `note`; unknown settings are rejected; creating or editing needs the `widgets` ability, removing never does.
 

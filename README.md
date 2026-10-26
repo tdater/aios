@@ -14,6 +14,14 @@ A **personal, local-first project workspace for working with official AI coding 
   NOT READY. Status shows the real provider facts and your real 5-hour and 7-day usage. Shown working on real Claude Code by
   `scripts/demo_workspace.py` and `apps/web/e2e/workspace.e2e.mjs`. Antigravity and Perplexity remain manual handoffs; see
   `docs/integration-findings.md` for why.
+- **Start to finish** (branch `phase2-everyday`): give one request and AIOS carries it through build, your check (you approve it
+  every time), a separate Claude's review, automatic corrections, re-check and re-review, then a plain-words result and a few
+  memory candidates. It adds no power: Claude still edits only an isolated copy, nothing is merged without a separate approval, and
+  AIOS decides readiness. Shown on real Claude by `scripts/demo_workflow.py`. See `docs/product-direction.md`.
+- **Everyday use** (branch `phase2-everyday`): Home is a 3D map of you, your AIs and your memories (`docs/universe.md`); you choose
+  what each AI may be told; you can bring in memories from other AIs; a guided tour re-runs from Settings; a desktop icon starts
+  AIOS. Gemini and Perplexity subscriptions can be used from a separate window with prompts AIOS writes for you to paste. AIOS
+  never reads or controls those windows.
 - **A calmer daily interface** (branch `phase1-delight`, see `docs/expansion-plan.md`): Today cards, Simple / Standard / Power
   menus, a proof seal on every checked change, a replay of what Claude did, a writer-and-reviewer view, a constellation of what
   AIOS remembers (bright only when a memory was used and the tests then passed), a skyline of projects, other AIs by copy and

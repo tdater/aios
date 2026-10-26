@@ -2,6 +2,44 @@
 
 Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
+## Checkpoint (2026-10-26, branch `phase2-everyday`; read this first)
+
+State: companion windows and the start-to-finish workflow are built, tested and documented on `phase2-everyday` (see the commit log
+and `docs/product-direction.md`). `main` already contains PR #2 and PR #3. Remaining: push, PR, CI, merge (below).
+
+Objective: AIOS is the primary interactive workspace for capable AI agents; AIOS owns durable state, provider sessions are
+replaceable; ordinary users and developers share one execution foundation. Requirements that stay in force: no paid API use by
+default; never read or store tokens/keys; Claude only through the unmodified CLI; never start `agy`; safety controls are code and
+are not weakened; imported/retrieved text is untrusted data; mocks are labelled; the repo is public (no private state).
+Antigravity: automatic participation is a target that needs a verified supported integration and explicit billing approval; a
+manual handoff or another provider is never reported as completing it. Gemini CLI unsupported; Perplexity manual.
+
+Done on this branch (all committed): launcher + desktop/Start-menu shortcuts + `Install AIOS.cmd`; pairing link fills the code only;
+per-AI sharing levels, memory import-by-paste, learning switch, `/universe` `/sharing` `/learning` `/import/*` `/everyday` APIs;
+Universe home (flat map + 3D space with orbit/zoom/pan/fly-to, keyboard and buttons), My AIs hub, first-run tour (re-runnable),
+Together tab, Everyday project.
+
+Also built since the first checkpoint: companion windows (`companion.py`, `GET /companion/{provider}`, `ui/Companion.tsx`; gemini.google.com
+and perplexity.ai send `X-Frame-Options: DENY`, so it is a separate popup and AIOS never reads it); the start-to-finish workflow
+(`workflow.py`, migration 0008, `engine.ticker`, Start to finish tab, `scripts/demo_workflow.py`); `docs/universe.md`,
+`docs/product-direction.md`; README, `expansion-plan.md`, `api-v1.md`, OpenAPI snapshot updated.
+
+Last verified results (2026-10-26): backend `pytest` 489 passed; web `vitest` 477 passed (37 files), `tsc` clean, build OK; real-browser
+`mobile.e2e.mjs` 18/18. Real Claude: `scripts/demo_workflow.py` PASS 11/11 on the straight path (0 corrections); a correction round on
+real Claude is NOT demonstrated (first run: Claude correctly refused to widen a narrow request, which exposed and fixed a no-op
+correction bug; second run needed no correction). Real-Claude `workspace.e2e.mjs` was 13/13 before the phase2 changes and has not been
+rerun. Android emulator e2e not run. GitHub CI not yet run on this branch.
+
+Next actions, in order:
+1. Push `phase2-everyday`, open the PR, wait for CI, fix anything it finds, merge to main (user asked for everything on main).
+2. Rerun the real-Claude `workspace.e2e.mjs` (`$env:AIOS_E2E_REAL_CLAUDE="1"; node apps\web\e2e\workspace.e2e.mjs`).
+3. Open: a real-Claude correction round; automatic Antigravity participation (needs a supported integration and billing approval).
+
+Gotchas: Git-Bash heredocs mangle backslash escapes (use Write/Edit); never capture launcher output through pipes (use files);
+run `npm run build` before real-browser e2e; a real AIOS server may be on port 8765, do not kill it; protected files
+(`scripts/claude_guard.py`, `scripts/skill_eval.py`, scan scripts, `.secret-allowlist`, CI, settings) need the owner's approval.
+No testers until the owner says the project is done.
+
 ## Expansion work (branch `phase1-delight`, 2026-10-25, newest first)
 
 Plan, status table and what is deliberately not built: `docs/expansion-plan.md`. Not merged to `main`; `step3-workspace` (PR #2)

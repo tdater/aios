@@ -15,6 +15,8 @@ import { registerServiceWorker, resetAppCaches, updateStore } from "./pwa/regist
 import { Frame, Incompatible, Pair, ServerChanged, SetupServer, Unreachable } from "./screens/Boot";
 import { GraphScreen } from "./screens/Graph";
 import { InsightsScreen } from "./screens/Insights";
+import { MyAIs } from "./screens/MyAIs";
+import { Tour } from "./ui/Tour";
 import { Home } from "./screens/Home";
 import { Inbox } from "./screens/Inbox";
 import { Knowledge } from "./screens/Knowledge";
@@ -29,7 +31,7 @@ import { useHotkeys } from "./ui/hotkeys";
 import { Icon, IconName } from "./ui/icons";
 import { Btn, Notice } from "./ui/kit";
 import { invalidatePaletteIndex, Palette } from "./ui/Palette";
-import { closePalette, helpStore, layoutPrefs, openPalette, paletteStore, setExplorer, summaryStore, toast } from "./ui/uiState";
+import { closePalette, helpStore, layoutPrefs, openPalette, paletteStore, setExplorer, summaryStore, toast, tourStore, openTour } from "./ui/uiState";
 import { modLabel } from "./ui/hotkeys";
 
 type Phase =
@@ -128,7 +130,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
 // still here, but quieter: they are the secondary experience, not the product.
 const NAV: { tab: Route["tab"]; label: string; icon: IconName; wideOnly?: boolean; secondary?: boolean }[] = [
   { tab: "home", label: "Home", icon: "home" }, { tab: "work", label: "Workspace", icon: "chat" }, { tab: "projects", label: "Projects", icon: "folder" },
-  { tab: "runs", label: "Runs", icon: "play" }, { tab: "inbox", label: "Inbox", icon: "inbox" }, { tab: "insights", label: "Insights", icon: "star" },
+  { tab: "runs", label: "Runs", icon: "play" }, { tab: "inbox", label: "Inbox", icon: "inbox" }, { tab: "ais", label: "My AIs", icon: "users" }, { tab: "insights", label: "Insights", icon: "star" },
   { tab: "knowledge", label: "Knowledge", icon: "book", secondary: true }, { tab: "graph", label: "Graph", icon: "graph", wideOnly: true, secondary: true },
   { tab: "settings", label: "Settings", icon: "settings" },
 ];
@@ -158,6 +160,9 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
     const t = setInterval(load, 15000);
     return () => { alive = false; clearInterval(t); };
   }, [connected, phase.client]);
+
+  // first run: offer the tour once, after sign-in. Finishing or skipping it is remembered; it can always be run again.
+  useEffect(() => { if (connected && !settings.tourSeen && !tourStore.get().open) openTour(0); }, [connected, settings.tourSeen]);
 
   useEffect(() => pf.onBack(() => {
     if (paletteStore.get().open) { closePalette(); return true; }
@@ -214,6 +219,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
     help: () => helpStore.set(true),
     refresh: () => { invalidatePaletteIndex(); toast("Search index will refresh"); },
     signout: () => void ctx.signOut(),
+    tour: () => openTour(0),
   };
   useHotkeys({
     "mod+k": () => (paletteStore.get().open ? closePalette() : openPalette()),
@@ -266,11 +272,13 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
             {route.tab === "knowledge" && <Knowledge id={route.id} />}
             {route.tab === "graph" && <GraphScreen id={route.id} />}
             {route.tab === "insights" && <InsightsScreen />}
+            {route.tab === "ais" && <MyAIs section={route.id} />}
             {route.tab === "settings" && <Settings section={route.id} />}
           </main>
         </div>
         {wide && <StatusBar pendingDrafts={pending} />}
         <Palette commands={commands} />
+        <Tour />
         <ShortcutsHelp />
         <Toast />
       </div>
