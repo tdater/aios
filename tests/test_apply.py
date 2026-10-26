@@ -311,3 +311,55 @@ def test_an_existing_file_whose_name_differs_only_by_case_is_not_overwritten(db,
     arid = request(db, engine, conv)
     assert engine.execute(arid) == "failed"
     assert (repo / "SETTINGS.LOCAL").read_text() == "MINE\n"
+
+
+# ---------------------------------------------------------------- review round 3: prefixes, case rules, git's own guard
+def _branch_adding(repo, tmp_path, branch, files, start="HEAD"):
+    """Make `branch` (from `start`) add `files` in a temporary worktree. Ignored files are added with force."""
+    wt = tmp_path / f"wt-{branch}"
+    git(repo, "worktree", "add", "-q", "-b", branch, str(wt), start)
+    for rel, text in files.items():
+        (wt / rel).parent.mkdir(parents=True, exist_ok=True)
+        (wt / rel).write_text(text)
+    git(wt, "add", "-A", "-f")
+    git(wt, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", f"add {branch}")
+
+
+def test_a_parent_that_exists_as_an_ignored_file_blocks_the_merge(repo, tmp_path):
+    from aios import worktrees
+    (repo / ".gitignore").write_text("docs\n")
+    commit_all(repo, "ignore docs")
+    _branch_adding(repo, tmp_path, "adds-docs-dir", {"docs/readme.txt": "from the branch\n"})
+    (repo / "docs").write_text("my private file named docs\n")           # a FILE where the branch wants a folder
+    with pytest.raises(worktrees.GitError, match="outside what git tracks"):
+        worktrees.merge_preflight(repo, "adds-docs-dir")
+    assert (repo / "docs").read_text() == "my private file named docs\n"
+
+
+def test_an_ordinary_new_file_in_a_new_folder_is_allowed(repo, tmp_path):
+    from aios import worktrees
+    _branch_adding(repo, tmp_path, "adds-new", {"newdir/a.txt": "x\n"})
+    assert worktrees.merge_preflight(repo, "adds-new") == ["newdir/a.txt"]
+
+
+def test_case_is_folded_only_where_the_file_system_folds_it(repo, tmp_path, monkeypatch):
+    import sys
+
+    from aios import worktrees
+    if sys.platform != "win32":
+        pytest.skip("needs a case-insensitive file system to be meaningful")
+    (repo / "readme.md").write_text("tracked\n")
+    commit_all(repo, "add readme")
+    _branch_adding(repo, tmp_path, "adds-upper", {"README.md": "from the branch\n"}, start="HEAD~1")
+    monkeypatch.setattr(worktrees, "_ignorecase", lambda r: True)         # git on this file system: same file, so no collision
+    assert worktrees.merge_preflight(repo, "adds-upper") == ["README.md"]
+    monkeypatch.setattr(worktrees, "_ignorecase", lambda r: False)        # exact matching: the on-disk file is not the tracked name
+    with pytest.raises(worktrees.GitError, match="outside what git tracks"):
+        worktrees.merge_preflight(repo, "adds-upper")
+
+
+def test_the_merge_itself_tells_git_never_to_overwrite_ignored_files():
+    import inspect
+
+    from aios import worktrees
+    assert "--no-overwrite-ignore" in inspect.getsource(worktrees.apply_revision)

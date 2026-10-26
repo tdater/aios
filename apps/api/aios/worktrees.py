@@ -220,6 +220,24 @@ def revision_paths(repo: Path, revision: str) -> list[str]:
     return sorted(p for p in out.split("\0") if p)
 
 
+def _ignorecase(repo: Path) -> bool:
+    return _git(repo, "config", "--type=bool", "core.ignorecase", check=False).strip() == "true"
+
+
+def _collides(repo: Path, path: str, tracked: set[str], fold) -> bool:
+    """True if applying `path` would overwrite, or write through, something on disk that git does not track: the file
+    itself, or any parent that exists as a file or a link instead of a folder."""
+    parts = path.split("/")
+    for n in range(1, len(parts) + 1):
+        prefix = "/".join(parts[:n])
+        target = repo / prefix
+        if fold(prefix) in tracked or not os.path.lexists(target):
+            continue
+        if n == len(parts) or os.path.islink(target) or not os.path.isdir(target):
+            return True
+    return False
+
+
 def has_control_chars(path: str) -> bool:
     return any(ord(c) < 32 or ord(c) == 127 for c in path)
 
@@ -252,8 +270,9 @@ def merge_preflight(repo: Path, revision: str, *, expected_digest: str | None = 
     if blocked:
         raise GitError("this change alters " + ", ".join(blocked) + ", which control how git filters and submodules behave, "
                        "so AIOS will not merge it for you. Review it and merge the branch yourself with git")
-    tracked = {t.casefold() for t in _git(repo, "ls-files", "-z").split("\0") if t}
-    hit = sorted(p for p in paths if os.path.lexists(Path(repo) / p) and p.casefold() not in tracked)
+    fold = str.casefold if _ignorecase(repo) else (lambda t: t)       # only fold case where the file system does
+    tracked = {fold(t) for t in _git(repo, "ls-files", "-z").split("\0") if t}
+    hit = sorted(p for p in paths if _collides(Path(repo), p, tracked, fold))
     if hit:
         raise GitError("these files already exist in your project, outside what git tracks (for example ignored files), and the merge "
                        "would overwrite them: " + ", ".join(hit[:10]) + ". Move them away, then ask again")
@@ -280,7 +299,7 @@ def apply_revision(repo: Path, *, revision: str, expected_branch: str, expected_
     if not _git(repo, "config", "user.name", check=False).strip():          # a fresh git install has no identity
         cfg += ["user.name=AIOS", "user.email=aios@localhost"]
     try:
-        _git(repo, "merge", "--no-ff", "--no-verify", "-m", message, revision, extra_config=tuple(cfg))
+        _git(repo, "merge", "--no-ff", "--no-verify", "--no-overwrite-ignore", "-m", message, revision, extra_config=tuple(cfg))
     except GitError as e:
         _git(repo, "merge", "--abort", check=False)
         return {"applied": False, "reason": f"git could not merge it cleanly ({e}); your project was left as it was"}
