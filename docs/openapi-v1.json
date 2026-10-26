@@ -321,6 +321,33 @@
         "title": "ImportIn",
         "type": "object"
       },
+      "LearningIn": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "LearningIn",
+        "type": "object"
+      },
+      "LevelIn": {
+        "properties": {
+          "level": {
+            "maxLength": 16,
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "LevelIn",
+        "type": "object"
+      },
       "MemoryIn": {
         "properties": {
           "body": {
@@ -541,6 +568,26 @@
           "kind"
         ],
         "title": "PairIn",
+        "type": "object"
+      },
+      "PasteIn": {
+        "properties": {
+          "provider": {
+            "maxLength": 16,
+            "title": "Provider",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 40000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "text"
+        ],
+        "title": "PasteIn",
         "type": "object"
       },
       "ProjectIn": {
@@ -2443,6 +2490,22 @@
         "summary": "Request Review"
       }
     },
+    "/api/v1/everyday": {
+      "post": {
+        "operationId": "make_everyday_api_v1_everyday_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Make Everyday"
+      }
+    },
     "/api/v1/graph": {
       "get": {
         "operationId": "knowledge_graph_api_v1_graph_get",
@@ -2807,6 +2870,130 @@
           }
         },
         "summary": "Home"
+      }
+    },
+    "/api/v1/import/paste": {
+      "post": {
+        "operationId": "import_paste_api_v1_import_paste_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Paste"
+      }
+    },
+    "/api/v1/import/prompt": {
+      "get": {
+        "operationId": "import_prompt_api_v1_import_prompt_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "default": "other",
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Prompt"
+      }
+    },
+    "/api/v1/learning": {
+      "get": {
+        "operationId": "get_learning_api_v1_learning_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Learning"
+      },
+      "put": {
+        "operationId": "put_learning_api_v1_learning_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearningIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Learning"
       }
     },
     "/api/v1/memories": {
@@ -3975,6 +4162,69 @@
         "summary": "Resume"
       }
     },
+    "/api/v1/sharing": {
+      "get": {
+        "operationId": "get_sharing_api_v1_sharing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Sharing"
+      }
+    },
+    "/api/v1/sharing/{provider}": {
+      "put": {
+        "operationId": "put_sharing_api_v1_sharing__provider__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LevelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Sharing"
+      }
+    },
     "/api/v1/skills": {
       "get": {
         "operationId": "overview_api_v1_skills_get",
@@ -4471,6 +4721,22 @@
           }
         },
         "summary": "Task Detail"
+      }
+    },
+    "/api/v1/universe": {
+      "get": {
+        "operationId": "get_universe_api_v1_universe_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Universe"
       }
     },
     "/api/v1/widgets": {
