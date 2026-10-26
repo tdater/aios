@@ -17,7 +17,7 @@ const tmp = join(tmpdir(), `aios-droid-${Date.now()}`);
 const state = join(tmp, "state"), ws = join(tmp, "ws", "sample"), shots = join(tmp, "shots");
 for (const d of [state, ws, shots]) mkdirSync(d, { recursive: true });
 writeFileSync(join(ws, "README.md"), "# android e2e\n");
-const PORT = 8765, API = `http://127.0.0.1:${PORT}/api/v1`;
+const PORT = Number(process.env.AIOS_E2E_PORT || 8791), API =`http://127.0.0.1:${PORT}/api/v1`;
 const env = { ...process.env, PYTHONPATH: join(repo, "apps", "api"), AIOS_STATE_DIR: state, AIOS_WORKSPACES_DIR: join(tmp, "ws"), AIOS_PORT: String(PORT) };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,6 +85,7 @@ try {
   expect(/\bdevice\b/.test(adb("devices").stdout.split("\n").slice(1).join("\n")), "no emulator attached");
   expect(sh("getprop sys.boot_completed") === "1", "emulator not booted");
   console.log(`Emulator: API ${sh("getprop ro.build.version.sdk")}, ${sh("getprop ro.product.model")} (this is an EMULATOR, not a physical phone)`);
+  if (await fetch(`${API}/meta`).then(() => true, () => false)) throw new Error(`port ${PORT} is already serving something (your real AIOS, or a stray server from an earlier run). Stop it, or set AIOS_E2E_PORT to a free port.`);
   await startServer();
   const adminPair = await (await fetch(`${API}/auth/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: pairCode(), device_name: "e2e-admin", kind: "native" }) })).json();
   adminToken = adminPair.token;
@@ -111,7 +112,7 @@ try {
       await page.getByRole("button", { name: "Continue" }).click();
       await page.getByRole("alert").getByText(msg).waitFor();   // the error box only (the help text also says "credentials")
     }
-    await page.getByLabel("Server address").fill("http://localhost:8765");
+    await page.getByLabel("Server address").fill(`http://localhost:${PORT}`);
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByText("Sign in to this device").waitFor();
   });

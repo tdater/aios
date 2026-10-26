@@ -37,14 +37,78 @@ from aios.engine import Engine  # noqa: E402
 from aios.executors import claude_review, claude_turn  # noqa: E402,F401  (registers claude.turn and claude.review)
 from aios.security import redact  # noqa: E402
 
-FILES = {
-    "notes/hello.txt": "hello from the notes folder\n",
-    "test_basic.py": "import unittest\n\n\nclass Basic(unittest.TestCase):\n    def test_truth(self):\n        self.assertTrue(True)\n",
-    ".gitignore": "__pycache__/\n",
+DURATION_TESTS = '''import unittest
+
+from duration import parse_duration
+
+
+class ParseDuration(unittest.TestCase):
+    def test_single_units(self):
+        for text, secs in [("90s", 90), ("5m", 300), ("2h", 7200), ("1d", 86400), ("0s", 0)]:
+            self.assertEqual(parse_duration(text), secs, text)
+
+    def test_combined_units_spaces_and_case(self):
+        for text, secs in [("1h30m", 5400), ("1h 30m 15s", 5415), (" 2m ", 120), ("1H30M", 5400), ("1d2h3m4s", 93784)]:
+            self.assertEqual(parse_duration(text), secs, text)
+
+    def test_fractions(self):
+        self.assertEqual(parse_duration("1.5h"), 5400)
+        self.assertEqual(parse_duration("0.5s"), 0.5)
+
+    def test_bad_input_raises_value_error(self):
+        for text in ["", "   ", "abc", "5", "5x", "1h30", "-5s", "1h1h", "h", "1..5h", "1 h"]:
+            with self.assertRaises(ValueError, msg=repr(text)):
+                parse_duration(text)
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+CONVENTION_TESTS = '''import inspect
+import unittest
+
+import duration
+
+
+class Conventions(unittest.TestCase):
+    """House rules for this project's modules."""
+
+    def test_no_regular_expressions(self):
+        self.assertNotIn("import re", inspect.getsource(duration))
+
+    def test_public_names_are_declared(self):
+        self.assertEqual(duration.__all__, ["parse_duration"])
+
+    def test_the_function_documents_an_example(self):
+        self.assertIn("Example", inspect.getdoc(duration.parse_duration) or "")
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+SCENARIOS = {
+    "notes": {
+        "files": {"notes/hello.txt": "hello from the notes folder\n", ".gitignore": "__pycache__/\n",
+                  "test_basic.py": "import unittest\n\n\nclass Basic(unittest.TestCase):\n    def test_truth(self):\n        self.assertTrue(True)\n"},
+        "request": ("Add a function read_note(name) in a new file notes_api.py. It returns the text of the file notes/<name>.txt, where "
+                    "the notes folder sits next to notes_api.py. Add a unittest for it in test_notes_api.py. Keep it simple."),
+        "baseline_passes": True, "new_file": "notes_api.py", "title": "Add read_note",
+    },
+    "duration": {
+        "files": {"duration.py": "def parse_duration(text):\n    raise NotImplementedError\n", "test_duration.py": DURATION_TESTS, ".gitignore": "__pycache__/\n"},
+        "request": "Implement parse_duration(text) in duration.py so that every test in test_duration.py passes. Do not modify the tests.",
+        "baseline_passes": False, "new_file": None, "title": "Implement parse_duration",
+    },
+    "duration_rules": {      # the same task, plus house rules enforced by a second test file that the request does not mention
+        "files": {"duration.py": "def parse_duration(text):\n    raise NotImplementedError\n", "test_duration.py": DURATION_TESTS,
+                  "test_conventions.py": CONVENTION_TESTS, ".gitignore": "__pycache__/\n"},
+        "request": "Implement parse_duration(text) in duration.py so that every test in test_duration.py passes. Do not modify the tests.",
+        "baseline_passes": False, "new_file": None, "title": "Implement parse_duration",
+    },
 }
+FILES: dict = {}
 CHECK = [sys.executable, "-B", "-m", "unittest", "discover", "-s", ".", "-p", "test_*.py"]
-REQUEST = ("Add a function read_note(name) in a new file notes_api.py. It returns the text of the file notes/<name>.txt, where "
-           "the notes folder sits next to notes_api.py. Add a unittest for it in test_notes_api.py. Keep it simple.")
+REQUEST = ""
 
 def git(repo: Path, *args: str) -> str:
     p = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -70,8 +134,12 @@ def main() -> int:
     ap.add_argument("--auto-approve", action="store_true", help="approve each check run without asking (disposable repo only)")
     ap.add_argument("--model", default=None, help="Claude model alias, e.g. sonnet (default: account default)")
     ap.add_argument("--max-rounds", type=int, default=2)
+    ap.add_argument("--scenario", choices=sorted(SCENARIOS), default="notes", help="what to ask for")
     ap.add_argument("--keep-going", action="store_true", help="do not stop at the first failed check")
     a = ap.parse_args()
+    global FILES, REQUEST
+    sc = SCENARIOS[a.scenario]
+    FILES, REQUEST = sc["files"], sc["request"]
 
     workspaces = Path(os.environ.get("AIOS_WORKSPACES_DIR", ROOT.parent / "aios-workspaces"))
     state_root = Path(os.environ.get("AIOS_STATE_DIR", ROOT.parent / "aios-state"))
@@ -111,7 +179,8 @@ def main() -> int:
     git(repo, "add", "-A")
     git(repo, "-c", "user.name=aios-demo", "-c", "user.email=demo@localhost", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "seed")
     before = {rel: sha(repo / rel) for rel in FILES}
-    check("baseline: the starting project passes its own check", unittest_run(repo))
+    check("baseline: the starting project " + ("passes its own check" if sc["baseline_passes"] else "fails its check (there is work to do)"),
+          unittest_run(repo) == sc["baseline_passes"])
 
     db = Database(settings.db_path)
     db.migrate()
@@ -119,7 +188,7 @@ def main() -> int:
     providers.discover(db)
     proj = services.register_project(db, settings, "Workflow demo", str(repo))
     conversations.set_verify_command(db, proj["id"], CHECK)
-    conv = conversations.create(db, project_id=proj["id"], title="Add read_note", model=a.model)
+    conv = conversations.create(db, project_id=proj["id"], title=sc["title"], model=a.model)
 
     seen: dict[str, int] = {}
 
@@ -188,7 +257,7 @@ def main() -> int:
     check("the final review came from a fresh session, separate from the writer's", rv["separate_session"], rv["session_id"])
     check("the project folder is byte-for-byte untouched and nothing was merged",
           {rel: sha(repo / rel) for rel in FILES} == before and git(repo, "status", "--porcelain").strip() == ""
-          and not (repo / "notes_api.py").exists())
+          and not (sc["new_file"] and (repo / sc["new_file"]).exists()))
     wt = Path(conversations.get(db, conv["id"])["worktree_path"])
     check("the final worktree really passes the tests, re-run independently by this script", unittest_run(wt))
 
