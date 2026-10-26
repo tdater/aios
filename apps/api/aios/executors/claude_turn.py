@@ -186,6 +186,28 @@ def _run_turn(ctx: RunContext, conv: dict, msg: dict, mode: str, cwd: Path, pack
             "num_turns": res.num_turns, "model": res.model, "rate_limit": res.rate_limit}
 
 
+def _ensure_clean(ctx: RunContext, conv: dict, wt: dict) -> dict:
+    """Before a turn starts the worktree must be exactly the last revision AIOS recorded. If anything else is there
+    (an interrupted turn's edits, a stray file), put it back and say so, so nothing unreviewed rides along."""
+    fresh = conversations.get(ctx.db, conv["id"]) or conv
+    expected = fresh.get("head_revision") or wt["base_revision"]
+    cwd = Path(wt["path"])
+    try:
+        if worktrees.is_clean_at(cwd, expected):
+            return {"clean": True}
+        worktrees.restore(cwd, expected)
+        if not worktrees.is_clean_at(cwd, expected):
+            raise worktrees.GitError("the worktree still differs from the recorded revision")
+    except worktrees.GitError as e:
+        conversations.add_message(ctx.db, conv["id"], role="system", author_kind="aios", author="aios", kind="status",
+                                  run_id=ctx.run_id, content=f"The conversation's working copy is not in a known state and could not be reset: {e}")
+        raise RunError(f"working copy is not clean: {e}") from e
+    conversations.add_message(ctx.db, conv["id"], role="system", author_kind="aios", author="aios", kind="status",
+                              run_id=ctx.run_id, content=f"The working copy held changes AIOS had not recorded, so they were discarded "
+                                                         f"before this turn. It is back at revision {expected[:12]}.")
+    return {"clean": False, "restored_to": expected}
+
+
 def _discard_unfinished(ctx: RunContext, conv: dict, wt: dict) -> dict:
     """A turn that was cancelled, timed out, failed or failed isolation may have left edits behind. They were never
     reviewed, so put the worktree back at the last recorded revision rather than let the next turn commit them."""
@@ -324,6 +346,8 @@ def claude_turn(ctx: RunContext) -> dict:
         wt = ctx.step("worktree", lambda: _ensure_worktree(ctx, conv, repo), side_effect=True)
         conv = conversations.get(db, cid)
     cwd = Path(wt["path"]) if wt else repo
+    if wt:                                                    # also covers a crash or kill that skipped the discard step
+        ctx.step("worktree_clean", lambda: _ensure_clean(ctx, conv, wt))
 
     def make_context() -> dict:
         pack = context_pack.build(db, settings, project_id=conv["project_id"], prompt=msg["content"], mode=mode,
@@ -337,7 +361,7 @@ def claude_turn(ctx: RunContext) -> dict:
     pack = context_pack.ContextPack(text=packed["text"], items=packed["items"])
 
     out = ctx.step("claude", lambda: _run_turn(ctx, conv, msg, mode, cwd, pack, pf), side_effect=True)
-    if mode == "edit" and wt and (not out["ok"] or out["problems"]):
+    if wt and (not out["ok"] or out["problems"]):             # any mode: a worktree must never keep unreviewed leftovers
         ctx.step("discard", lambda: _discard_unfinished(ctx, conv, wt))
     ctx.check()                                    # a cancel requested during the turn stops here
     if not out["ok"]:

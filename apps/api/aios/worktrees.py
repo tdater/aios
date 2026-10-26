@@ -210,6 +210,11 @@ def restore(wt: Path, revision: str) -> None:
     _git(wt, "clean", "-ffdxq")
 
 
+def is_clean_at(wt: Path, revision: str) -> bool:
+    """True when the worktree is exactly `revision`: same commit, no edits, no untracked or ignored files."""
+    return head(wt) == revision and not _git(wt, "status", "--porcelain", "--ignored").strip()
+
+
 def prepare_clean_checkout(wt: Path, expected_head: str) -> None:
     """Make the worktree contain exactly the revision that was reviewed and approved, and nothing else.
     The patch an owner approves holds tracked and added files only; ignored or untracked files would

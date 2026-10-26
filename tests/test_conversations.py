@@ -484,3 +484,30 @@ def test_a_turn_that_fails_isolation_leaves_no_edits_behind_and_is_not_resumed(d
     assert engine.execute(posted["run"]["id"]) == "succeeded"
     patch = [m for m in conversations.messages(db, conv["id"]) if m["kind"] == "patch" and m["meta"].get("changed")][-1]
     assert [f["path"] for f in patch["meta"]["files"]] == ["calc.py"]
+
+
+def test_a_dirty_working_copy_is_reset_before_the_next_turn_in_any_mode(db, settings, engine, proj, repo, fake):
+    fake(edit=True)
+    conv, rid = start_turn(db, engine, proj, "fix", mode="edit")
+    assert engine.execute(rid) == "succeeded"
+    wt = Path(conversations.get(db, conv["id"])["worktree_path"])
+    good = git(wt, "rev-parse", "HEAD").strip()
+    (wt / "calc.py").write_text("tampered")                    # as if an interrupted turn left edits behind
+    (wt / "stray.py").write_text("x")
+    fake()
+    posted = conversations.post_user_message(db, engine, conv["id"], "just a question", "read")   # a READ turn still checks
+    assert engine.execute(posted["run"]["id"]) == "succeeded"
+    assert git(wt, "rev-parse", "HEAD").strip() == good and not (wt / "stray.py").exists()
+    assert "return a + b" in (wt / "calc.py").read_text() and git(wt, "status", "--porcelain", "--ignored").strip() == ""
+    assert any("had not recorded" in m["content"] for m in conversations.messages(db, conv["id"]) if m["kind"] == "status")
+
+
+def test_a_read_turn_that_fails_isolation_also_leaves_its_worktree_clean(db, settings, engine, proj, repo, fake):
+    fake(edit=True)
+    conv, rid = start_turn(db, engine, proj, "fix", mode="edit")
+    assert engine.execute(rid) == "succeeded"
+    wt = Path(conversations.get(db, conv["id"])["worktree_path"])
+    fake(extra_tools=["Bash"])
+    posted = conversations.post_user_message(db, engine, conv["id"], "look", "read")
+    assert engine.execute(posted["run"]["id"]) == "failed"
+    assert git(wt, "status", "--porcelain", "--ignored").strip() == ""
