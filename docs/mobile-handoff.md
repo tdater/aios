@@ -56,6 +56,9 @@ Not built: push, SSE, background sync, native plugins beyond secure storage and 
   addresses refused, pairing, token not in localStorage or plaintext prefs, capture, disconnect/resync, approval, back key,
   relaunch still signed in, landscape, navigation cannot leave the app, sign-out revokes server-side.
   Earlier runs failed for environmental reasons (system ANR dialogs when the host was low on RAM) and one script locator bug.
+  Re-run on 2026-10-26 on `main` (with the 3D universe and first-run tour): 11/11. The script now uses port 8791 and refuses to start
+  if that port is already serving, because it used to share 8765 with a real AIOS and then pair against the wrong server. The debug
+  APK must be built with `VITE_DEV_LOOPBACK_PORT=8791` so its policy allows that port; release builds ignore it.
 - **Not** performed: physical device, Tailscale, real HTTPS from the WebView (`https://localhost` origin path), TalkBack.
 
 ## Release build

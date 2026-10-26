@@ -24,8 +24,9 @@ function serviceWorker(): Plugin {
 /** Production-only Content-Security-Policy (dev server needs inline preamble scripts). Scripts: self only. */
 function csp(): Plugin {
   const devLoopback = process.env.VITE_ALLOW_DEV_LOOPBACK === "1";   // debug APK only (emulator via adb reverse)
+  const port = /^\d{2,5}$/.test(process.env.VITE_DEV_LOOPBACK_PORT ?? "") ? process.env.VITE_DEV_LOOPBACK_PORT : "8765";   // lets the emulator e2e use a port that is not your real AIOS
   const policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
-    `connect-src 'self' https:${devLoopback ? " http://localhost:8765 http://127.0.0.1:8765" : ""}; ` +
+    `connect-src 'self' https:${devLoopback ? ` http://localhost:${port} http://127.0.0.1:${port}` : ""}; ` +
     "base-uri 'none'; form-action 'self'; object-src 'none'";
   return {
     name: "aios-csp",

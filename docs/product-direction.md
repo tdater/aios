@@ -61,11 +61,12 @@ every time; the review is a separate read-only session; AIOS decides readiness; 
 | A failed check is sent back and the fix is re-checked | same file | Passing |
 | It stops honestly: corrections used up, a correction that changes nothing, no change made, cancel, pause, no check command, double start | same file | Passing |
 | The straight path works on real Claude | `scripts/demo_workflow.py` on 2026-10-26, Claude Code 2.1.310, sonnet writing and opus reviewing: request, 1 approval, check passed, separate review session, READY, 0 corrections, project folder untouched, candidates proposed and none approved. 11 of 11 checks | Passed |
-| A correction round works on real Claude | Not demonstrated. The first real run used a request that said "fix only `add`" while the check also failed on another function. Claude correctly refused to widen the scope in both correction rounds and the workflow handed the decision back. That exposed a real bug (a no-op correction counted as a change), now fixed and tested. The second run (a request that invites a path-traversal mistake) did not trigger any review finding, so no correction was needed | **Open** |
+| A correction round works on real Claude | `scripts/demo_workflow.py --scenario duration_rules --model haiku` on 2026-10-26: Haiku implemented `parse_duration`, missed a house rule enforced by a test file the request did not mention (`__all__`), the check FAILED, AIOS wrote correction round 1 from the recorded failure, Haiku fixed it, the check was approved again and passed, a separate Sonnet review found no high-severity problems, READY after 1 of 2 corrections. 13 of 13 checks. Earlier attempts: a request saying "fix only `add`" made Claude correctly refuse to widen scope in two rounds (the workflow handed the decision back and exposed a no-op-correction bug, since fixed); a path-traversal request and a plain `parse_duration` request needed no correction | Passed once. One run is an existence proof, not a measurement of how often a correction fixes things |
 
-The stand-in is a test double, not an integration. What the real runs prove is the straight path and the guardrails; they do not
-prove that a real reviewer finds real problems or that a real correction fixes them. Measuring that needs a calibration set of known-bad
-changes (the existing `--calibrate` mode of `scripts/demo_workspace.py` starts this for the reviewer alone).
+The stand-in is a test double, not an integration. What the real runs prove is the straight path, one correction round and the
+guardrails; they do not show that a real reviewer finds real problems (in every real run so far the reviewer found none, and the one
+correction came from the check, not from a review finding) or how often a correction works. Measuring that needs a calibration set of
+known-bad changes (the existing `--calibrate` mode of `scripts/demo_workspace.py` starts this for the reviewer alone).
 
 ## Not built yet
 
