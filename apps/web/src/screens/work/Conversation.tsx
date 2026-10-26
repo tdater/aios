@@ -8,13 +8,14 @@ import { go, useLoad, useViewport } from "../../ui/hooks";
 import { Badge, Btn, ErrorBox, Loading, Notice } from "../../ui/kit";
 import { useTabTitle } from "../../ui/useTabTitle";
 import { Handoff } from "./Handoff";
+import { Together } from "./Together";
 import { ActivityPanel, ChangesPanel, OutcomePanel, StatusPanel, TestsPanel } from "./Panels";
 import { Busy, Composer, MessageList, PanelId } from "./Thread";
 
-const TAB_LABEL: Record<PanelId, string> = { chat: "Chat", activity: "Activity", changes: "Changes", tests: "Tests", outcome: "Outcome", status: "Status" };
+const TAB_LABEL: Record<PanelId, string> = { chat: "Chat", activity: "Activity", together: "Together", changes: "Changes", tests: "Tests", outcome: "Outcome", status: "Status" };
 
 export function ConversationScreen({ id }: { id: string }) {
-  const { client } = useApp();
+  const { client, settings } = useApp();
   const { twoPane } = useViewport();
   const view = useLoad(() => client.get<ConversationView>(`/conversations/${id}`), [client, id]);
   const v = view.data;
@@ -28,7 +29,6 @@ export function ConversationScreen({ id }: { id: string }) {
   useTabTitle(v?.conversation.title);
   const [panel, setPanel] = useState<PanelId>(twoPane ? "activity" : "chat");
   const [seed, setSeed] = useState<{ text: string; mode: "read" | "edit"; n: number } | null>(null);
-  const shown: PanelId = twoPane && panel === "chat" ? "activity" : panel;
 
   if (!v) {
     return (
@@ -39,7 +39,11 @@ export function ConversationScreen({ id }: { id: string }) {
   const r = v.changes.readiness;
   const seal = sealOfChanges(v.changes);
   const pending = v.status.pending_approvals.length;
-  const tabs = (twoPane ? ["activity", "changes", "tests", "outcome", "status"] : ["chat", "activity", "changes", "tests", "outcome", "status"]) as PanelId[];
+  // Simple mode with no code changes in this conversation: hide the code-review tabs and keep chat, together and status.
+  const codeFree = settings.mode === "simple" && !v.changes.patch && !v.conversation.worktree_path;
+  const right: PanelId[] = codeFree ? ["together", "status"] : ["activity", "together", "changes", "tests", "outcome", "status"];
+  const tabs: PanelId[] = twoPane ? right : ["chat", ...right];
+  const shown: PanelId = tabs.includes(panel) ? panel : tabs[0];
   const mark = (p: PanelId) =>
     p === "activity" && active ? " ●" : p === "tests" && pending ? " !" : p === "outcome" && r.head_revision ? (r.ready ? " ✓" : " ✗") : "";
   const draftFix = (fs: Finding[], rev: string | null) => { setSeed({ text: findingsPrompt(fs, rev), mode: "edit", n: Date.now() }); if (!twoPane) setPanel("chat"); };
@@ -50,6 +54,7 @@ export function ConversationScreen({ id }: { id: string }) {
     </div>
   );
   const body = shown === "chat" ? chat : shown === "activity" ? <ActivityPanel v={v} reload={view.reload} />
+    : shown === "together" ? <Together v={v} reload={view.reload} />
     : shown === "changes" ? <ChangesPanel v={v} /> : shown === "tests" ? <TestsPanel v={v} reload={view.reload} />
     : shown === "outcome" ? <OutcomePanel v={v} reload={view.reload} sendFindings={draftFix} /> : <><StatusPanel v={v} /><Handoff conversationId={id} onChanged={() => void view.reload()} /></>;
   return (

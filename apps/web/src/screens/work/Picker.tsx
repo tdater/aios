@@ -43,18 +43,22 @@ export function WorkPicker() {
           </li>))}
         </ul>
       )}
-      <NewConversation projects={projects.data?.items ?? []} loading={projects.loading} disabled={!connected || !!unavailable} />
+      <NewConversation projects={projects.data?.items ?? []} loading={projects.loading} disabled={!connected || !!unavailable} onProjectsChanged={() => void projects.reload()} />
     </div>
   );
 }
 
-function NewConversation({ projects, loading, disabled }: { projects: Project[]; loading: boolean; disabled: boolean }) {
+function NewConversation({ projects, loading, disabled, onProjectsChanged }: { projects: Project[]; loading: boolean; disabled: boolean; onProjectsChanged: () => void }) {
   const { client } = useApp();
   const [projectId, setProjectId] = useState("");
   const [title, setTitle] = useState("");
   const [model, setModel] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const chosen = projectId || projects[0]?.id || "";
+  const everyday = useOnce(async () => {                  // a plain folder under the workspaces folder: chat without a code project
+    setErr(null);
+    try { await client.post("/everyday"); onProjectsChanged(); } catch (e) { setErr(e instanceof ApiError ? e.message : (e as Error).message); }
+  });
   const start = useOnce(async () => {
     setErr(null);
     try {
@@ -68,8 +72,12 @@ function NewConversation({ projects, loading, disabled }: { projects: Project[];
     return (
       <div className="card">
         <h3>Start a conversation</h3>
-        <Empty>You need a project first. A project is a folder on this computer that AIOS may read.</Empty>
-        <Btn kind="ghost" onClick={() => go({ tab: "projects" })}>Register a project</Btn>
+        <Empty>Chat about anything with no setup, or point AIOS at a project folder when you want help with its files.</Empty>
+        <ErrorBox msg={err} />
+        <div className="row">
+          <Btn busy={everyday.busy} disabled={disabled} onClick={() => void everyday.run()}>Start with an Everyday space</Btn>
+          <Btn kind="ghost" onClick={() => go({ tab: "projects" })}>Register a project folder</Btn>
+        </div>
       </div>
     );
   }
