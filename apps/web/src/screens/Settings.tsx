@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MODES, Tab, hideable } from "../core/modes";
 import { ACCENTS, THEME_MODES } from "../core/settings";
 import { APP_VERSION, API_VERSION, Provider, SessionInfo } from "../core/types";
 import { useApp } from "../ui/Context";
@@ -66,6 +67,17 @@ function AppearanceSection() {
       <label className="field"><span>Note font</span>
         <select value={settings.noteFont} onChange={(e) => updateSettings({ noteFont: e.target.value as "sans" | "serif" })}>
           <option value="sans">Sans-serif (interface font)</option><option value="serif">Serif (book-like)</option></select></label>
+      <fieldset className="field"><legend>How much to show</legend>
+        {MODES.map((m) => (
+          <label key={m.id} className="check"><input type="radio" name="mode" checked={settings.mode === m.id} onChange={() => updateSettings({ mode: m.id })} /> <strong>{m.label}</strong> <span className="muted small">{m.hint}</span></label>))}
+        <p className="muted small">Nothing is deleted when you change this. Hidden sections are still reachable from the command palette.</p>
+        {hideable(settings.mode).map((t) => (
+          <label key={t} className="check"><input type="checkbox" checked={!settings.hiddenNav.includes(t)}
+            onChange={(e) => updateSettings({ hiddenNav: e.target.checked ? settings.hiddenNav.filter((x) => x !== t) : [...settings.hiddenNav, t] })} /> Show {TAB_NAMES[t]} in the menu</label>))}
+      </fieldset>
+      <label className="field"><span>Spacing</span>
+        <select value={settings.density} onChange={(e) => updateSettings({ density: e.target.value as "comfortable" | "compact" })}>
+          <option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
       <label className="check"><input type="checkbox" checked={settings.readableLine} onChange={(e) => updateSettings({ readableLine: e.target.checked })} /> Readable line length in notes</label>
       <label className="check"><input type="checkbox" checked={settings.tabs} onChange={(e) => updateSettings({ tabs: e.target.checked })} /> Show document tabs (tablet and desktop)</label>
       <label className="check"><input type="checkbox" checked={settings.statusBar} onChange={(e) => updateSettings({ statusBar: e.target.checked })} /> Show status bar (tablet and desktop)</label>
@@ -73,6 +85,8 @@ function AppearanceSection() {
     </section>
   );
 }
+
+const TAB_NAMES: Record<Tab, string> = { home: "Home", work: "Workspace", projects: "Projects", runs: "Runs", inbox: "Inbox", insights: "Insights", knowledge: "Knowledge", graph: "Graph", settings: "Settings" };
 
 function ServerSection() {
   const { registry, server, switchServer, removeServer, isNative } = useApp();

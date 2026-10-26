@@ -353,3 +353,8 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .tower .floor { stroke: var(--border); } .tower .win { fill: var(--warn, #f0b84f); animation: winglow 2s ease-in-out infinite alternate; }
 .tower .scaf { stroke: var(--warn, #f0b84f); stroke-dasharray: 4 3; fill: none; }
 @keyframes winglow { from { opacity: .45; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { .tower .win { animation: none; } }
+
+/* Spacing preference */
+:root[data-density=compact] .card { padding: 8px; } :root[data-density=compact] .content { padding-block: 8px; }
+:root[data-density=compact] .timeline li, :root[data-density=compact] .plain li { margin-bottom: 2px; }
+:root[data-density=compact] button, :root[data-density=compact] .btn { padding-block: 4px; }

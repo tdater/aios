@@ -28,6 +28,7 @@ export function applyTheme(s: Settings, root: HTMLElement = document.documentEle
   root.style.setProperty("--fs", `${s.fontSize}px`);
   root.dataset.readable = s.readableLine ? "on" : "off";
   root.dataset.notefont = s.noteFont;
+  root.dataset.density = s.density;
   if (s.reduceMotion === "on") root.dataset.motion = "reduce";
   else root.removeAttribute("data-motion");
 }

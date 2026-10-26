@@ -348,3 +348,23 @@ describe("settings: privacy and logout", () => {
     expect(screen.getByText(/Push notifications are/)).toBeTruthy();             // honest notification status
   });
 });
+
+describe("modes change what the menu lists, and nothing else", () => {
+  it("Simple hides Projects and Runs; Settings switches the mode and brings them back", async () => {
+    setWidth(1280, 900);
+    const kv = new MemoryKV();
+    const rt0 = createRuntime(webPlatform, kv);
+    rt0.settings.update({ mode: "simple" });
+    boot(signedIn, { kv });
+    await screen.findByText("Current runs");
+    const nav = () => within(screen.getByRole("navigation", { name: "Main" }));
+    expect(nav().queryByRole("button", { name: /Projects/ })).toBeNull();
+    expect(nav().queryByRole("button", { name: /Runs/ })).toBeNull();
+    expect(nav().getByRole("button", { name: /Insights/ })).toBeTruthy();
+    fireEvent.click(nav().getByRole("button", { name: /Settings/ }));
+    fireEvent.click(await screen.findByLabelText(/Standard/));
+    await waitFor(() => expect(nav().getByRole("button", { name: /Projects/ })).toBeTruthy());
+    expect(nav().getByRole("button", { name: /Runs/ })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: /Graph/ })).toBeNull();
+  });
+});

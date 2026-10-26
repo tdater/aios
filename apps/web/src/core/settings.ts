@@ -30,11 +30,15 @@ export interface Settings {
   reduceMotion: "system" | "on";
   cacheEnabled: boolean;                 // opt-in: cache non-secret summaries for offline viewing
   draftPolicy: "manual" | "ask_on_reconnect";   // there is deliberately no "auto upload"
+  mode: "simple" | "standard" | "power";  // which sections the menu lists (nothing is removed)
+  density: "comfortable" | "compact";
+  hiddenNav: string[];                   // sections the person switched off inside their mode
 }
 const KEY = "aios.settings.v1";
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system", accent: "default", fontSize: 16, readableLine: true, noteFont: "sans", tabs: true, statusBar: true,
   reduceMotion: "system", cacheEnabled: false, draftPolicy: "ask_on_reconnect",
+  mode: "power", density: "comfortable", hiddenNav: [],   // existing users keep the full menu; new users are offered Simple on Home
 };
 
 /** Merge stored values over defaults, discarding anything invalid (settings come from localStorage: treat as untrusted input). */
@@ -54,6 +58,9 @@ export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Set
     reduceMotion: pick(r.reduceMotion, ["system", "on"] as const, d.reduceMotion),
     cacheEnabled: typeof r.cacheEnabled === "boolean" ? r.cacheEnabled : d.cacheEnabled,
     draftPolicy: pick(r.draftPolicy, ["manual", "ask_on_reconnect"] as const, d.draftPolicy),
+    mode: pick(r.mode, ["simple", "standard", "power"] as const, d.mode),
+    density: pick(r.density, ["comfortable", "compact"] as const, d.density),
+    hiddenNav: Array.isArray(r.hiddenNav) ? [...new Set(r.hiddenNav.filter((x): x is string => typeof x === "string" && /^[a-z]{3,12}$/.test(x) && x !== "home" && x !== "settings"))].slice(0, 12) : d.hiddenNav,
   };
 }
 

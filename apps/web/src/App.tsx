@@ -4,6 +4,7 @@ import { ConnectionMonitor } from "./core/connection";
 import { createRuntime, Runtime } from "./core/runtime";
 import { tokenKey } from "./core/secure";
 import { ServerEntry } from "./core/servers";
+import { tabVisible } from "./core/modes";
 import { THEME_MODES } from "./core/settings";
 import { applyTheme } from "./core/theme";
 import { API_VERSION, Home as HomeData, Meta } from "./core/types";
@@ -242,7 +243,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
           <Notice tone="warn">{conn.state === "unauthenticated" ? "Signed out." : conn.state === "stale" ? "Connection is stale." : "Disconnected."} What you see may be out of date, and approvals and other changes are disabled until you reconnect.</Notice>
         )}
         <nav className="nav" aria-label="Main">
-          {NAV.map((n) => (
+          {NAV.filter((n) => tabVisible(settings, n.tab)).map((n) => (
             <span key={n.tab} style={{ display: "contents" }}>
               {n.tab === "settings" && <span className="spacer" />}
               {n.tab === "knowledge" && <span className="navdivider" aria-hidden="true" />}
