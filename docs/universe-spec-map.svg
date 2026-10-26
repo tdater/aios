@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="t d" font-family="Segoe UI, system-ui, sans-serif">
+  <title id="t">The AIOS universe at a glance</title>
+  <desc id="d">You are the sun at the centre. Around you: the Fleet of AIs, the Star Fields of memories, the Shipyards of projects, Home Base for your computer, and Mission Control where comets arrive when something needs you.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="75%"><stop offset="0" stop-color="#1b1740"/><stop offset="1" stop-color="#07070f"/></radialGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff6d8"/><stop offset=".45" stop-color="#ffc861"/><stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/></radialGradient>
+    <radialGradient id="pl1"><stop offset="0" stop-color="#ffb08c"/><stop offset="1" stop-color="#c4553a"/></radialGradient>
+    <radialGradient id="pl2"><stop offset="0" stop-color="#a9bcff"/><stop offset="1" stop-color="#4a63d8"/></radialGradient>
+    <radialGradient id="pl3"><stop offset="0" stop-color="#8ff0e3"/><stop offset="1" stop-color="#1b8f84"/></radialGradient>
+    <radialGradient id="pl4"><stop offset="0" stop-color="#e0b6ff"/><stop offset="1" stop-color="#8a46d6"/></radialGradient>
+    <linearGradient id="tail" x1="0" x2="1"><stop offset="0" stop-color="#9ee7ff" stop-opacity="0"/><stop offset="1" stop-color="#9ee7ff"/></linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <g fill="#fff" opacity=".7"><circle cx="60" cy="50" r="1.2"/><circle cx="140" cy="120" r="1"/><circle cx="820" cy="70" r="1.4"/><circle cx="760" cy="150" r="1"/><circle cx="90" cy="470" r="1.3"/><circle cx="840" cy="500" r="1.2"/><circle cx="500" cy="30" r="1"/><circle cx="330" cy="520" r="1.1"/><circle cx="640" cy="520" r="1"/><circle cx="30" cy="260" r="1"/><circle cx="870" cy="300" r="1.2"/></g>
+  <!-- rings -->
+  <g fill="none" stroke="#8b7cf6" stroke-opacity=".45"><ellipse cx="450" cy="280" rx="130" ry="58"/><ellipse cx="450" cy="280" rx="215" ry="96" stroke-dasharray="6 5"/><ellipse cx="450" cy="280" rx="300" ry="134" stroke-dasharray="2 6"/></g>
+  <!-- the sun: you -->
+  <circle cx="450" cy="280" r="62" fill="url(#sun)"/><circle cx="450" cy="280" r="26" fill="#ffd27a"/>
+  <text x="450" y="285" text-anchor="middle" font-size="15" font-weight="700" fill="#2a1500">You</text>
+  <text x="450" y="352" text-anchor="middle" font-size="12" fill="#ffd9a0">The Sun: your preferences and privacy</text>
+  <!-- the fleet: planets -->
+  <circle cx="320" cy="262" r="17" fill="url(#pl1)"/><circle cx="582" cy="300" r="15" fill="url(#pl2)"/><circle cx="360" cy="338" r="13" fill="url(#pl3)"/><circle cx="660" cy="236" r="14" fill="url(#pl4)"/>
+  <circle cx="338" cy="248" r="4" fill="#d9d9ee"/><circle cx="305" cy="280" r="3" fill="#d9d9ee"/>
+  <text x="320" y="294" text-anchor="middle" font-size="11" fill="#e8e8f8">Claude</text><text x="582" y="330" text-anchor="middle" font-size="11" fill="#e8e8f8">Gemini</text>
+  <text x="360" y="365" text-anchor="middle" font-size="11" fill="#e8e8f8">Perplexity</text><text x="660" y="266" text-anchor="middle" font-size="11" fill="#e8e8f8">Antigravity</text>
+  <text x="170" y="212" font-size="14" font-weight="700" fill="#c9bfff">The Fleet</text><text x="170" y="229" font-size="11" fill="#a8a8c8">your AIs (planets) and their skills (moons)</text>
+  <!-- star fields: memories -->
+  <g fill="#fff"><circle cx="150" cy="96" r="2.2"/><circle cx="185" cy="76" r="1.6"/><circle cx="215" cy="108" r="2.6"/><circle cx="250" cy="84" r="1.8"/><circle cx="276" cy="120" r="2"/><circle cx="130" cy="130" r="1.5"/><circle cx="232" cy="140" r="1.4"/></g>
+  <g stroke="#b6a9ff" stroke-opacity=".5" fill="none"><path d="M150 96 L185 76 L215 108 L250 84 L276 120"/></g>
+  <ellipse cx="190" cy="108" rx="95" ry="48" fill="#8b7cf6" opacity=".08"/>
+  <text x="80" y="44" font-size="14" font-weight="700" fill="#c9bfff">The Star Fields</text><text x="80" y="60" font-size="11" fill="#a8a8c8">what AIOS remembers (stars), clouds of imported history (nebulae)</text>
+  <!-- shipyards: projects -->
+  <g transform="translate(700 96)"><rect x="-26" y="-9" width="52" height="18" rx="6" fill="#2d2d4d" stroke="#8b7cf6"/><rect x="-6" y="-24" width="12" height="16" rx="3" fill="#3a3a60" stroke="#8b7cf6"/><circle cx="-34" cy="0" r="4" fill="#5fd0a0"/><circle cx="34" cy="0" r="4" fill="#5fd0a0"/></g>
+  <path d="M728 118 Q760 170 668 222" stroke="#5fd0a0" stroke-opacity=".6" fill="none" stroke-dasharray="3 4"/>
+  <text x="640" y="48" font-size="14" font-weight="700" fill="#c9bfff">The Shipyards</text><text x="640" y="64" font-size="11" fill="#a8a8c8">your projects (stations) and the jobs in flight (shuttles)</text>
+  <!-- home base -->
+  <g transform="translate(160 430)"><rect x="-44" y="-14" width="88" height="28" rx="9" fill="#26324a" stroke="#6cb6ff"/><rect x="-14" y="-34" width="28" height="20" rx="5" fill="#2f3e5e" stroke="#6cb6ff"/><circle cx="-26" cy="4" r="4" fill="#e8b84f"/><circle cx="0" cy="4" r="4" fill="#5fd0a0"/><circle cx="26" cy="4" r="4" fill="#6cb6ff"/></g>
+  <g fill="#8d8aa6"><circle cx="262" cy="452" r="5"/><circle cx="292" cy="438" r="3.5"/><circle cx="318" cy="460" r="6"/><circle cx="350" cy="446" r="3"/><circle cx="378" cy="466" r="4.5"/><circle cx="406" cy="452" r="3"/></g>
+  <text x="70" y="498" font-size="14" font-weight="700" fill="#9fd0ff">Home Base</text><text x="70" y="514" font-size="11" fill="#a8a8c8">your computer: health check, the asteroid belt, the Rover (mouse and browser)</text>
+  <!-- mission control: comets -->
+  <path d="M520 470 L760 520" stroke="url(#tail)" stroke-width="5" stroke-linecap="round"/><circle cx="760" cy="520" r="7" fill="#e8f6ff"/>
+  <path d="M600 430 L770 458" stroke="url(#tail)" stroke-width="3" stroke-linecap="round"/><circle cx="770" cy="458" r="5" fill="#ffd27a"/>
+  <path d="M640 396 L800 410" stroke="url(#tail)" stroke-width="2.5" stroke-linecap="round"/><circle cx="800" cy="410" r="4" fill="#ff9aa2"/>
+  <text x="560" y="384" font-size="14" font-weight="700" fill="#c9bfff">Mission Control</text><text x="560" y="400" font-size="11" fill="#a8a8c8">comets = things that need you; the ship's log; the red All Stop button</text>
+</svg>
