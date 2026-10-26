@@ -31,6 +31,15 @@ real-Claude `workspace.e2e.mjs` 13/13; Android emulator e2e 11/11 (API 37). Real
 AIOS wrote the correction, the re-check and a clean review followed). Claude is the only AI AIOS runs; the stand-in in
 `tests/fake_claude.py` is a test double.
 
+Dashboard (branch `phase4-dashboard`, 2026-10-26): Home is now a dashboard of the agents with ONE prompt box for any task. `triage.py` (fixed rules,
+no model) turns a request into a plan (kind, reasons, steps that will happen / need you / are offered / are skipped with a reason),
+`assist.py` starts the real work through the existing guarded paths (read-only Claude turn, or the start-to-finish workflow for a build),
+`GET /dashboard`, `GET/POST /assist*`, `ui/Ask.tsx`, `ui/PlanView.tsx`, `ui/Agents.tsx`, `screens/Task.tsx`, tour text updated. Spec: `docs/dashboard-design.md`.
+Verified: backend 525, web 496 (38 files), `tsc` clean, browser e2e 19/19, Android emulator e2e 11/11 (rebuild the APK with
+`VITE_DEV_LOOPBACK_PORT=8791` first), real Claude `scripts/demo_assist.py` 12/12 (question, letter, web question, project change). Limits: triage is rules, so
+odd wording can be misrouted (the plan is shown first and one click changes it); Gemini and Perplexity steps are copy and paste; non-coding tasks get an
+offered second look, not an automatic independent review.
+
 Not done, by design or blocked:
 - Automatic Antigravity participation: needs a verified supported integration and your explicit billing approval. Manual handoff only.
 - No real reviewer finding has been observed yet (every real review so far was clean); the correction that happened came from the check.

@@ -23,6 +23,7 @@ import { Knowledge } from "./screens/Knowledge";
 import { Projects } from "./screens/Projects";
 import { Runs } from "./screens/Runs";
 import { Settings } from "./screens/Settings";
+import { Task } from "./screens/Task";
 import { Workspace } from "./screens/Workspace";
 import { ShortcutsHelp, StatusBar, TabStrip, Toast } from "./ui/Chrome";
 import { AppContext, AppCtx } from "./ui/Context";
@@ -264,7 +265,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
         <div className="workspace">
           <TabStrip />
           <main className={`content ${flush ? "flush" : ""}`} id="main">
-            {route.tab === "home" && <Home />}
+            {route.tab === "home" && (route.id ? <Task id={route.id} /> : <Home />)}
             {route.tab === "work" && <Workspace id={route.id} />}
             {route.tab === "projects" && <Projects id={route.id} />}
             {route.tab === "runs" && <Runs id={route.id} />}

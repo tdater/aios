@@ -93,6 +93,17 @@ passing verification of exactly this revision and no high-severity finding in a 
 - `POST /system-scan` (needs the `system_scan` ability): reads memory, disk, temp-folder size and start-up count; returns
   `suggestions` computed by fixed rules and `changed_anything: false`.
 - `POST /conversations/{id}/apply`: asks to merge the latest change into the owner's real project. 409 `nothing_to_apply`, `not_ready` (only a READY change qualifies), `already_applied`, `turn_in_progress`. It starts a `claude.apply` run that re-checks readiness, that the conversation branch still points at the reviewed revision, and that the project is on a branch with nothing uncommitted, then asks for an approval bound to the exact revision, branch and project HEAD (`type: apply_revision`, destructive). The merge is `git merge --no-ff` with the owner's hooks disabled; a conflict is aborted and reported. `changes.applied` carries the commit, the previous HEAD (for undo) and `tree_matches_reviewed`. Pending approvals in the conversation status carry a `type`.
+- `POST /assist/plan {prompt, project_id?, kind?}` (changes nothing) returns what AIOS would do with a request: `kind` (`answer`, `write`,
+  `research`, `plan`, `project_question`, `build`), `confidence`, `reasons`, and `steps`, each `{id, label, agent, state, why}` with `state`
+  `will` (AIOS does it), `you` (needs you), `offer` (optional, one click) or `skip` (not needed, with the reason). The choice comes from fixed,
+  explainable rules, not a model, and `kind` lets the owner override the guess. A `blocker` (`claude_not_ready`, `needs_project`,
+  `no_verify_command`) says why it cannot start. `POST /assist` (201, idempotent) runs triage and starts the real work through the same guarded
+  code as everything else: a read-only Claude turn for everything except `build`, and the start-to-finish workflow for `build`; a blocker answers
+  409 with the plan in `details`. `GET /assist/{id}` returns the task with each step's live `status`
+  (`pending|running|waiting|done|failed|skipped|offer`), the `state` (`working|waiting_you|needs_you|done|failed|cancelled`), `needs_you` and the
+  `answer`; `GET /assist` lists recent tasks. Offered steps are the owner's to do (copy and paste) and are never reported as done.
+  `GET /dashboard` returns the four agents (`claude`, `gemini`, `perplexity`, `antigravity`) with an honest `status` and what each is doing, the
+  counts and first few items that need the owner, and the recent tasks.
 - `GET /companion/{provider}?conversation_id=` (`gemini` or `perplexity`; 404 `unknown_companion` otherwise, and Antigravity has none because AIOS never starts it)
   returns the official `url`, the sharing `level`, a `notice`, and suggested prompts (`id`, `title`, `why`, `prompt`, `chars`,
   `includes_project_text`, `includes_memories`): `second_opinion` and `explain` (from the conversation's change and Claude's last answer),
