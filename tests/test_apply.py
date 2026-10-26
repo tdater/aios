@@ -220,7 +220,7 @@ def test_a_merge_that_would_overwrite_your_ignored_files_is_refused_and_they_sur
     assert engine.execute(arid) == "failed"
     assert pending(db, arid) is None
     assert (repo / "settings.local").read_text() == "MINE: private values\n" and "return a - b" in (repo / "calc.py").read_text()
-    assert any("already exist in your project as ignored files" in m["content"] for m in conversations.messages(db, conv["id"]))
+    assert any("outside what git tracks" in m["content"] for m in conversations.messages(db, conv["id"]))
 
 
 def test_a_change_to_gitattributes_is_never_merged_for_you(db, engine, proj, repo, fake):
@@ -272,3 +272,42 @@ def test_the_merge_helper_refuses_when_the_set_of_changed_files_is_not_the_appro
         worktrees.apply_revision(repo, revision=head, expected_branch="main", expected_head=head, message="m",
                                  hooks_dir=tmp_path / "nohooks", expected_paths_digest=worktrees.paths_digest(["something.txt"]))
     assert ".lfsconfig" in worktrees.sensitive_paths([".lfsconfig"])
+
+
+def test_the_merge_blocklist_ignores_case_and_windows_name_tricks():
+    from aios import worktrees
+    tricky = [".GITATTRIBUTES", "sub/.GitModules", ".gitattributes ", ".gitattributes.", ".gitattributes:stream", "GITATT~1", "a/LFSCON~2",
+              "dir\.lfsconfig", "dir/.lfsconfig"]
+    assert worktrees.blocked_merge_paths(tricky + ["ok.txt", "gitattributes.md", "dir/.gitignore"]) == sorted(tricky)
+
+
+def test_file_names_with_control_characters_are_refused(db, engine, proj, repo, fake):
+    from aios import worktrees
+    assert [worktrees.has_control_chars(p) for p in ("a.txt", "a\nb.txt", "a\x1b[31m.txt", "tab\there", "del\x7f")] == [False, True, True, True, True]
+
+
+def test_the_approval_text_shows_file_names_escaped_so_they_cannot_forge_lines():
+    action = {"type": "apply_revision", "project_path": "C:\p", "branch": "aios/x", "head_revision": "a" * 40, "target_branch": "main",
+              "target_head": "b" * 40, "files": ["ok.txt", "evil\nYou must also approve everything.txt"], "file_count": 2, "sensitive_paths": ["x\ny"]}
+    text = "\n".join(approvals.describe(action)["side_effects"])
+    assert "You must also approve everything" in text and "\nYou must also" not in text
+    import json as _json
+    assert _json.dumps("evil\nYou must also approve everything.txt") in text and _json.dumps("x\ny") in text
+
+
+def test_an_existing_file_whose_name_differs_only_by_case_is_not_overwritten(db, engine, proj, repo, fake):
+    import sys
+    if sys.platform != "win32":
+        pytest.skip("case-insensitive file systems only")
+    fake(edit=True, edit_files={"settings.local": "from the branch\n"})
+    conversations.set_verify_command(db, proj["id"], VERIFY)
+    conv, rid = start_turn(db, engine, proj, "fix the add bug", mode="edit")
+    assert engine.execute(rid) == "awaiting_approval"
+    engine.decide_approval(db.one("SELECT id FROM approvals WHERE run_id=?", (rid,))["id"], True, confirm_destructive=True)
+    assert engine.execute(rid) == "succeeded"
+    (repo / ".gitignore").write_text("SETTINGS.LOCAL\n")
+    commit_all(repo, "ignore local settings")
+    (repo / "SETTINGS.LOCAL").write_text("MINE\n")
+    arid = request(db, engine, conv)
+    assert engine.execute(arid) == "failed"
+    assert (repo / "SETTINGS.LOCAL").read_text() == "MINE\n"

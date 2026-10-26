@@ -14,6 +14,7 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -219,6 +220,21 @@ def revision_paths(repo: Path, revision: str) -> list[str]:
     return sorted(p for p in out.split("\0") if p)
 
 
+def has_control_chars(path: str) -> bool:
+    return any(ord(c) < 32 or ord(c) == 127 for c in path)
+
+
+def blocked_merge_paths(paths: list[str]) -> list[str]:
+    """Paths whose file name is, or on Windows could resolve to, a file that steers git filters or submodules.
+    Case, trailing dots and spaces, alternate data streams and 8.3 short names are all treated as the same file."""
+    out = []
+    for p in paths:
+        name = p.replace("\\", "/").rsplit("/", 1)[-1].rstrip(" .").lower().split(":")[0].rstrip(" .")
+        if name in MERGE_BLOCKED or re.match(r"^(gitatt|gitmod|lfscon)~\d", name):
+            out.append(p)
+    return sorted(out)
+
+
 def paths_digest(paths: list[str]) -> str:
     return hashlib.sha256("\0".join(sorted(paths)).encode("utf-8")).hexdigest()
 
@@ -228,18 +244,19 @@ def merge_preflight(repo: Path, revision: str, *, expected_digest: str | None = 
     paths = revision_paths(repo, revision)
     if expected_digest is not None and paths_digest(paths) != expected_digest:
         raise GitError("the set of files this merge would change is not the set you approved; ask again")
-    blocked = sorted(p for p in paths if p.rsplit("/", 1)[-1] in MERGE_BLOCKED)
+    odd = sorted(p for p in paths if has_control_chars(p))
+    if odd:
+        raise GitError("this change contains file names with control characters, which AIOS cannot show you faithfully, "
+                       "so it will not merge it. Review the branch and merge it yourself with git")
+    blocked = blocked_merge_paths(paths)
     if blocked:
         raise GitError("this change alters " + ", ".join(blocked) + ", which control how git filters and submodules behave, "
                        "so AIOS will not merge it for you. Review it and merge the branch yourself with git")
-    ignored = []
-    for line in _git(repo, "status", "--porcelain", "--ignored", "-z").split("\0"):
-        if line.startswith("!! "):
-            ignored.append(line[3:])
-    hit = sorted({p for p in paths for ig in ignored if p == ig or (ig.endswith("/") and p.startswith(ig))})
+    tracked = {t.casefold() for t in _git(repo, "ls-files", "-z").split("\0") if t}
+    hit = sorted(p for p in paths if os.path.lexists(Path(repo) / p) and p.casefold() not in tracked)
     if hit:
-        raise GitError("these files already exist in your project as ignored files and the merge would overwrite them: "
-                       + ", ".join(hit[:10]) + ". Move them away, then ask again")
+        raise GitError("these files already exist in your project, outside what git tracks (for example ignored files), and the merge "
+                       "would overwrite them: " + ", ".join(hit[:10]) + ". Move them away, then ask again")
     return paths
 
 

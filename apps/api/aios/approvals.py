@@ -4,6 +4,7 @@ race-safe: they happen inside one IMMEDIATE transaction and re-check status, exp
 and record version."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -50,11 +51,11 @@ def describe(action: dict) -> dict:
         keep = ("project_path", "branch", "head_revision", "target_branch", "target_head", "patch_sha256", "file_count", "paths_sha256")
         effects = [f"Adds a new commit to your real project folder, on its branch '{action.get('target_branch')}'",
                    f"It merges revision {str(action.get('head_revision', ''))[:12]} (branch {action.get('branch')}), "
-                   f"changing {action.get('file_count', len(files))} file(s): {', '.join(files[:8])}"
+                   f"changing {action.get('file_count', len(files))} file(s): {', '.join(json.dumps(f) for f in files[:8])}"
                    f"{' (first 8 shown)' if int(action.get('file_count', len(files))) > 8 else ''}",
                    "Your project must be exactly as it is now (same branch and latest commit, nothing uncommitted), or nothing is changed"]
         if sens:
-            effects.append("These files run code or change tool behaviour, so read them first: " + ", ".join(sens))
+            effects.append("These files run code or change tool behaviour, so read them first: " + ", ".join(json.dumps(f) for f in sens))
         effects.append(f"To undo it, run: git reset --hard {str(action.get('target_head', ''))[:12]} (only before you commit more on top)")
         return {"type": t, "target": str(action.get("project_path", "")), "side_effects": effects,
                 "content_preview": redact(canonical_json({k: action.get(k) for k in keep}))[:2000], "destructive": True}
