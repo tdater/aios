@@ -615,3 +615,36 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .mydock { background: transparent; }
 .cockpit .myday-card button { min-height: 0; padding: 4px 10px; }
 .cockpit .myday-card input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; flex: none; }
+
+/* Mission-control glass: translucent panels, a cool teal edge, HUD corners and a glow on anything that needs you. */
+.cockpit { --glass: rgba(6, 14, 30, .62); --edge: rgba(94, 226, 214, .28); --teal: #5ee2d6; }
+.cockpit::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(0, 8, 20, .55) 100%); }
+.cockpit::after { content: ""; position: absolute; inset: 6px; z-index: 1; pointer-events: none; border: 1px solid rgba(94, 226, 214, .12); border-radius: 14px;
+  background: linear-gradient(var(--teal), var(--teal)) top left / 22px 1px no-repeat, linear-gradient(var(--teal), var(--teal)) top left / 1px 22px no-repeat,
+    linear-gradient(var(--teal), var(--teal)) top right / 22px 1px no-repeat, linear-gradient(var(--teal), var(--teal)) top right / 1px 22px no-repeat,
+    linear-gradient(var(--teal), var(--teal)) bottom left / 22px 1px no-repeat, linear-gradient(var(--teal), var(--teal)) bottom left / 1px 22px no-repeat,
+    linear-gradient(var(--teal), var(--teal)) bottom right / 22px 1px no-repeat, linear-gradient(var(--teal), var(--teal)) bottom right / 1px 22px no-repeat; opacity: .55; }
+.cockpit .dock button, .cockpit .btn-quiet, .cockpit .u-label, .cockpit .crumbs, .cockpit .ask-dock { background: var(--glass); border-color: var(--edge); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.cockpit .object-card, .cockpit .gallery-pop, .cockpit .goto { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-color: var(--edge); box-shadow: 0 0 24px rgba(94, 226, 214, .08); }
+.cockpit .dock button.on, .cockpit .btn-quiet[aria-pressed="true"] { border-color: var(--teal); box-shadow: 0 0 12px rgba(94, 226, 214, .25); }
+.cockpit .u-label.needs-you { border-color: #ffc857; animation: needs-pulse 2s ease-out infinite; }
+@keyframes needs-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 200, 87, .55); } 70%, 100% { box-shadow: 0 0 0 12px rgba(255, 200, 87, 0); } }
+.cockpit .hud { position: absolute; right: 8px; top: 52px; width: min(300px, calc(100% - 230px)); display: grid; gap: 8px; z-index: 5; max-height: calc(100% - 215px); overflow: auto; }
+.cockpit .hud-toggle { justify-self: end; }
+.cockpit .hud-show { position: absolute; right: 8px; top: 52px; z-index: 5; }
+.cockpit .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cockpit .tile { text-align: left; background: var(--glass); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; color: inherit; cursor: pointer; backdrop-filter: blur(10px); }
+.cockpit .tile-label { display: block; font-size: 11px; opacity: .75; }
+.cockpit .tile-value { display: block; font-size: 26px; font-weight: 600; line-height: 1.1; }
+.cockpit .tile.warn { border-color: #ffc857; } .cockpit .tile.bad { border-color: #ff5d6c; } .cockpit .tile.ok .tile-value { color: #3ee0a0; }
+.cockpit .glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; backdrop-filter: blur(10px); }
+.cockpit .glass h2 { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
+.cockpit .systems, .cockpit .shiplog { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.cockpit .systems button { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; color: inherit; text-align: left; padding: 3px 0; cursor: pointer; }
+.cockpit .systems .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.cockpit .systems .muted { margin-left: auto; }
+@media (max-width: 900px) { .cockpit .hud { display: none; } .cockpit .hud-show { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cockpit .u-label.needs-you { animation: none; } }
+.cockpit .ask-dock { border-radius: 14px; box-shadow: 0 0 22px rgba(94, 226, 214, .10); }
+.cockpit .ask-dock > summary::marker { content: ""; }
+.cockpit .ask-dock > summary::before { content: "\2726"; color: var(--teal); margin-right: 10px; }

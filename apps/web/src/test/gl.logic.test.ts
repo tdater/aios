@@ -185,3 +185,21 @@ describe("world signature", () => {
     expect(worldSignature({ ...world, stars: world.stars.slice(1) })).not.toBe(base);
   });
 });
+
+import { rendererName } from "../gl/capabilities";
+describe("software graphics are not used for the 3D universe", () => {
+  const canvas = (renderer: string | null) => () => ({ getContext: () => (renderer === null ? null : ({ getExtension: () => ({ UNMASKED_RENDERER_WEBGL: 1 }), getParameter: () => renderer })) });
+  it("uses a real graphics chip and refuses SwiftShader and friends", () => {
+    expect(unsupportedReason(canvas("ANGLE (Intel, Intel(R) Arc(TM) Graphics, D3D11)"))).toBeNull();
+    expect(unsupportedReason(canvas("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)"))).toMatch(/software/);
+    expect(unsupportedReason(canvas("llvmpipe (LLVM 15.0.7, 256 bits)"))).toMatch(/software/);
+    expect(unsupportedReason(canvas(null))).toMatch(/WebGL2/);
+  });
+  it("can be forced on, and reads the renderer name safely", () => {
+    localStorage.setItem("aios.gl.force", "1");
+    expect(unsupportedReason(canvas("SwiftShader"))).toBeNull();
+    localStorage.clear();
+    expect(rendererName(null)).toBe("");
+    expect(rendererName({ getExtension: () => null })).toBe("");
+  });
+});

@@ -10,6 +10,8 @@ import { useApp } from "./Context";
 import { go, useLoad } from "./hooks";
 import { Notice } from "./kit";
 import { FirstLaunch, firstLaunchPending } from "./FirstLaunch";
+import { Hud } from "./Hud";
+import { needsYou } from "../core/hud";
 import { MyDay } from "./MyDay";
 import { ObjectCard } from "./ObjectCard";
 import { WidgetGallery } from "./WidgetGallery";
@@ -155,7 +157,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
         <ObjectField world={shown} cam={cam} view={view} selected={selected} hovered={hovered} frames={arrivals.frames} simT={simT} onPick={open} onHover={setHovered} />
       ))}
       {!listView && declutter(shown, cam, view, simT, selected, hovered).map(({ b, x, y, r }) => (
-        <button key={b.id} type="button" className={`u-label ${selected === b.id ? "on" : ""}`} style={{ left: x, top: y + Math.max(8, r) + 4, opacity: arrivals.frames.get(b.id)?.alpha ?? 1 }}
+        <button key={b.id} type="button" className={`u-label ${selected === b.id ? "on" : ""} ${needsYou(b) ? "needs-you" : ""}`} style={{ left: x, top: y + Math.max(8, r) + 4, opacity: arrivals.frames.get(b.id)?.alpha ?? 1 }}
           onClick={() => open(b.id)} onPointerEnter={() => setHovered(b.id)} onPointerLeave={() => setHovered(null)} aria-label={`${b.name}: ${b.state.text}`}>{b.name}</button>))}
       {listView && <ListView world={world} onPick={(id) => { setListView(false); open(id); }} />}
 
@@ -181,6 +183,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
           <WidgetGallery onClose={() => setGallery(false)} onAdded={() => { setDayKey((n) => n + 1); setDay(true); void objs.reload(); if (firstLaunchPending()) setShowcase(true); }} />
         </div>)}
       {showcase && <FirstLaunch onDone={() => setShowcase(false)} />}
+      {!selected && !day && !gallery && !listView && list && <Hud objects={list} memories={uni.data?.you.approved ?? null} onOpen={open} />}
       {selected && <ObjectCard id={selected} onClose={() => open(null)} reload={() => { void objs.reload(); }} onReplay={() => arrivals.replay(selected)} />}
       <ArrivalCaption caption={arrivals.caption} onSkip={arrivals.skip} />
       {goOpen && <GoTo world={world} onClose={() => setGoOpen(false)} onPick={(d) => { setGoOpen(false); if (d.kind === "region") { open(null); travelTo(d.id as Region); } else open(d.id); }} />}

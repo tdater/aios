@@ -121,7 +121,7 @@ try {
     page.on("response", async (r) => { if (r.url().endsWith("/auth/pair") && r.request().method() === "POST") { try { issuedToken = (await r.json()).token; } catch {} } });
     await page.getByLabel("Pairing code").fill(pairCode());
     await page.getByRole("button", { name: "Pair" }).click();
-    await page.getByRole("heading", { name: "Home" }).waitFor();
+    await page.locator(".cockpit").waitFor();
     await page.locator(".pill.connected").waitFor();
     const tour = page.getByRole("dialog");                                  // the first-run tour opens after signing in; skip it
     if (await tour.isVisible().catch(() => false)) { await tour.getByRole("button", { name: "Skip the tour" }).click(); await tour.waitFor({ state: "detached" }); }
@@ -137,6 +137,7 @@ try {
   });
 
   await step("quick capture online creates a real server task (verified server-side)", async () => {
+    await page.evaluate(() => { location.hash = "#/home/details"; });
     await page.locator('form[aria-label="Quick capture"] textarea').fill("buy oat milk (from the emulator)");
     await page.getByRole("button", { name: "Capture" }).click();
     await page.getByText("Captured on the server.").waitFor();
@@ -194,7 +195,7 @@ try {
 
   await step("relaunch: still signed in via the Keystore-backed token (no re-pairing)", async () => {
     await launch();
-    await page.getByRole("heading", { name: "Home" }).waitFor();
+    await page.locator(".cockpit").waitFor();
     await page.locator(".pill.connected").waitFor();
   });
 
