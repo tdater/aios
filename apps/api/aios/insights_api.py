@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from . import constellation, overview
+from . import briefing, constellation, overview
 from .config import Settings
 from .db import Database
 from .errors import ApiError
@@ -27,5 +27,11 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     @r.get("/skyline")
     def get_skyline():
         return redact_obj(overview.skyline(db))
+
+    @r.get("/briefing/{provider}")
+    def get_briefing(provider: str, project_id: str | None = None):
+        if provider not in briefing.CEILING:
+            raise ApiError(404, "unknown_provider", f"provider must be one of {briefing.providers()}")
+        return redact_obj(briefing.build(db, settings, provider=provider, project_id=project_id))
 
     return r

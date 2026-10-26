@@ -142,3 +142,15 @@ def test_errors_and_auth(client, native, repo, fake, app):
                              ("post", f"{V}/conversations"), ("put", f"{V}/projects/{p['id']}/verify-command")):
             assert getattr(anon, method)(path).status_code == 401, (method, path)
     assert native.get(f"{V}/conversations/{cid}").status_code == 200                # bearer tokens work too
+
+
+def test_a_remember_request_and_a_passed_check_become_memory_candidates(client, repo, fake):
+    p = client.post(f"{V}/projects", json={"name": "Calc", "path": str(repo)}).json()
+    cid = client.post(f"{V}/conversations", json={"project_id": p["id"], "title": "Cap"}).json()["id"]
+    r = client.post(f"{V}/conversations/{cid}/messages", headers={"Idempotency-Key": "cap-key-0001"},
+                    json={"content": "Remember that we always run tests with unittest here.", "mode": "read"})
+    assert r.status_code in (200, 201, 202)
+    wait_idle(client, cid)
+    cands = client.get(f"{V}/memories", params={"status": "candidate"}).json()
+    items = cands["items"] if isinstance(cands, dict) else cands
+    assert any("unittest" in i["title"] for i in items) and all(i["status"] == "candidate" for i in items)

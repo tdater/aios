@@ -186,6 +186,11 @@ def post_user_message(db: Database, engine: "Engine", conversation_id: str, cont
             raise ApiError(409, "repo_not_ready", st["reason"])
     msg = add_message(db, conversation_id, role="user", author_kind="user", author="you",
                       content=content, meta={"mode": mode})
+    try:                                   # proposing memories must never be able to break a turn
+        from . import memory_capture
+        memory_capture.from_user_message(db, engine.settings, conv, msg)
+    except Exception:  # noqa: BLE001
+        pass
     task = services.create_task(
         db, title=content.splitlines()[0][:80], kind="claude.turn", project_id=conv["project_id"],
         spec={"conversation_id": conversation_id, "message_id": msg["id"], "mode": mode},

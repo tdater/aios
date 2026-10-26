@@ -271,6 +271,12 @@ def _record_verification(ctx: RunContext, conv: dict, r: dict, patch: dict) -> d
         meta={"passed": r["passed"], "exit_code": r["exit_code"], "duration_s": r["duration_s"],
               "argv": r["argv"], "head_revision": patch["head"], "artifact_id": art,
               "timed_out": r["timed_out"], "output_truncated": r.get("output_truncated", False)})
+    if r["passed"]:
+        try:                               # a passed check becomes a candidate fact; never able to break the run
+            from .. import memory_capture
+            memory_capture.from_passed_verification(ctx.db, ctx.settings, conv, r["argv"], patch["head"])
+        except Exception:  # noqa: BLE001
+            pass
     return {"passed": r["passed"], "artifact_id": art}
 
 
