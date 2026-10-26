@@ -1,8 +1,38 @@
-# Session handoff (updated 2026-10-24)
+# Session handoff (updated 2026-10-26)
 
-Read this first, then `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
+Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-10-26, `main`; read this first)
+## Checkpoint (2026-10-26, branch `phase5-universe`; read this first)
+
+State: the universe is the app. Home is a full-screen universe (photoreal procedural WebGL, with a flat SVG fallback) with a travel dock, Go to, radar, breadcrumb,
+list view, deep links (`#/home/o/<object id>`), a plain-words card with Basics/More/Expert settings for every object, arrival animations, My Day (19 ready-made daily
+widgets), Home Base findings and the Rover (Look and Guide only). The older screens (Projects, Runs, Inbox, My AIs, Insights, Knowledge, Settings, Workspace) are unchanged and
+reached from the dock, the left menu and card links; the old Home content is at `#/home/details`. Spec: `docs/universe-spec.md` (merged in PR #7).
+
+Built (see `docs/universe.md`, `docs/api-v1.md`): `core/scene.ts` (one scene description for every renderer), `core/arrival.ts`, `core/travel.ts`, `core/hud.ts`, `core/objects.ts`
+(`SETTING_HOME` and `LOCAL_DEFS`: every device setting has a home on an object, tested), `gl/**` (renderer), `ui/Cockpit.tsx`, `ObjectCard.tsx`, `ObjectField.tsx`, `Hud.tsx`, `MyDay.tsx`,
+`WidgetGallery.tsx`, `FirstLaunch.tsx`, `RoverPanel.tsx`, `CheckUp.tsx`; backend `objects.py`, `objects_api.py`, `widgets.py` (+ migration 0010), `routines.py`, `homebase.py`,
+`rover.py` (+ migration 0011). Design references the owner supplied (mission-control glass, HUD corners, status tiles) are applied in `styles.css` and `Hud.tsx`.
+
+Verified results (2026-10-26): backend `pytest` 620 passed; web `vitest` 589 passed (49 files), `tsc` clean, build OK; real-browser `mobile.e2e.mjs` 19/19; renderer `gl.e2e.mjs`
+8/8 (labels within 0.43 px of the projection, frame times in the agent's notes: about 16.7 ms at vsync on a real Intel Arc GPU); Android emulator e2e 11/11 (rebuild the APK with
+`VITE_DEV_LOOPBACK_PORT=8791` first). Real Claude: `scripts/demo_routine.py` PASS (Morning briefing widget run through the single prompt); the earlier `demo_assist.py` /
+`demo_workflow.py` / `demo_workspace.py` results below were not re-run for this checkpoint.
+
+Honest limits: the 3D view needs WebGL 2 on a real graphics chip. Software graphics (SwiftShader, llvmpipe: the Android emulator) now get the flat universe, because 3D froze the
+screen there; `localStorage["aios.gl.force"]="1"` forces 3D on. The Rover has never been tried against a real window capture in an automated test (that test skips without a
+desktop session) and Claude is tested only through `tests/fake_claude.py`; it takes no input actions. Levels 3 (Browser) and 4 (Screen) are not built and need spikes S2/S3 from the
+spec. Scheduled routines are tested with a fake clock and fake Claude; only a manual routine run was shown on real Claude. `test_assist` has one timing-dependent test
+(`test_a_build_keeps_every_guard_and_ends_with_a_plain_result`) that sometimes misses a short-lived state. Arrival animations are unit-tested and wired to the renderer, but no
+automated check watches one play in a real browser. The pictures in `docs/assets/` come from `apps/web/e2e/readme-shots.mjs` (invented sample data).
+
+Next ideas: spikes S2/S3 for browser and screen control; an approval step for the Home Base "open Windows page" action; a Windows installer; weekly check-up results shown as a belt
+history; a real clock-driven e2e for scheduled routines.
+
+---
+
+## Earlier checkpoint (2026-10-26, `main` before the universe work)
+
 
 State: everything from PRs #2, #3 and #4 is on `main` (PR #4: 3D universe, everyday use, companion windows, start-to-finish
 workflow; CI green). See `docs/product-direction.md` for what is proven and what is not.

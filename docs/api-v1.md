@@ -121,6 +121,19 @@ passing verification of exactly this revision and no high-severity finding in a 
 - Widgets are data, not code: `POST /widgets/preview`, `GET/POST /widgets`, `PUT /widgets/{id}`, `DELETE /widgets/{id}`. Kinds
   `counter`, `checklist`, `note`; unknown settings are rejected; creating or editing needs the `widgets` ability, removing never does.
 
+## Universe objects, the widget catalog and routines (additive)
+- `GET /universe/objects` lists every thing in the universe: `id`, `type` (`sun|planet|moon|nebula|wormhole|beacon|station|shuttle|probe|comet|log|allstop|home|module|rock`), `region`,
+  plain `name` and `job`, and `state {tone, text}`. `GET /universe/objects/{id}/card` returns the plain explanation, `panels {basics, more, expert}` (fields of kind
+  `toggle|choice|text|number|info|action`) and `links`. `PUT /universe/objects/{id}/config {values, confirm}` changes a setting through the same guarded function the older screen
+  uses (422 `unknown_setting` for anything not on the card; abilities need `confirm`). `POST /universe/objects/{id}/actions/{action}` runs a card action (`show_briefing`,
+  `run_health_check`, `pair_device`, `backup_now`, `stop`). `GET /meta` `capabilities.universe_objects` tells a client the server is new enough.
+- `GET /widgets/catalog` returns the ready-made widgets (`groups`, and per entry `id`, `group`, `kind`, `name`, `space`, `blurb`, `you_can_change`, `who` = `Everyone|Technical`,
+  `needs_claude`, `config`). `POST /widgets/from-catalog {template, title?, config?}` adds one (needs the `widgets` ability: 403 `ability_off`; 422 `no_such_template`; at most 24 widgets).
+  Kinds are `counter`, `checklist`, `note`, `habit {days, per_week}`, `timer {focus, rest, sessions}` and `routine {prompt, when, at, day, last_run, last_task}`; every config is
+  validated and has no code, links or secrets. `PUT /widgets/{id} {config, title?}` edits one.
+- `POST /widgets/{id}/run` runs a routine's saved request through the single prompt now (201, returns the task; 423 while All Stop is on; 422 `not_a_routine`). The `routines` ability
+  (off by default) lets AIOS start routines whose `when` is `daily`, `weekdays` or `weekly` by itself, at most once a day each, never while paused and only when Claude is signed in.
+
 ## Home Base and the Rover (additive)
 - `GET /home/findings` (needs the `system_scan` ability) returns the findings from the last health check: `id` (`memory|disk|temp|startup`), `title`,
   `explain`, `how_to` (numbered Windows steps), `safe_to_automate`, `action_class` (`read_only|reversible|never`) and `open_uri` (an `ms-settings:`
