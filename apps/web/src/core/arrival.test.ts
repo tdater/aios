@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_ANIMATED, STAGGER_MS, arrivalAt, arrivalPos, captionFor, newObjects, originFor, planArrivals, styleFor } from "./arrival";
+import { MAX_ANIMATED, STAGGER_MS, applyArrivals, arrivalAt, arrivalPos, captionFor, newObjects, originFor, planArrivals, styleFor } from "./arrival";
 import { layoutWorld, ObjectType, UObject } from "./scene";
 import { sampleObjects, sampleUniverse } from "./scene.fixtures";
 
@@ -64,5 +64,21 @@ describe("arrival frames", () => {
       arrivalPos(from, b.pos, arrivalAt(a, a.duration)).forEach((v, i) => expect(v).toBeCloseTo(b.pos[i], 6));
     }
     if (probe) expect(originFor(probe, world)).toEqual(world.anchors.yards);
+  });
+});
+
+describe("applyArrivals", () => {
+  it("moves only the arriving thing, and hands back the same world when nothing arrives", () => {
+    const world = layoutWorld(sampleUniverse(), sampleObjects());
+    expect(applyArrivals(world, [], 0, 0)).toBe(world);
+    const b = world.bodies.find((x) => x.type === "probe")!;
+    const [a] = planArrivals([b], 0);
+    const mid = applyArrivals(world, [a], a.duration * 0.3, 5);
+    const moved = mid.bodies.find((x) => x.id === b.id)!;
+    expect(moved.r).toBeLessThan(b.r);
+    expect(moved.orbit).toBeUndefined();
+    expect(mid.bodies.filter((x) => x.id !== b.id)).toEqual(world.bodies.filter((x) => x.id !== b.id));
+    const end = applyArrivals(world, [a], a.duration * 2, 5);
+    expect(end.bodies.find((x) => x.id === b.id)).toEqual(b);
   });
 });

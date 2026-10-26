@@ -33,7 +33,7 @@ describe("boot, auth and honesty", () => {
     expect(srv.count("GET", "/home")).toBe(0);
     fireEvent.change(screen.getByLabelText("Pairing code"), { target: { value: "abcd-efgh" } });
     fireEvent.click(screen.getByRole("button", { name: "Pair" }));
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     const pair = srv.calls.find((c) => c.path === "/auth/pair")!;
     expect(pair.body).toMatchObject({ code: "ABCD-EFGH", kind: "browser" });
     expect(JSON.stringify(localStorage)).not.toMatch(/token/i);                  // browser build stores no credential
@@ -49,7 +49,7 @@ describe("boot, auth and honesty", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(srv.count("POST", "/auth/pair")).toBe(0);                              // nothing is sent until the person presses Pair
     fireEvent.click(screen.getByRole("button", { name: "Pair" }));
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     expect(srv.count("POST", "/auth/pair")).toBe(1);
     expect(srv.calls.find((c) => c.path === "/auth/pair")!.body).toMatchObject({ code: "ABCD-EFGH", kind: "browser" });
     expect(location.hash.startsWith("#pair=")).toBe(false);
@@ -75,7 +75,7 @@ describe("boot, auth and honesty", () => {
   it("server unavailable: honest screen, no data, no fake status", async () => {
     boot({ "GET /meta": () => Promise.reject(new TypeError("net")) });
     await screen.findByText("Server unreachable");
-    expect(screen.queryByText(/Current runs/)).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull();
     expect(screen.getByText(/Nothing is shown as current/)).toBeTruthy();
   });
 
@@ -90,7 +90,7 @@ describe("boot, auth and honesty", () => {
     await screen.findByText("This address is a different server");
     expect(document.body.textContent).not.toMatch(/OLD SECRET RUN/);
     fireEvent.click(screen.getByRole("button", { name: /expected/ }));
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     expect(kv.keys("aios.cache").filter((k) => k.includes("srv_OLD"))).toEqual([]);   // old partition wiped
   });
 
@@ -108,8 +108,9 @@ describe("boot, auth and honesty", () => {
   it("session expiry mid-use drops back to sign-in", async () => {
     let expired = false;
     boot({ ...signedIn, "GET /home": () => (expired ? err(401, "unauthenticated") : { body: HOME }),
-      "GET /projects": () => ({ body: { items: [], next_cursor: null, limit: 20 } }) });
-    await screen.findByText("Current runs");
+      "GET /projects": () => ({ body: { items: [], next_cursor: null, limit: 20 } }),
+      "GET /universe": () => (expired ? err(401, "unauthenticated") : err(404, "not_found")) });
+    await screen.findByRole("navigation", { name: "Main" });
     expired = true;                                           // the server revoked/expired this session
     fireEvent.click(screen.getByRole("button", { name: /Projects/ }));
     await screen.findByText("Register a workspace");
@@ -122,7 +123,7 @@ describe("responsive layout", () => {
   it.each([[390, "phone"], [700, "tablet"], [1280, "desktop"]])("width %i => %s layout with all six sections reachable", async (w, mode) => {
     setWidth(w, 900);
     boot(signedIn);
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     expect(document.querySelector(`[data-layout="${mode}"]`)).toBeTruthy();
     const nav = within(screen.getByRole("navigation", { name: "Main" }));
     for (const t of ["Home", "Projects", "Runs", "Inbox", "Knowledge", "Settings"]) expect(nav.getByRole("button", { name: new RegExp(t) })).toBeTruthy();
@@ -131,7 +132,7 @@ describe("responsive layout", () => {
   it("landscape phones are detected and wide screens get two panes for list/detail", async () => {
     setWidth(850, 400);
     boot({ ...signedIn, "GET /runs": () => ({ body: { items: [], next_cursor: null, limit: 20 } }) });
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     expect(document.querySelector(".shell.landscape")).toBeTruthy();
     resetRoute("#/runs");
     await screen.findByText("Select a run to see its timeline.");
@@ -157,7 +158,7 @@ describe("responsive layout", () => {
 
   it("theme preference applies", async () => {
     const { rt } = boot(signedIn);
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     act(() => rt.settings.update({ theme: "light" }));
     expect(document.documentElement.dataset.theme).toBe("light");
     act(() => rt.settings.update({ theme: "system" }));
@@ -383,7 +384,7 @@ describe("modes change what the menu lists, and nothing else", () => {
     const rt0 = createRuntime(webPlatform, kv);
     rt0.settings.update({ mode: "simple" });
     boot(signedIn, { kv });
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     const nav = () => within(screen.getByRole("navigation", { name: "Main" }));
     expect(nav().queryByRole("button", { name: /Projects/ })).toBeNull();
     expect(nav().queryByRole("button", { name: /Runs/ })).toBeNull();
@@ -425,7 +426,7 @@ describe("the first-run tour", () => {
     fireEvent.click(within(dlg).getByRole("button", { name: "Skip the tour" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(rt.settings.store.get().tourSeen).toBe(true);
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     fireEvent.click(within(screen.getByRole("navigation", { name: "Main" })).getByRole("button", { name: /Settings/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Take the tour again" }));
     expect(within(await screen.findByRole("dialog")).getByRole("heading", { name: "Welcome to AIOS" })).toBeTruthy();
@@ -433,7 +434,7 @@ describe("the first-run tour", () => {
 
   it("does not open for someone who has already seen it, and never before signing in", async () => {
     boot(signedIn);
-    await screen.findByText("Current runs");
+    await screen.findByRole("navigation", { name: "Main" });
     expect(screen.queryByRole("dialog")).toBeNull();
     cleanup();
     boot({ ...signedIn, "GET /auth/me": () => err(401, "unauthenticated") }, { tour: true });

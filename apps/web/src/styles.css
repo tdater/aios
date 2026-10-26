@@ -537,3 +537,61 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .arrival-caption { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(92vw, 560px); padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--surface, #111) 88%, transparent); border: 1px solid var(--border, #345); z-index: 30; }
 .arrival-caption:empty { display: none; }
 @media (prefers-reduced-motion: reduce) { .arrival-caption { transition: none; } }
+
+/* === My Day dock, widget gallery, first-launch showcase (widgets UI) === */
+.myday { position: fixed; right: 12px; bottom: 12px; z-index: 20; width: min(360px, calc(100vw - 24px)); max-height: min(70vh, 640px); display: flex; flex-direction: column; border-radius: 16px; background: color-mix(in srgb, var(--panel, #111) 92%, transparent); border: 1px solid var(--line, #345); box-shadow: var(--soft, none); }
+.myday-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; }
+.myday-toggle { min-height: 44px; background: transparent; border: 0; color: inherit; font: inherit; font-weight: 650; cursor: pointer; }
+.myday-body { overflow-y: auto; padding: 0 12px 12px; display: grid; gap: 10px; }
+.myday-card { border: 1px solid var(--line, #345); border-radius: 12px; padding: 10px 12px; }
+.myday-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; } .myday-card-head h3 { margin: 0; font-size: 1rem; }
+.myday-card .row, .wgallery .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.myday-card textarea, .myday-card input[type="text"], .myday-card input:not([type]), .myday-card select { max-width: 100%; }
+.myday-progress { margin: 6px 0 0; }
+.wgallery-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); padding: 0; }
+.wgallery-item { border: 1px solid var(--line, #345); border-radius: 12px; padding: 10px 12px; list-style: none; }
+.firstlaunch-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .55); }
+.firstlaunch { max-width: 440px; width: 100%; border-radius: 16px; padding: 20px; background: var(--panel, #111); border: 1px solid var(--line, #345); }
+.firstlaunch.animate { animation: firstlaunch-in .3s ease-out; }
+@keyframes firstlaunch-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .firstlaunch.animate { animation: none; } }
+/* === end widgets UI === */
+
+/* Cockpit: the universe is the app. Travel dock, Go to, radar, object cards and the list view sit on top of it. */
+.cockpit { position: relative; width: 100%; height: calc(100dvh - 120px); min-height: 420px; overflow: hidden; background: #03050c; color: #e8eefc; outline: none; touch-action: none; }
+.cockpit .object-field { position: absolute; inset: 0; }
+.cockpit .u-label { position: absolute; transform: translateX(-50%); background: rgba(5,10,24,.62); color: #e8eefc; border: 1px solid rgba(143,180,255,.35); border-radius: 999px; padding: 1px 8px; font-size: 12px; cursor: pointer; white-space: nowrap; z-index: 2; }
+.cockpit .u-label.on, .cockpit .u-label:focus-visible { border-color: #fff; outline: 2px solid #ffd37a; }
+.cockpit .topbar { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; align-items: center; z-index: 5; pointer-events: none; }
+.cockpit .topbar > * { pointer-events: auto; }
+.cockpit .crumbs { flex: 1; font-size: 14px; background: rgba(5,10,24,.6); padding: 4px 10px; border-radius: 999px; width: fit-content; }
+.cockpit .crumbs button { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+.cockpit .dock { position: absolute; left: 8px; top: 52px; display: flex; flex-direction: column; gap: 6px; z-index: 5; max-width: 190px; }
+.cockpit .dock button { text-align: left; background: rgba(5,10,24,.7); color: inherit; border: 1px solid rgba(143,180,255,.3); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+.cockpit .dock button.on { border-color: #ffd37a; }
+.cockpit .dock-name { display: block; font-weight: 600; }
+.cockpit .dock-q { display: block; font-size: 11px; opacity: .75; }
+.cockpit .radar { position: absolute; right: 8px; bottom: 8px; z-index: 4; }
+.cockpit .object-card { position: absolute; right: 8px; top: 52px; bottom: 140px; width: min(380px, calc(100% - 16px)); overflow: auto; z-index: 6; background: color-mix(in srgb, var(--surface, #0d1426) 94%, transparent); color: var(--text, #e8eefc); border: 1px solid rgba(143,180,255,.35); border-radius: 12px; padding: 12px 14px; }
+.cockpit .tiers { display: flex; gap: 6px; margin: 8px 0; }
+.cockpit .tiers button.on { outline: 2px solid #ffd37a; }
+.cockpit .goto { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); width: min(520px, 94%); z-index: 20; background: #0d1426; border: 1px solid #456; border-radius: 12px; padding: 10px; }
+.cockpit .goto input { width: 100%; }
+.cockpit .goto ul { list-style: none; margin: 8px 0 0; padding: 0; max-height: 50vh; overflow: auto; }
+.cockpit .goto li button, .cockpit .listview li button { background: none; border: 0; color: inherit; text-align: left; width: 100%; padding: 6px; cursor: pointer; }
+.cockpit .listview { position: absolute; inset: 52px 8px 8px 210px; overflow: auto; z-index: 3; background: rgba(5,10,24,.85); padding: 12px; border-radius: 12px; }
+.cockpit .listview ul { list-style: none; padding: 0; }
+.cockpit-bottom { position: absolute; left: 210px; right: 140px; bottom: 8px; z-index: 5; max-height: 55%; overflow: auto; }
+.ask-dock { background: color-mix(in srgb, var(--surface, #0d1426) 92%, transparent); border: 1px solid rgba(143,180,255,.3); border-radius: 12px; padding: 6px 12px; }
+.ask-dock > summary { cursor: pointer; font-weight: 600; }
+@media (max-width: 700px) {
+  .cockpit .dock { flex-direction: row; flex-wrap: wrap; top: auto; bottom: 150px; max-width: calc(100% - 140px); }
+  .cockpit .dock-q { display: none; }
+  .cockpit .object-card { top: 52px; bottom: 8px; left: 8px; width: auto; }
+  .cockpit .listview { inset: 52px 8px 8px 8px; }
+  .cockpit-bottom { left: 8px; right: 136px; }
+}
+@media (prefers-reduced-motion: reduce) { .cockpit * { transition: none !important; } }
+.cockpit .mydock { position: absolute; left: 210px; top: 52px; width: min(380px, calc(100% - 220px)); max-height: calc(100% - 200px); overflow: auto; z-index: 5; }
+.cockpit .gallery-pop { position: absolute; inset: 52px 16px 16px 210px; overflow: auto; z-index: 15; background: color-mix(in srgb, var(--surface, #0d1426) 96%, transparent); color: var(--text, #e8eefc); border: 1px solid #456; border-radius: 12px; padding: 12px; }
+@media (max-width: 700px) { .cockpit .mydock { left: 8px; width: calc(100% - 16px); } .cockpit .gallery-pop { inset: 52px 8px 8px 8px; } }

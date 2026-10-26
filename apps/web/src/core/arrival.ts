@@ -1,4 +1,4 @@
-import { Body, ObjectType, UObject, World } from "./scene";
+import { Body, ObjectType, UObject, World, posAt } from "./scene";
 import { Vec3 } from "./space3d";
 
 // How a new thing arrives in the universe. Pure and deterministic: an arrival is a start time plus a style, and
@@ -110,3 +110,17 @@ export function originFor(b: Body, world: World): Vec3 {
 
 /** The camera should glide to the newest arrival and hold on it; this is the time window for that. */
 export const holdUntil = (arrivals: readonly Arrival[]): number => arrivals.reduce((m, a) => Math.max(m, a.start + a.duration + 800), 0);
+
+/** The world as it looks mid-arrival: arriving things sit between their origin and their place, and grow in. Other things are untouched. */
+export function applyArrivals(world: World, arrivals: readonly Arrival[], now: number, simT: number): World {
+  if (!arrivals.length) return world;
+  const frames = new Map(arrivals.map((a) => [a.id, arrivalAt(a, now)]));
+  return {
+    ...world,
+    bodies: world.bodies.map((b) => {
+      const f = frames.get(b.id);
+      if (!f || f.done) return b;
+      return { ...b, orbit: undefined, pos: arrivalPos(originFor(b, world), posAt(world, b, simT), f), r: Math.max(0.01, b.r * f.scale) };
+    }),
+  };
+}

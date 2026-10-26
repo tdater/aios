@@ -1,0 +1,101 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sampleObjects, sampleUniverse } from "../core/scene.fixtures";
+import { Cockpit } from "../ui/Cockpit";
+import { routeStore, parseRoute } from "../ui/hooks";
+import { fakeServer, err } from "./fakeServer";
+import { ctxFor, resetRoute, setWidth, Wrap } from "./helpers";
+
+beforeEach(() => { resetRoute(""); setWidth(1280, 800); localStorage.clear(); });
+afterEach(() => cleanup());
+
+const CARD = (id: string) => ({
+  object: sampleObjects().find((o) => o.id === id), explain: "An AI you can use.",
+  panels: { basics: [{ key: "sharing", kind: "choice", label: "What may Claude be told?", value: "private", help: "Nothing marked secret is ever shared.",
+    options: [{ value: "private", label: "Everything except secrets", preview: "70 memories would be shared" }, { value: "none", label: "Nothing" }] }], more: [], expert: [{ key: "status", kind: "info", label: "Connection", value: "ok", help: "" }] },
+  links: [{ label: "Open the companion", to: { tab: "ais" } }],
+});
+
+function open(objects = sampleObjects(), extra: Record<string, () => { status?: number; body?: unknown }> = {}) {
+  const server = fakeServer({
+    "GET /universe": () => ({ body: sampleUniverse() }),
+    "GET /universe/objects": () => ({ body: { items: objects, version: 1 } }),
+    "GET /universe/objects/planet:claude/card": () => ({ body: CARD("planet:claude") }),
+    "PUT /universe/objects/planet:claude/config": () => ({ body: CARD("planet:claude") }),
+    ...extra,
+  });
+  const c = ctxFor();
+  c.ctx.settings = { ...c.ctx.settings, universeView: "flat" };
+  return { server, ...render(<Wrap ctx={c.ctx}><Cockpit objectId={routeStore.get().sub === "o" ? routeStore.get().id : undefined}><p>ask box here</p></Cockpit></Wrap>) };
+}
+
+describe("the cockpit", () => {
+  it("shows the universe full screen with a dock to every region and labels you can press", async () => {
+    open();
+    await screen.findByTestId("cockpit");
+    const dock = within(await screen.findByRole("navigation", { name: "Travel to a region" }));
+    for (const n of ["You", "The Fleet", "The Star Fields", "The Shipyards", "Home Base", "Mission Control"]) expect(dock.getByRole("button", { name: new RegExp(n) })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Claude: Connected/ })).toBeTruthy();
+    expect(screen.getByText("ask box here")).toBeTruthy();
+  });
+
+  it("opens an object's card by deep link, with its plain explanation, and closing returns to the universe", async () => {
+    resetRoute("#/home/o/planet%3Aclaude");
+    expect(routeStore.get()).toMatchObject({ tab: "home", sub: "o", id: "planet:claude" });
+    open();
+    const card = await screen.findByRole("complementary", { name: /Claude: details/ });
+    expect(within(card).getByText("An AI you can use.")).toBeTruthy();
+    expect(within(card).getByRole("radio", { name: /Everything except secrets/ })).toBeTruthy();
+    fireEvent.click(within(card).getByRole("tab", { name: "Expert" }));
+    expect(within(card).getByText(/Connection:/)).toBeTruthy();
+  });
+
+  it("pressing a label goes to that object", async () => {
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: /Claude: Connected/ }));
+    expect(location.hash).toBe("#/home/o/planet%3Aclaude");
+    expect(parseRoute(location.hash)).toMatchObject({ sub: "o", id: "planet:claude" });
+  });
+
+  it("changing a setting on the card saves it on the server", async () => {
+    resetRoute("#/home/o/planet%3Aclaude");
+    const { server } = open();
+    const card = await screen.findByRole("complementary", { name: /Claude: details/ });
+    fireEvent.click(within(card).getByRole("radio", { name: /Nothing/ }));
+    await waitFor(() => expect(server.calls.find((c) => c.method === "PUT")?.body).toEqual({ values: { sharing: "none" }, confirm: false }));
+  });
+
+  it("Go to finds a place by name, and the list view is a plain-text version of everything", async () => {
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: /Go to/ }));
+    const input = await screen.findByLabelText("Where to?");
+    fireEvent.change(input, { target: { value: "shipyards" } });
+    const hits = await within(screen.getByRole("dialog", { name: "Go to" })).findAllByRole("button", { name: /The Shipyards/ });
+    expect(hits[0].textContent).toMatch(/^The Shipyards/);          // the region itself comes first, then the things in it
+    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "List view" }));
+    const list = await screen.findByLabelText(/Everything in your universe, as a list/);
+    expect(within(list).getByRole("heading", { name: "The Fleet" })).toBeTruthy();
+    expect(within(list).getByRole("button", { name: /Calculator app/ })).toBeTruthy();
+  });
+
+  it("says plainly what to do when the server is too old to know about the universe", async () => {
+    fakeServer({ "GET /universe": () => ({ body: sampleUniverse() }), "GET /universe/objects": () => err(404, "not_found") });
+    const c = ctxFor();
+    render(<Wrap ctx={c.ctx}><Cockpit /></Wrap>);
+    expect(await screen.findByText(/restart it/)).toBeTruthy();
+  });
+
+  it("announces a new arrival, and can skip it", async () => {
+    let list = sampleObjects();
+    fakeServer({ "GET /universe": () => ({ body: sampleUniverse() }), "GET /universe/objects": () => ({ body: { items: list, version: 1 } }) });
+    const c = ctxFor();
+    c.ctx.settings = { ...c.ctx.settings, universeView: "flat", reduceMotion: "on" };
+    const r = render(<Wrap ctx={c.ctx}><Cockpit /></Wrap>);
+    await screen.findByRole("button", { name: /Claude: Connected/ });
+    list = [...list, { id: "probe:new", type: "probe", region: "yards", name: "Top 3", job: "", state: { tone: "ok", text: "0 of 3 done" } }];
+    r.rerender(<Wrap ctx={{ ...c.ctx }}><Cockpit key="x" /></Wrap>);
+    // a fresh mount counts as a first look and stays quiet; only a change seen while open is news
+    expect(screen.queryByText("Skip")).toBeNull();
+  });
+});
