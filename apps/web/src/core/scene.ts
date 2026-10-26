@@ -39,7 +39,12 @@ export interface World {
 }
 
 // ---------------------------------------------------------------- small deterministic helpers
-export const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
+export const hash = (s: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;     // final mixing: near-identical names no longer give near-identical numbers
+  return (h >>> 0) / 4294967296;
+};
 const round = (n: number) => Math.round(n * 10) / 10;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const dirOnSphere = (i: number, n: number): Vec3 => { const y = n <= 1 ? 0 : 1 - (2 * (i + 0.5)) / n, r = Math.sqrt(Math.max(0, 1 - y * y)), th = i * GOLDEN; return [Math.cos(th) * r, y, Math.sin(th) * r]; };
@@ -149,14 +154,20 @@ export function layoutWorld(u: Universe, objects: UObject[]): World {
 const kepler = (M: number, e: number): number => { let E = e < 0.8 ? M : Math.PI; for (let i = 0; i < 8; i++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E)); return E; };
 
 /** Where a body is at time `t` seconds. Pure: reduced motion simply keeps `t` fixed. */
-export function posAt(world: World, body: Body, t: number, depth = 0): Vec3 {
+export function posAtExact(world: World, body: Body, t: number, depth = 0): Vec3 {
   const o = body.orbit;
   if (!o || depth > 4) return body.pos;
-  const center = typeof o.around === "string" ? (() => { const p = world.bodies.find((b) => b.id === o.around); return p ? posAt(world, p, t, depth + 1) : body.pos; })() : o.around;
+  const center = typeof o.around === "string" ? (() => { const p = world.bodies.find((b) => b.id === o.around); return p ? posAtExact(world, p, t, depth + 1) : body.pos; })() : o.around;
   const M = o.phase + (2 * Math.PI * t) / o.period;
   const E = o.ecc > 0 ? kepler(((M % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), o.ecc) : M;
   const px = o.radius * (Math.cos(E) - o.ecc), pz = o.radius * Math.sqrt(1 - o.ecc * o.ecc) * Math.sin(E);
-  return [round(center[0] + px), round(center[1] + pz * Math.sin(o.tilt)), round(center[2] + pz * Math.cos(o.tilt))];
+  return [center[0] + px, center[1] + pz * Math.sin(o.tilt), center[2] + pz * Math.cos(o.tilt)];
+}
+
+/** Where a body is at time `t`, to 0.1 units (steady numbers for labels and tests). Use `posAtExact` for smooth motion. */
+export function posAt(world: World, body: Body, t: number, depth = 0): Vec3 {
+  const p = posAtExact(world, body, t, depth);
+  return body.orbit ? [round(p[0]), round(p[1]), round(p[2])] : p;
 }
 
 export const bodyById = (w: World, id: string) => w.bodies.find((b) => b.id === id) ?? null;

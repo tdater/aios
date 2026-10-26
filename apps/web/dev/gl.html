@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIOS universe renderer (dev harness)</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body, #root { margin: 0; height: 100%; background: #000; color: #dfe6f3; font: 12px/1.4 system-ui, sans-serif; overflow: hidden; }
+      .stage { position: absolute; inset: 0; cursor: grab; }
+      .hud { position: absolute; top: 8px; right: 8px; background: rgba(8, 12, 20, 0.7); padding: 6px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; pointer-events: none; }
+      .list { position: absolute; top: 8px; left: 8px; bottom: 8px; width: 190px; overflow: auto; background: rgba(8, 12, 20, 0.6); border-radius: 6px; padding: 4px; }
+      .list button { display: block; width: 100%; text-align: left; background: none; color: inherit; border: 0; padding: 3px 6px; border-radius: 4px; cursor: pointer; font: inherit; }
+      .list button:hover, .list button[aria-pressed="true"] { background: rgba(120, 160, 255, 0.25); }
+      .label { position: absolute; transform: translate(-50%, 8px); white-space: nowrap; font-size: 11px; color: #cfe0ff; text-shadow: 0 0 3px #000; pointer-events: none; }
+      @media (max-width: 600px) { .list { width: 130px; bottom: auto; max-height: 40%; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./gl.tsx"></script>
+  </body>
+</html>

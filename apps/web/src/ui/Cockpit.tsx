@@ -1,6 +1,6 @@
 import { Suspense, lazy, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyArrivals } from "../core/arrival";
-import { UObject, REGIONS, Region, layoutWorld, posAt } from "../core/scene";
+import { UObject, REGIONS, Region, layoutWorld, posAt, posAtExact } from "../core/scene";
 import { Camera, clamp, defaultCamera, ease, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
 import { ObjectList } from "../core/objects";
 import { Universe } from "../core/types";
@@ -94,7 +94,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
 
   // dragging looks around, the wheel moves closer or further, keys do the same
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
-  const onDown = (e: React.PointerEvent) => { if ((e.target as Element).closest("button, a, input, .object-card, .dock, .u-label")) return; drag.current = { x: e.clientX, y: e.clientY, moved: false }; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); };
+  const onDown = (e: React.PointerEvent) => { if ((e.target as Element).closest("button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar")) return; drag.current = { x: e.clientX, y: e.clientY, moved: false }; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); };
   const onMove = (e: React.PointerEvent) => { const d = drag.current; if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (Math.abs(dx) + Math.abs(dy) > 2) d.moved = true; d.x = e.clientX; d.y = e.clientY; cancelAnimationFrame(raf.current); setCam(orbit(camRef.current, -dx * 0.006, dy * 0.006)); };
   const onUp = () => { drag.current = null; };
   useEffect(() => {
@@ -136,7 +136,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
       ))}
       {!listView && shown.bodies.map((b) => {
         if (!LABELLED.has(b.type) && b.id !== selected && b.id !== hovered) return null;
-        const p = project(cam, posAt(shown, b, simT), view);
+        const p = project(cam, posAtExact(shown, b, simT), view);
         if (!p || p.depth <= 0) return null;
         return (
           <button key={b.id} type="button" className={`u-label ${selected === b.id ? "on" : ""}`} style={{ left: p.x, top: p.y + Math.max(8, b.r * p.scale) + 4, opacity: arrivals.frames.get(b.id)?.alpha ?? 1 }}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANCHORS, REGIONS, bodyById, hash, layoutWorld, posAt } from "./scene";
+import { ANCHORS, REGIONS, bodyById, hash, layoutWorld, posAt, posAtExact } from "./scene";
 import { sampleObjects, sampleUniverse } from "./scene.fixtures";
 import { RING_R } from "./space3d";
 
@@ -88,5 +88,25 @@ describe("motion", () => {
   it("shuttles circle their own station", () => {
     const w = world(), s = bodyById(w, "shuttle:1")!, st = bodyById(w, "station:blog")!;
     for (const t of [0, 3, 8]) expect(d(posAt(w, s, t), posAt(w, st, t))).toBeLessThan(60);
+  });
+});
+
+describe("smooth motion and spread", () => {
+  it("the exact position is within rounding of the steady one", () => {
+    const world = layoutWorld(sampleUniverse(), sampleObjects());
+    for (const b of world.bodies) for (const t of [0, 3.7, 91]) {
+      const a = posAt(world, b, t), e = posAtExact(world, b, t);
+      a.forEach((v, i) => expect(Math.abs(v - e[i])).toBeLessThan(0.1));
+    }
+  });
+  it("names that differ by one character give unrelated numbers (no streaks of look-alike rocks)", () => {
+    const xs = Array.from({ length: 200 }, (_, i) => hash(`a${i}`));
+    const ys = Array.from({ length: 200 }, (_, i) => hash(`r${i}`));
+    const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length;
+    const mx = mean(xs), my = mean(ys);
+    const cov = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0) / xs.length;
+    const corr = cov / Math.sqrt(xs.reduce((s, x) => s + (x - mx) ** 2, 0) / xs.length) / Math.sqrt(ys.reduce((s, y) => s + (y - my) ** 2, 0) / ys.length);
+    expect(Math.abs(corr)).toBeLessThan(0.2);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.9);
   });
 });
