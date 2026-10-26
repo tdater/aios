@@ -365,8 +365,7 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .todaycard h3 { margin: 0; font-size: 1rem; } .todaycard p { margin: 0; overflow-wrap: anywhere; }
 
 /* The Universe */
-.universe-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; align-items: start; }
-@media (max-width: 900px) { .universe-grid { grid-template-columns: 1fr; } }
+.universe-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 .universe { width: 100%; height: auto; max-height: 70vh; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 10%, var(--panel)) 0%, var(--panel) 70%); border: 1px solid var(--border); border-radius: 12px; }
 .universe.paused { filter: grayscale(.7) brightness(.85); }
 .universe .orbit { fill: none; stroke: var(--border); stroke-dasharray: 2 5; } .universe .orbit.o-private { stroke: color-mix(in srgb, var(--accent) 55%, var(--border)); }
@@ -395,3 +394,19 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
 .tour .tour-nav { display: flex; justify-content: space-between; margin-top: 6px; }
 .tour-pill { position: fixed; right: 16px; bottom: 56px; z-index: 55; display: flex; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); box-shadow: 0 6px 24px color-mix(in srgb, #000 30%, transparent); }
 @media (max-width: 600px) { .universe .plabel { font-size: 14px; } .universe .clabel { font-size: 14px; } .universe .corelabel { font-size: 16px; } }
+
+/* The 3D universe */
+.space3d { display: grid; gap: 6px; min-width: 0; }
+.space-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.space-bar button, .space-bar select { padding: 4px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font: inherit; min-height: 32px; cursor: pointer; }
+.space-bar button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink, #fff); border-color: var(--accent); }
+.universe.space { touch-action: none; cursor: grab; user-select: none; } .universe.space:active { cursor: grabbing; }
+.universe.space .planet circle, .universe.space .sun { transition: none; }
+.space-help { margin: 0; }
+.universe .halo { pointer-events: none; }
+.universe.space .orbit { stroke: color-mix(in srgb, var(--accent) 45%, var(--muted)); stroke-opacity: .55; stroke-width: 1.2; stroke-dasharray: none; }
+.universe.space .orbit.o-public { stroke-dasharray: 6 5; } .universe.space .orbit.o-none { stroke-dasharray: 2 6; }
+.universe.space g:focus, .universe.space g:focus-visible { outline: none; }
+.universe.space g:focus-visible circle, .universe.space g:focus-visible path { stroke: var(--text); stroke-width: 3; }
+.universe.space .planet.sel circle, .universe.space .core.sel .sun { stroke: var(--text); stroke-width: 3; stroke-dasharray: none; }
+.universe .hudlabel { font-size: 14px; fill: var(--text); }

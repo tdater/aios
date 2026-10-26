@@ -105,6 +105,22 @@ try {
     await page.getByRole("region", { name: "What am I looking at?" }).waitFor();
     await shot("01c-universe-phone");
   });
+  await step("universe: tapping a planet selects it and flies there; the keyboard turns the view; the flat map is one tap away", async () => {
+    const map = page.getByRole("group", { name: /Your universe/ });
+    await page.getByRole("button", { name: /^Claude:/ }).click();                          // a real click: pointer capture must not swallow it
+    await page.getByRole("region", { name: "About Claude" }).waitFor();
+    await until(page, () => document.querySelector("svg.space")?.getAttribute("data-dist") === "150", null);
+    const yaw = await map.getAttribute("data-yaw");
+    await map.focus();
+    await page.keyboard.press("ArrowRight");
+    expect((await map.getAttribute("data-yaw")) !== yaw, "an arrow key should turn the view");
+    await page.getByRole("button", { name: "Reset view" }).click();
+    await until(page, () => document.querySelector("svg.space")?.getAttribute("data-dist") === "760", null);
+    await page.getByRole("button", { name: "Flat map" }).click();
+    await page.getByRole("button", { name: "3D space" }).waitFor();
+    await page.getByRole("button", { name: "3D space" }).click();
+    await map.waitFor();
+  });
   await step("register the sample workspace (server path) and see it listed", async () => {
     await page.getByRole("button", { name: /Projects/ }).click();
     await page.getByText("Register a workspace").click();

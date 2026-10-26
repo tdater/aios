@@ -32,6 +32,7 @@ export interface Settings {
   draftPolicy: "manual" | "ask_on_reconnect";   // there is deliberately no "auto upload"
   mode: "simple" | "standard" | "power";  // which sections the menu lists (nothing is removed)
   density: "comfortable" | "compact";
+  universeView: "3d" | "flat";            // the map is a 3D space you travel through, or a flat picture
   tourSeen: boolean;                     // the first-run tour was finished or skipped; it can always be run again
   hiddenCards: string[];                 // Today cards the person switched off
   hiddenNav: string[];                   // sections the person switched off inside their mode
@@ -40,7 +41,7 @@ const KEY = "aios.settings.v1";
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system", accent: "default", fontSize: 16, readableLine: true, noteFont: "sans", tabs: true, statusBar: true,
   reduceMotion: "system", cacheEnabled: false, draftPolicy: "ask_on_reconnect",
-  mode: "power", density: "comfortable", hiddenNav: [], hiddenCards: [], tourSeen: false,   // existing users keep the full menu; new users are offered Simple on Home
+  mode: "power", density: "comfortable", hiddenNav: [], hiddenCards: [], tourSeen: false, universeView: "3d",   // existing users keep the full menu; new users are offered Simple on Home
 };
 
 /** Merge stored values over defaults, discarding anything invalid (settings come from localStorage: treat as untrusted input). */
@@ -62,6 +63,7 @@ export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Set
     draftPolicy: pick(r.draftPolicy, ["manual", "ask_on_reconnect"] as const, d.draftPolicy),
     mode: pick(r.mode, ["simple", "standard", "power"] as const, d.mode),
     density: pick(r.density, ["comfortable", "compact"] as const, d.density),
+    universeView: pick(r.universeView, ["3d", "flat"] as const, d.universeView),
     tourSeen: typeof r.tourSeen === "boolean" ? r.tourSeen : d.tourSeen,
     hiddenCards: Array.isArray(r.hiddenCards) ? [...new Set(r.hiddenCards.filter((x): x is string => typeof x === "string" && ["needs", "done", "next", "ask"].includes(x)))] : d.hiddenCards,
     hiddenNav: Array.isArray(r.hiddenNav) ? [...new Set(r.hiddenNav.filter((x): x is string => typeof x === "string" && /^[a-z]{3,12}$/.test(x) && x !== "home" && x !== "settings"))].slice(0, 12) : d.hiddenNav,

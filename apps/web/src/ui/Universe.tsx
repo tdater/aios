@@ -11,6 +11,12 @@ import { openTour } from "./uiState";
 
 export type Selection = { kind: "core" } | { kind: "planet"; provider: string } | { kind: "star"; id: string } | { kind: "comet"; which: "approvals" | "blocked" | "review" } | null;
 
+export const planetLabel = (ai: AiPlanet) =>
+  `${ai.name}: ${ai.level === "none" ? "told nothing" : `told ${ai.told_count} of your memories`}, ${ai.provider === "claude" && ai.mode === "interactive" ? "connected" : ai.provider === "claude" ? "not ready" : "by copy and paste"}`;
+export const planetKind = (ai: AiPlanet) => `pl-${ai.provider === "claude" ? (ai.mode === "interactive" ? "real" : "down") : "manual"}`;
+export const starClass = (s: { state: string; hollow: boolean; id: string }, told: boolean, sel: Selection) =>
+  `star st-${s.state}${s.hollow ? " hollow" : ""}${told ? " told" : ""}${sel?.kind === "star" && sel.id === s.id ? " sel" : ""}`;
+
 const key = (e: React.KeyboardEvent, fn: () => void) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
 
 /** The map. Every element is a described button: you, each AI, each memory, each thing waiting for you. */
@@ -38,8 +44,8 @@ export function UniverseMap({ u, sel, onSelect }: { u: Universe; sel: Selection;
       </g>
       {L.planets.map((p) => (
         <g key={p.ai.provider} role="button" tabIndex={0} aria-pressed={sel?.kind === "planet" && sel.provider === p.ai.provider}
-          aria-label={`${p.ai.name}: ${p.ai.level === "none" ? "told nothing" : `told ${p.ai.told_count} of your memories`}, ${p.ai.provider === "claude" && p.ai.mode === "interactive" ? "connected" : p.ai.provider === "claude" ? "not ready" : "by copy and paste"}`}
-          className={`planet pl-${p.ai.provider === "claude" ? (p.ai.mode === "interactive" ? "real" : "down") : "manual"}${sel?.kind === "planet" && sel.provider === p.ai.provider ? " sel" : ""}`}
+          aria-label={planetLabel(p.ai)}
+          className={`planet ${planetKind(p.ai)}${sel?.kind === "planet" && sel.provider === p.ai.provider ? " sel" : ""}`}
           onClick={() => onSelect({ kind: "planet", provider: p.ai.provider })} onKeyDown={(e) => key(e, () => onSelect({ kind: "planet", provider: p.ai.provider }))}>
           <circle cx={p.x} cy={p.y} r={p.r} /><text x={p.x} y={p.y + p.r + 13} textAnchor="middle" className="plabel">{p.ai.name}</text><title>{p.ai.name}</title>
         </g>))}
