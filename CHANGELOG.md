@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (planned as 0.3.0)
+## 0.3.0 - 2026-10-26
 
 ### Added
 - **The universe**: the home screen is a navigable 3D space (flat map fallback on software graphics) where every capability, setting, project, memory and AI is an object with a plain-words card; My Day with ready-made daily panels; Home Base findings; the Rover (look and guide only).
