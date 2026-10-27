@@ -5,6 +5,7 @@ import { Approval, Candidate, Paged } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad, useViewport } from "../ui/hooks";
 import { Improvements } from "./inbox/Improvements";
+import { ProposalCarousel } from "./inbox/Carousel";
 import { Badge, Btn, Collapsible, Empty, ErrorBox, Loading, Notice, Untrusted, ago, fmtDuration, fmtLocal, useOnce } from "../ui/kit";
 
 type Seg = "approvals" | "proposals" | "improvements";
@@ -21,7 +22,7 @@ export function Inbox({ sub, id }: { sub?: string; id?: string }) {
             onClick={() => go({ tab: "inbox", sub: s === "approvals" ? undefined : s === "proposals" ? "candidate" : "improvements", id: undefined })}>{l}</button>))}
       </div>
       {seg === "approvals" && <ApprovalList selected={sub === "approval" ? id : undefined} />}
-      {seg === "proposals" && <CandidateList selected={sub === "candidate" ? id : undefined} />}
+      {seg === "proposals" && <Proposals selected={sub === "candidate" ? id : undefined} />}
       {seg === "improvements" && <Improvements />}
     </div>
   );
@@ -119,6 +120,18 @@ function ApprovalDetail({ id }: { id: string }) {
 }
 
 // ------------------------------------------------------------------ candidates (memory / skill / automation proposals)
+/** Cards (one at a time, the friendly way) or the full list. Opening one from the list or "Look closer" goes to the full review. */
+function Proposals({ selected }: { selected?: string }) {
+  const [cards, setCards] = useState(true);
+  return (
+    <>
+      <label className="check"><input type="checkbox" checked={cards} onChange={(e) => setCards(e.target.checked)} /> Show one at a time</label>
+      {cards ? <ProposalCarousel /> : <CandidateList selected={selected} />}
+    </>
+  );
+}
+
+
 function CandidateList({ selected }: { selected?: string }) {
   const { client } = useApp();
   const l = useLoad(() => client.get<Paged<Candidate>>("/candidates", { query: { status: "candidate", limit: 30 } }), [client], 8000);
