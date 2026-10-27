@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -73,6 +74,16 @@ class Settings:
             d.mkdir(parents=True, exist_ok=True)
 
 
+def hosts_from_file(state: Path) -> list[str]:
+    """Extra host names the server answers to, one per line in <state>/allowed-hosts.txt (written by scripts/phone-access.ps1).
+    Only plain host names are accepted, so a stray line can never widen what the server trusts beyond a name."""
+    try:
+        lines = (Path(state) / "allowed-hosts.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    return [h for h in (x.strip().lower().rstrip(".") for x in lines) if re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+", h)]
+
+
 def load_settings() -> Settings:
     host = os.environ.get("AIOS_HOST", "127.0.0.1")
     if host not in LOOPBACK_HOSTS:
@@ -88,8 +99,8 @@ def load_settings() -> Settings:
         port=int(os.environ.get("AIOS_PORT", "8765")),
         max_concurrent=int(os.environ.get("AIOS_MAX_CONCURRENT", "2")),
         approval_ttl_s=int(os.environ.get("AIOS_APPROVAL_TTL_S", str(24 * 3600))),
-        allowed_hosts=tuple(h.strip().lower() for h in os.environ.get("AIOS_ALLOWED_HOSTS", "").split(",")
-                            if h.strip()),
+        allowed_hosts=tuple(dict.fromkeys(
+            [h.strip().lower() for h in os.environ.get("AIOS_ALLOWED_HOSTS", "").split(",") if h.strip()] + hosts_from_file(state))),
         cors_origins=tuple(o.strip() for o in os.environ.get(
             "AIOS_CORS_ORIGINS", "https://localhost,capacitor://localhost,http://localhost").split(",")
             if o.strip()),

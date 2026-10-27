@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-10-27
+- **Fixed:** memory import now reads answers written as paragraphs, tables or with en-dash bullets, and says why when it finds nothing.
+- **Added:** `scripts\phone-access.ps1` sets up private phone access over Tailscale (HTTPS in front of AIOS for your tailnet only) and prints the address for the app. The app now explains that a Tailscale IP address will not work and points at the script.
+
 ## 0.3.1 - 2026-10-27
 - **Fixed:** the first-run tour's "How much should AIOS show?" choices showed an oversized empty circle with the words squeezed into a thin column (radio buttons were being stretched to full width).
 - **Added:** MIT license.

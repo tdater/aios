@@ -1,7 +1,7 @@
 // Hand-written to match docs/openapi-v1.json (the contract test fails if the API surface drifts).
 export const API_VERSION = 1;
 export const APP_NAME = "aios-web";
-export const APP_VERSION = "0.3.1";
+export const APP_VERSION = "0.3.2";
 
 export interface Paged<T> { items: T[]; next_cursor: string | null; limit: number }
 

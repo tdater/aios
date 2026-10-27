@@ -311,3 +311,13 @@ def test_step_outputs_and_events_are_redacted(engine, db):
     r = engine.create_run(t["id"])
     engine.event(r["id"], "x", "leak sk-ant-abcdefghijklmnop here")
     assert "sk-ant" not in json.dumps(services.run_detail(db, r["id"])["events"])
+
+
+def test_allowed_hosts_file_adds_plain_host_names_only(tmp_path, monkeypatch):
+    from aios.config import hosts_from_file
+    (tmp_path / "allowed-hosts.txt").write_text("My-PC.tail1234.ts.net.\n\n127.0.0.1\nbad host.ts.net\n*.evil.com\nhttps://x.ts.net\nok.example.com\n", encoding="utf-8")
+    assert hosts_from_file(tmp_path) == ["my-pc.tail1234.ts.net", "127.0.0.1", "ok.example.com"]      # spaces, wildcards and URLs are dropped
+    assert hosts_from_file(tmp_path / "missing") == []
+    monkeypatch.setenv("AIOS_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("AIOS_ALLOWED_HOSTS", "extra.ts.net")
+    assert load_settings().allowed_hosts == ("extra.ts.net", "my-pc.tail1234.ts.net", "127.0.0.1", "ok.example.com")

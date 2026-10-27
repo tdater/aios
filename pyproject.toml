@@ -1,6 +1,6 @@
 [project]
 name = "aios"
-version = "0.3.1"
+version = "0.3.2"
 license = "MIT"
 description = "Local-first personal agentic workflow and project operating layer"
 requires-python = ">=3.12"
