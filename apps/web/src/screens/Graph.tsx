@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ColorMode, filterGraph, matchNodes, neighborhood, timeRange, visibleAt } from "../core/graph";
 import { GraphData, GraphNode } from "../core/types";
 import { useApp } from "../ui/Context";
-import { GraphView, LEGEND, colorFor, projectColor } from "../ui/GraphView";
+import { GraphView, LEGEND, NodePreview, colorFor, projectColor } from "../ui/GraphView";
 import { go, useLoad } from "../ui/hooks";
 import { Icon } from "../ui/icons";
 import { Btn, Empty, ErrorBox, Loading } from "../ui/kit";
@@ -34,6 +34,12 @@ export function GraphScreen({ id }: { id?: string }) {
   const [fit, setFit] = useState(0);
   const [relayout, setRelayout] = useState(0);
   const [colorMode, setColorMode] = useState<ColorMode>("type");
+  const [layoutMode, setLayoutMode] = useState<"force" | "radial">("force");
+  const preview = async (n: GraphNode): Promise<NodePreview | null> => {   // the first words of the note, for the hover card
+    const m = await client.get<{ body?: string; tags?: string[] }>(`/memories/${n.id}`);
+    const text = (m.body ?? "").replace(/^#+\s*/gm, "").replace(/[*_`>\[\]]/g, "").replace(/\s+/g, " ").trim();
+    return { excerpt: text.length > 120 ? `${text.slice(0, 117)}…` : text, words: text ? text.split(" ").length : 0, tags: m.tags ?? [] };
+  };
   const [t, setT] = useState<number | null>(null);          // time-lapse position (ms); null = the vault as it is now
   const [playing, setPlaying] = useState(false);
   const g = useLoad(() => client.get<GraphData>("/graph", { query: { tags, candidates: cands, unresolved: ghosts, limit: 400 } }), [client, tags, cands, ghosts]);
@@ -99,6 +105,8 @@ export function GraphScreen({ id }: { id?: string }) {
             <label className="check"><input type="checkbox" checked={cands} onChange={(e) => setCands(e.target.checked)} /> Show proposals</label>
             <label className="check"><input type="checkbox" checked={ghosts} onChange={(e) => setGhosts(e.target.checked)} /> Show not-yet-created notes</label>
             <label className="check"><input type="checkbox" checked={orphans} onChange={(e) => setOrphans(e.target.checked)} disabled={!!id} /> Show orphans (no links)</label>
+            <label className="field"><span>Layout</span>
+              <select value={layoutMode} onChange={(e) => setLayoutMode(e.target.value as "force" | "radial")} aria-label="Layout"><option value="force">Force physics</option><option value="radial">Radial mind map</option></select></label>
             <label className="field"><span>Colour notes by</span>
               <select value={colorMode} onChange={(e) => setColorMode(e.target.value as ColorMode)} aria-label="Colour notes by"><option value="type">Type</option><option value="project">Project</option></select></label>
             <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Show labels</label>
@@ -122,7 +130,7 @@ export function GraphScreen({ id }: { id?: string }) {
             ) : (
               <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                 <GraphView data={shown} selectedId={selected} focusId={id ?? null} highlight={highlight} showLabels={labels} onSelect={setSelected} onOpen={openNode}
-                  colorMode={colorMode} visible={visible} ariaLabel={id ? `Neighbourhood graph of ${focus?.label ?? "the note"}` : "Knowledge graph"} fitSignal={fit} relayoutSignal={relayout} />
+                  colorMode={colorMode} mode={layoutMode} preview={preview} visible={visible} ariaLabel={id ? `Neighbourhood graph of ${focus?.label ?? "the note"}` : "Knowledge graph"} fitSignal={fit} relayoutSignal={relayout} />
                 <div className="graphlegend" aria-hidden="true">
                   {colorMode === "project" ? (<>
                     {shown.nodes.filter((n) => n.kind === "project").map((n) => <span key={n.id}><i style={{ background: projectColor(n.id.replace(/^project:/, "")) }} />{n.label}</span>)}

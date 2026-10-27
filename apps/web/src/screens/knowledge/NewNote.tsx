@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ApiError } from "../../core/client";
+import { BLANK_TEMPLATE, NOTE_TEMPLATES, NoteTemplate } from "../../core/noteTemplates";
 import { Memory } from "../../core/types";
 import { TYPE_LABEL } from "../../core/vault";
 import { useApp } from "../../ui/Context";
@@ -21,6 +22,8 @@ export function NewNote() {
   const [tags, setTags] = useState<string[]>([]);
   const [body, setBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [tpl, setTpl] = useState("blank");
+  const pick = (t: NoteTemplate) => { setTpl(t.id); setTitle((cur) => (cur.trim() ? cur : t.title)); setType(t.type); setTags(t.tags); setBody(t.body); };
   useEffect(() => { newNoteTitle.set(""); }, []);
   useTabTitle(title ? `New: ${title}` : "New note");
   const create = useOnce(async () => {
@@ -37,6 +40,10 @@ export function NewNote() {
       <h2>New note</h2>
       {!connected && <Notice tone="warn">You are offline. Notes can only be created while connected.</Notice>}
       <ErrorBox msg={err} />
+      <div className="chips" role="group" aria-label="Start from">
+        {[BLANK_TEMPLATE, ...NOTE_TEMPLATES].map((t) => (
+          <button key={t.id} type="button" className={`chip btnchip ${tpl === t.id ? "on" : ""}`} aria-pressed={tpl === t.id} onClick={() => pick(t)}><span aria-hidden="true">{t.icon}</span> {t.name}</button>))}
+      </div>
       <label className="field"><span>Title</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} autoFocus /></label>
       <div className="row" style={{ alignItems: "flex-start" }}>
         <label className="field" style={{ flex: 1, minWidth: 140 }}><span>Type</span><select value={type} onChange={(e) => setType(e.target.value)}>

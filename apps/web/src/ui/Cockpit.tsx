@@ -1,13 +1,16 @@
 import { Suspense, lazy, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyArrivals } from "../core/arrival";
 import { UObject, REGIONS, Region, layoutWorld, posAt, posAtExact } from "../core/scene";
-import { Camera, clamp, defaultCamera, ease, faceSun, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
+import { Camera, MAX_PITCH, clamp, defaultCamera, ease, faceSun, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
 import { ObjectList } from "../core/objects";
 import { Universe } from "../core/types";
+import { CELEBRATE_EVENT } from "../core/celebrate";
+import { playSound, setSoundEnabled, soundEnabled } from "../core/sound";
 import { breadcrumb, cameraForBody, goTo, pickBody, radar, regionCamera, regionNear } from "../core/travel";
 import { ArrivalCaption } from "./ArrivalCaption";
 import { useApp } from "./Context";
 import { go, useLoad } from "./hooks";
+import { Icon } from "./icons";
 import { Notice } from "./kit";
 import { FirstLaunch, firstLaunchPending } from "./FirstLaunch";
 import { Hud } from "./Hud";
@@ -17,6 +20,7 @@ import { ObjectCard } from "./ObjectCard";
 import { WidgetGallery } from "./WidgetGallery";
 import { ObjectField } from "./ObjectField";
 import { useArrivals, prefersReducedMotion } from "./useArrivals";
+import { useZenOrbit } from "./useZenOrbit";
 
 const UniverseGL = lazy(() => import("./UniverseGL"));
 const PRIORITY = ["sun", "planet", "home", "allstop", "station", "comet", "log", "wormhole", "beacon", "probe"];
@@ -89,6 +93,27 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
 
   const raf = useRef(0);
   const useGLRef = useRef(false);
+  const live = useRef({ world, view, simT, reduced });                // the latest of these, for the celebration listener below
+  live.current = { world, view, simT, reduced };
+  const [bursts, setBursts] = useState<{ id: number; x: number; y: number }[]>([]);
+  useEffect(() => {                                       // a habit or checklist item was completed: that panel's probe sparkles for a moment
+    let n = 0;
+    const on = (e: Event) => {
+      const { world: w, view: v, simT: t, reduced: calm } = live.current;
+      const id = (e as CustomEvent<{ widgetId: string }>).detail?.widgetId;
+      if (!w || calm || !id) return;
+      const b = w.bodies.find((x) => x.id === `probe:${id}`);
+      const p = b ? project(camRef.current, posAtExact(w, b, t), v) : null;
+      if (!p || p.x < 0 || p.y < 0 || p.x > v.w || p.y > v.h) return;
+      const mine = ++n;
+      setBursts((l) => [...l, { id: mine, x: p.x, y: p.y }]);
+      setTimeout(() => setBursts((l) => l.filter((x) => x.id !== mine)), 1300);
+    };
+    window.addEventListener(CELEBRATE_EVENT, on);
+    return () => window.removeEventListener(CELEBRATE_EVENT, on);
+  }, []);
+  const [sound, setSound] = useState(soundEnabled());
+  useZenOrbit(box, { enabled: !reduced, paused: !!objectId || day || gallery || goOpen || listView, onDrift: (r) => setCam(orbit(camRef.current, r, 0)) });
   const flyTo = useCallback((to: Camera, ms = 700) => {
     cancelAnimationFrame(raf.current);
     if (reduced || typeof requestAnimationFrame !== "function") { setCam(to); return; }
@@ -113,7 +138,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
 
   const shown = useMemo(() => (world ? applyArrivals(world, arrivals.active, performance.now(), simT) : null), [world, arrivals.active, arrivals.frames, simT]);
   const open = (id: string | null) => go(id ? { tab: "home", sub: "o", id } : { tab: "home" });
-  const travelTo = (r: Region) => { if (world) { setRegion(r); flyTo(regionCamera(world, r, camRef.current)); } };
+  const travelTo = (r: Region) => { if (world) { setRegion(r); flyTo(regionCamera(world, r, camRef.current)); playSound("warp", { reducedMotion: reduced }); } };
 
   // dragging looks around, the wheel moves closer or further, keys do the same
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -149,6 +174,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
     if (k === "ArrowLeft") setCam(orbit(camRef.current, 0.1, 0)); else if (k === "ArrowRight") setCam(orbit(camRef.current, -0.1, 0));
     else if (k === "ArrowUp") setCam(orbit(camRef.current, 0, 0.08)); else if (k === "ArrowDown") setCam(orbit(camRef.current, 0, -0.08));
     else if (k === "+" || k === "=") setCam(zoom(camRef.current, 0.85)); else if (k === "-") setCam(zoom(camRef.current, 1.18));
+    else if (/^[1-6]$/.test(k) && !e.ctrlKey && !e.metaKey && !e.altKey) { open(null); travelTo(REGIONS[Number(k) - 1].id); }
     else if (k === "0") { open(null); setRegion(null); flyTo(defaultCamera()); }
     else if (k === "Escape") { if (goOpen) setGoOpen(false); else if (selected) open(null); }
     else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "g") { e.preventDefault(); setGoOpen(true); }
@@ -185,9 +211,15 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
         <button type="button" className="btn btn-quiet" onClick={() => setGoOpen(true)}>Go to… <kbd>Ctrl G</kbd></button>
         <button type="button" className="btn btn-quiet" aria-pressed={day} onClick={() => setDay((v) => !v)}>My Day</button>
         <button type="button" className="btn btn-quiet" onClick={() => go({ tab: "home", sub: "details" })}>Today and details</button>
+        <button type="button" className="btn btn-quiet" aria-pressed={sound} aria-label={sound ? "Turn interface sounds off" : "Turn interface sounds on"} title="Interface sounds (off by default)"
+          onClick={() => { const on = !sound; setSound(on); setSoundEnabled(on); if (on) playSound("chime", { enabled: true, reducedMotion: reduced }); }}><Icon name="speaker" size={15} /></button>
         <button type="button" className="btn btn-quiet" aria-pressed={listView} onClick={() => setListView((v) => !v)}>{listView ? "Back to space" : "List view"}</button>
       </div>
 
+      {bursts.map((b) => (
+        <div key={b.id} className="burst" style={{ left: b.x, top: b.y }} aria-hidden="true">
+          {Array.from({ length: 30 }, (_, i) => <i key={i} style={{ "--a": `${(i * 360) / 30}deg`, "--d": `${24 + (i % 5) * 9}px` } as React.CSSProperties} />)}
+        </div>))}
       {!listView && (
         <div className="zoombar" role="group" aria-label="Zoom">
           <button type="button" aria-label="Zoom in" title="Zoom in (+)" onClick={() => zoomBy(0.7)}>+</button>
@@ -195,11 +227,11 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
           <button type="button" aria-label="Reset view" title="Show everything" onClick={() => { open(null); setRegion(null); flyTo(defaultCamera()); }}>⌂</button>
         </div>)}
       <nav className="dock" aria-label="Travel to a region">
-        {REGIONS.map((r) => (
-          <button key={r.id} type="button" className={`dock-btn dock-${r.id} ${region === r.id ? "on" : ""}`} aria-current={region === r.id ? "true" : undefined} title={r.question} onClick={() => travelTo(r.id)}>
+        {REGIONS.map((r, idx) => (
+          <button key={r.id} type="button" className={`dock-btn dock-${r.id} ${region === r.id ? "on" : ""}`} aria-current={region === r.id ? "true" : undefined} title={`${r.question} (press ${idx + 1})`} onClick={() => travelTo(r.id)}>
             <span className="dock-accent" aria-hidden="true" />
             <span className="dock-body">
-              <span className="dock-name">{r.name}</span>
+              <span className="dock-row"><span className="dock-name">{r.name}</span><kbd className="dock-num" aria-hidden="true">{idx + 1}</kbd></span>
               <span className="dock-q">{r.question}</span>
             </span>
           </button>))}
@@ -236,12 +268,15 @@ function GoTo({ world, onPick, onClose }: { world: NonNullable<ReturnType<typeof
 
 /** Lost? The needle shows which way you are turned; pressing it faces the Sun and levels the view. The 0 key goes all the way back to the start view. */
 function Compass({ cam, onFaceSun }: { cam: Camera; onFaceSun: () => void }) {
+  const tilt = Math.round((cam.pitch * 180) / Math.PI);                                // looking down is positive
+  const horizon = clamp((cam.pitch / MAX_PITCH) * 14, -14, 14);                         // the artificial horizon sits lower the more you look down
   return (
-    <button type="button" className="compass" aria-label="Face the Sun and level the view" title="Face the Sun and level the view (0 shows everything)" onClick={onFaceSun}>
+    <button type="button" className="compass" aria-label="Face the Sun and level the view" title={`Face the Sun and level the view (tilted ${tilt}°; 0 shows everything)`} onClick={onFaceSun}>
       <svg width="44" height="44" viewBox="-22 -22 44 44" aria-hidden="true">
         <circle r="20" fill="rgba(5,10,24,.7)" stroke="#8fb4ff" strokeOpacity=".5" />
         <g transform={`rotate(${(-cam.yaw * 180) / Math.PI})`}><path d="M0 -15 L4 0 L-4 0 Z" fill="#ffd37a" /><path d="M0 15 L4 0 L-4 0 Z" fill="#456" /></g>
         <circle r="3" fill="#ffd37a" />
+        <line data-testid="horizon" x1="-15" x2="15" y1={horizon} y2={horizon} stroke="#5ee2d6" strokeWidth="1.2" strokeOpacity=".8" />
       </svg>
     </button>
   );

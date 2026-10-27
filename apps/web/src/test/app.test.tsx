@@ -399,7 +399,7 @@ describe("modes change what the menu lists, and nothing else", () => {
     expect(nav().queryByRole("button", { name: /Workspace/ })).toBeNull();     // renamed Missions in Simple
     fireEvent.click(nav().getByRole("button", { name: "Quick add" }));
     const menu = within(screen.getByRole("menu", { name: "Quick add" }));
-    for (const n of ["Ask AIOS anything", "Quick note", "New mission or project"]) expect(menu.getByRole("menuitem", { name: n })).toBeTruthy();
+    for (const n of ["Ask AIOS anything", "Quick note", "New mission or project", "Check a message or document", "Show on a big screen"]) expect(menu.getByRole("menuitem", { name: n })).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("menu", { name: "Quick add" })).toBeNull();
     fireEvent.click(nav().getByRole("button", { name: /Settings/ }));

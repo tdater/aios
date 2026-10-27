@@ -3,10 +3,12 @@ import { AiosClient } from "./client";
 /** Daily widgets: types, API calls and the small pure helpers the "My Day" dock and the gallery share.
  *  A widget is data (a kind plus plain settings). Nothing here renders HTML or runs anything the owner typed. */
 
-export type WidgetKind = "counter" | "checklist" | "note" | "habit" | "timer" | "routine" | "facts";
+export type WidgetKind = "counter" | "checklist" | "note" | "habit" | "timer" | "routine" | "facts" | "mission";
 export type RoutineWhen = "manual" | "daily" | "weekdays" | "weekly";
 
 export interface ChecklistItem { text: string; done: boolean }
+export interface MissionStep { text: string; done: boolean }
+export interface MissionConfig { target: string; steps: MissionStep[]; note: string }
 export interface Fact { label: string; value: string }
 export interface RoutineConfig { prompt: string; when: RoutineWhen; at: string; day: number; last_run: string; last_task: string }
 export interface ConfigByKind {
@@ -17,6 +19,7 @@ export interface ConfigByKind {
   timer: { focus: number; rest: number; sessions: number };
   routine: RoutineConfig;
   facts: { items: Fact[] };
+  mission: MissionConfig;
 }
 export type Widget = { [K in WidgetKind]: { id: string; kind: K; title: string; config: ConfigByKind[K]; created_at?: string } }[WidgetKind];
 
@@ -30,6 +33,7 @@ export interface AbilityStatus { paused: boolean; abilities: AbilityRow[] }
 
 export const MAX_ITEMS = 20;
 export const MAX_FACTS = 60;
+export const MAX_STEPS = 30;
 export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // ---- API ----
@@ -88,6 +92,10 @@ export function progressText(w: Widget, today: Date = new Date()): string {
     }
     case "timer": return `${plural(w.config.sessions, "session", "sessions")} finished`;
     case "note": return w.config.text ? `${w.config.text.length} of 500 characters` : "Empty";
+    case "mission": {
+      const n = w.config.steps.length, d = w.config.steps.filter((x) => x.done).length;
+      return n === 0 ? "No steps yet" : d === n ? `All ${n} steps done` : `${d} of ${n} steps done`;
+    }
     case "facts": return plural(w.config.items.length, "fact kept", "facts kept");
     case "routine": return w.config.last_run ? `Last run ${fmtWhen(w.config.last_run)}` : "Not run yet";
   }
@@ -142,4 +150,25 @@ export function filterCatalog(items: CatalogItem[], who: "All" | "Everyone" | "T
 export function findFacts(items: Fact[], query: string): Fact[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   return words.length === 0 ? items : items.filter((f) => words.every((w) => `${f.label} ${f.value}`.toLowerCase().includes(w)));
+}
+
+/** How far along a mission is, as a whole percent (0 for no steps), and the next thing to do. */
+export function missionProgress(c: MissionConfig): { percent: number; next: string | null; done: number; total: number } {
+  const total = c.steps.length, done = c.steps.filter((x) => x.done).length;
+  return { percent: total === 0 ? 0 : Math.round((done / total) * 100), next: c.steps.find((x) => !x.done)?.text ?? null, done, total };
+}
+
+/** Days from `today` to the target date: negative once it has passed, null when there is no date. */
+export function daysToTarget(target: string, today: Date = new Date()): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(target);
+  if (!m) return null;
+  const t = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return Math.round((t - t0) / 86_400_000);
+}
+
+export function targetText(target: string, today: Date = new Date()): string {
+  const d = daysToTarget(target, today);
+  if (d === null) return "No target date";
+  return d === 0 ? "Due today" : d === 1 ? "Due tomorrow" : d > 1 ? `Due in ${d} days (${target})` : `${-d} day${d === -1 ? "" : "s"} past ${target}`;
 }

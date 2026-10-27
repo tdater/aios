@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adjacency, colorKey, ColorMode, projectSlot } from "../core/graph";
-import { Layout } from "../core/graphLayout";
+import { Layout, radialPositions } from "../core/graphLayout";
 import { GraphData, GraphNode } from "../core/types";
 
 export interface GraphViewProps {
@@ -18,7 +18,10 @@ export interface GraphViewProps {
   fitSignal?: number;                      // bump to refit the view
   relayoutSignal?: number;                 // bump to scramble and re-run the layout
   height?: number | string;
+  mode?: "force" | "radial";               // force = physics; radial = the selected (or busiest) note in the middle with rings around it
+  preview?: (n: GraphNode) => Promise<NodePreview | null>;   // loads a short excerpt for the hover card
 }
+export interface NodePreview { excerpt: string; words: number; tags: string[] }
 
 interface Pal { [k: string]: string }
 function readPalette(): Pal {
@@ -46,7 +49,7 @@ export function colorFor(key: string, p: Pal): string {
 const reduceMotion = () => matchMedia?.("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "reduce";
 
 export function GraphView(props: GraphViewProps) {
-  const { data, selectedId, focusId, highlight, showLabels = true, compact = false, onSelect, onOpen, ariaLabel, fitSignal, relayoutSignal, height } = props;
+  const { data, selectedId, focusId, highlight, showLabels = true, compact = false, onSelect, onOpen, ariaLabel, fitSignal, relayoutSignal, height, mode = "force" } = props;
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const layout = useRef<Layout | null>(null);
@@ -58,6 +61,9 @@ export function GraphView(props: GraphViewProps) {
   const drag = useRef<{ id: string | null; moved: number; lastX: number; lastY: number; pointers: Map<number, { x: number; y: number }>; pinch: number } | null>(null);
   const [tip, setTip] = useState<{ label: string; x: number; y: number; sub: string } | null>(null);
   const [announce, setAnnounce] = useState("");
+  const [pv, setPv] = useState<{ id: string; data: NodePreview | null } | null>(null);
+  const pvCache = useRef(new Map<string, NodePreview | null>());
+  const centre = useMemo(() => selectedId ?? focusId ?? [...data.nodes].sort((a, b) => b.degree - a.degree || a.id.localeCompare(b.id))[0]?.id ?? null, [selectedId, focusId, data.nodes]);
   const byId = useMemo(() => new Map(data.nodes.map((n) => [n.id, n])), [data.nodes]);
   const adj = useMemo(() => adjacency(data.edges), [data.edges]);
   const propsRef = useRef(props);
@@ -160,9 +166,10 @@ export function GraphView(props: GraphViewProps) {
     let kept = 0;
     for (const n of l.nodes) { const p = prev.get(n.id); if (p) { n.x = p[0]; n.y = p[1]; kept++; } }
     layout.current = l;
-    if (reduceMotion() || kept === 0 || compact) { l.settle(); fit(); } else { l.reheat(0.55); kick(); }
+    if (mode === "radial" && centre) { l.pin(radialPositions(data.nodes.map((n) => n.id), data.edges, centre)); fit(); draw(); }
+    else if (reduceMotion() || kept === 0 || compact) { l.settle(); fit(); } else { l.reheat(0.55); kick(); }
     return () => { if (raf.current != null) cancelAnimationFrame(raf.current); raf.current = null; };
-  }, [data.nodes, data.edges, compact, fit, kick]);
+  }, [data.nodes, data.edges, compact, fit, kick, draw, mode, centre]);
 
   useEffect(() => { if (fitSignal) fit(); }, [fitSignal, fit]);
   useEffect(() => {
@@ -258,6 +265,11 @@ export function GraphView(props: GraphViewProps) {
       canvas.current!.style.cursor = id ? "pointer" : "";
       const g = id ? byId.get(id) : null;
       const r = wrap.current!.getBoundingClientRect();
+      if (g && g.kind === "memory" && propsRef.current.preview) {
+        const load = propsRef.current.preview;
+        if (pvCache.current.has(g.id)) setPv({ id: g.id, data: pvCache.current.get(g.id) ?? null });
+        else { setPv(null); setTimeout(() => { if (hoverRef.current === g.id) void load(g).then((d) => { pvCache.current.set(g.id, d); if (hoverRef.current === g.id) setPv({ id: g.id, data: d }); }).catch(() => undefined); }, 250); }
+      } else setPv(null);
       setTip(g ? { label: g.label, sub: `${g.kind === "memory" ? g.type ?? "note" : g.kind} · ${g.degree} connection${g.degree === 1 ? "" : "s"}`, x: e.clientX - r.left, y: e.clientY - r.top } : null);
       draw();
     } else if (id) setTip((t) => (t ? { ...t, x: e.clientX - wrap.current!.getBoundingClientRect().left, y: e.clientY - wrap.current!.getBoundingClientRect().top } : t));
@@ -312,7 +324,10 @@ export function GraphView(props: GraphViewProps) {
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
         onPointerLeave={() => { if (hoverRef.current) { hoverRef.current = null; setTip(null); draw(); } }} onClick={onClickCompact} onDoubleClick={onDouble} onKeyDown={onKey}
         className={drag.current?.id ? "dragging" : undefined} />
-      {tip && !compact && <div className="graphinfo" style={{ left: Math.min(tip.x + 14, (wrap.current?.clientWidth ?? 300) - 190), top: tip.y + 14, right: "auto", maxWidth: 200, padding: "6px 10px", pointerEvents: "none" }}><strong>{tip.label}</strong><div className="muted small">{tip.sub}</div></div>}
+      {tip && !compact && <div className="graphinfo graph-preview-card" style={{ left: Math.min(tip.x + 14, (wrap.current?.clientWidth ?? 300) - 250), top: tip.y + 14, right: "auto", maxWidth: 240, padding: "8px 12px", pointerEvents: "none" }}>
+        <strong>{tip.label}</strong><div className="muted small">{tip.sub}</div>
+        {pv && pv.id === hoverRef.current && pv.data && (<><p className="small graph-excerpt">{pv.data.excerpt}</p><div className="muted small">{pv.data.words} word{pv.data.words === 1 ? "" : "s"}{pv.data.tags.length ? ` · ${pv.data.tags.slice(0, 4).map((t) => `#${t}`).join(" ")}` : ""}</div></>)}
+        <div className="muted small">Double-click to open</div></div>}
       <span className="sr" aria-live="polite">{announce}</span>
     </div>
   );

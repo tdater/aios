@@ -4,9 +4,24 @@ import { Paged, Project, Run, Task } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad } from "../ui/hooks";
 import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, useOnce } from "../ui/kit";
+import { MissionBoard } from "./projects/MissionBoard";
+
+const PERSONA_KEY = "aios.projects.persona";
+const savedPersona = (): "dev" | "life" => { try { return localStorage.getItem(PERSONA_KEY) === "life" ? "life" : "dev"; } catch { return "dev"; } };
 
 export function Projects({ id }: { id?: string }) {
-  return id ? <ProjectDetail id={id} /> : <ProjectList />;
+  const [persona, setPersona] = useState<"dev" | "life">(savedPersona);
+  const pick = (p: "dev" | "life") => { setPersona(p); try { localStorage.setItem(PERSONA_KEY, p); } catch { /* the choice just does not stick */ } };
+  if (id) return <ProjectDetail id={id} />;
+  return (
+    <>
+      <div className="seg" role="group" aria-label="What kind of project">
+        <button type="button" aria-pressed={persona === "dev"} onClick={() => pick("dev")}>🛠 Developer projects</button>
+        <button type="button" aria-pressed={persona === "life"} onClick={() => pick("life")}>🎯 Life missions</button>
+      </div>
+      {persona === "life" ? <div className="screen"><h2>Life missions</h2><MissionBoard /></div> : <ProjectList />}
+    </>
+  );
 }
 
 function ProjectList() {

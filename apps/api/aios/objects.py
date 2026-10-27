@@ -27,7 +27,7 @@ PLAIN_JOB = {
 }
 LEVEL_WORDS = {"private": "Everything (public and private memories)", "public": "Only memories I marked public", "none": "Nothing"}
 WIDGET_JOB = {"counter": "A counter in your universe.", "checklist": "A checklist in your universe.", "note": "A note in your universe.",
-              "habit": "A daily check with a streak.", "timer": "A focus and rest timer.", "routine": "A saved request you can run in one click.", "facts": "Household facts you always lose, one search away."}
+              "habit": "A daily check with a streak.", "timer": "A focus and rest timer.", "routine": "A saved request you can run in one click.", "facts": "Household facts you always lose, one search away.", "mission": "A life goal with steps and a target date."}
 
 
 def _o(oid: str, typ: str, region: str, name: str, job: str, tone: str, text: str, **meta) -> dict:
@@ -157,6 +157,9 @@ def _widget_state(w: dict) -> str:
         when = {"manual": "Runs when you press Run", "daily": f"Daily at {c.get('at')}", "weekdays": f"Weekdays at {c.get('at')}",
                 "weekly": f"Weekly, {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][c.get('day', 6)]} at {c.get('at')}"}[c.get("when", "manual")]
         return when
+    if w["kind"] == "mission":
+        steps = c.get("steps", [])
+        return f"{sum(1 for i in steps if i['done'])} of {len(steps)} steps done" + (f", by {c['target']}" if c.get("target") else "")
     if w["kind"] == "facts":
         n = len(c.get("items", []))
         return f"{n} fact{'' if n == 1 else 's'} kept"
@@ -337,11 +340,7 @@ def act(db: Database, settings: Settings, oid: str, name: str) -> dict:
         return {"title": f"What {obj['name']} would be told", "count": len(b["items"]), "text": b["text"] or "Nothing at this level."}
     if name == "run_health_check" and obj["id"].startswith("home"):
         abilities.require(db, "system_scan")
-        facts = system_scan.collect()
-        result = {"at": now(), "facts": facts, "suggestions": system_scan.suggest(facts)}
-        abilities.set_flag(db, "last_scan", json.dumps(result))
-        abilities.receipt(db, actor="system_scan", kind="system_scan.run", summary="Read memory, disk, temp-folder size and start-up count. Changed nothing.")
-        return result
+        return homebase.run_scan(db)
     if name == "stop" and obj["id"] == "home:rover":
         return rover.stop(db, settings)
     if name == "pair_device" and obj["id"] == "home:port":

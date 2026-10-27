@@ -154,3 +154,22 @@ def test_the_household_vault_survives_a_round_trip_through_the_api(client):
     assert w.status_code == 201 and w.json()["kind"] == "facts"
     new = {"items": [{"label": "AC filter", "value": "20x25x1"}]}
     assert client.put(f"{V}/widgets/{w.json()['id']}", json={"config": new}).json()["config"] == new
+
+
+def test_a_life_mission_keeps_a_target_date_and_steps_and_rejects_nonsense():
+    t, c = widgets.validate("mission", "Kitchen", {"target": "2026-12-01", "steps": [{"text": " Get quotes ", "done": True}, {"text": "Pick tiles"}], "note": "Budget 8000"})
+    assert c == {"target": "2026-12-01", "steps": [{"text": "Get quotes", "done": True}, {"text": "Pick tiles", "done": False}], "note": "Budget 8000"}
+    assert widgets.validate("mission", "Open ended", {})[1] == {"target": "", "steps": [], "note": ""}
+    bad = [{"target": "next friday"}, {"target": "2026-13-40"}, {"steps": "no"}, {"steps": [{"text": ""}]}, {"steps": [{"text": "x", "extra": 1}]},
+           {"steps": [{"text": "x"}] * (widgets.MAX_STEPS + 1)}, {"surprise": 1}]
+    for b in bad:
+        with pytest.raises(ApiError):
+            widgets.validate("mission", "Bad", b)
+
+
+def test_missions_appear_in_the_universe_with_their_progress(client):
+    on(client)
+    w = client.post(f"{V}/widgets", json={"kind": "mission", "title": "Trip", "config": {"target": "2027-06-01", "steps": [{"text": "Book", "done": True}, {"text": "Pack", "done": False}]}})
+    assert w.status_code == 201
+    probe = next(o for o in client.get(f"{V}/universe/objects").json()["items"] if o["id"] == f"probe:{w.json()['id']}")
+    assert probe["state"]["text"] == "1 of 2 steps done, by 2027-06-01"

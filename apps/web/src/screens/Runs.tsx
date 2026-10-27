@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../core/client";
 import { LinkState, monitorRun } from "../core/monitor";
+import { groupByDay, plainKind } from "../core/timeline";
 import { Artifact, Paged, Run, RunDetail } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad, useViewport } from "../ui/hooks";
@@ -46,12 +47,16 @@ function RunList({ selected }: { selected?: string }) {
       </div>
       <ErrorBox msg={first.error} code={first.errorCode} />
       {first.loading && !items.length ? <Loading /> : !items.length && !first.error ? <Empty>No runs.</Empty> : (
-        <ul className="cards">{items.map((r) => (
-          <li key={r.id}><button className={`card-btn ${selected === r.id ? "sel" : ""}`} onClick={() => go({ tab: "runs", id: r.id })}>
-            <span className="row"><strong>{r.task_title}</strong><Badge s={r.display_state} /></span>
-            <span className="muted small">{r.project_name ?? "no project"} · {r.task_kind} · {ago(r.created_at)}</span>
-            {r.cancellation?.status === "requested" && <span className="muted small">cancellation requested</span>}
-          </button></li>))}</ul>
+        <div>{groupByDay(items).map((g) => (
+          <section key={g.bucket} aria-label={g.bucket}>
+            <h3 className="daybucket">{g.bucket}</h3>
+            <ul className="cards">{g.items.map((r) => (
+              <li key={r.id}><button className={`card-btn ${selected === r.id ? "sel" : ""}`} onClick={() => go({ tab: "runs", id: r.id })}>
+                <span className="row"><strong><span aria-hidden="true">{plainKind(r.task_kind).icon}</span> {r.task_title}</strong><Badge s={r.display_state} /></span>
+                <span className="muted small">{plainKind(r.task_kind).text} · {r.project_name ?? "no project"} · {ago(r.created_at)}</span>
+                {r.cancellation?.status === "requested" && <span className="muted small">cancellation requested</span>}
+              </button></li>))}</ul>
+          </section>))}</div>
       )}
       {cursor && <Btn kind="ghost" busy={more.busy} onClick={() => void more.run()}>Load more</Btn>}
     </div>

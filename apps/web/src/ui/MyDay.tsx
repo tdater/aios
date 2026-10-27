@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../core/client";
 import { AssistView } from "../core/assist";
+import { celebrate } from "../core/celebrate";
 import { canSpeak, speak, stopAllVoice } from "../core/voice";
 import {
   ChecklistItem, ConfigByKind, Fact, findFacts, MAX_FACTS, MAX_ITEMS, RoutineConfig, RoutineWhen, Widget, WEEKDAYS, doneToday, isAbilityOn, listWidgets, getAbilities, mmss, nextRunText,
@@ -9,6 +10,8 @@ import {
 import { useApp } from "./Context";
 import { go, routeHref } from "./hooks";
 import { ErrorBox } from "./kit";
+import { Dispatch } from "./Dispatch";
+import { MissionCard } from "./Mission";
 import { VoiceButton } from "./VoiceButton";
 
 type Save = <K extends Widget["kind"]>(w: Extract<Widget, { kind: K }>, config: ConfigByKind[K], title?: string) => Promise<void>;
@@ -62,6 +65,7 @@ export function MyDay({ startOpen = true, onAdd, refreshKey = 0 }: { startOpen?:
               <p>Nothing here yet. Pick a small tool for your day, like a checklist or a habit.</p>
               {onAdd && <button type="button" className="btn primary" onClick={onAdd}>Launch your first probe</button>}
             </div>)}
+          {items && count > 0 && <Dispatch widgets={items} connected={connected} saveChecklist={(w, list) => save(w, { items: list })} />}
           {items?.map((w) => <WidgetCard key={w.id} w={w} save={save} remove={remove} reload={load} connected={connected} scheduling={scheduling} setErr={setErr} />)}
         </div>)}
     </aside>
@@ -107,6 +111,7 @@ function WidgetCard(p: CardProps) {
       {w.kind === "checklist" && <Checklist w={w} save={save} connected={connected} />}
       {w.kind === "counter" && <Counter w={w} save={save} connected={connected} />}
       {w.kind === "note" && <Note w={w} save={save} connected={connected} />}
+      {w.kind === "mission" && <MissionCard w={w} save={(x, config) => save(x, config)} connected={connected} />}
       {w.kind === "facts" && <Facts w={w} save={save} connected={connected} />}
       {w.kind === "habit" && <Habit w={w} save={save} connected={connected} />}
       {w.kind === "timer" && <Timer w={w} save={save} connected={connected} />}
@@ -133,7 +138,7 @@ function Checklist({ w, save, connected }: Sub<"checklist">) {
       <ul className="plain">
         {items.map((it, i) => (
           <li key={i} className="row">
-            <label className="check"><input type="checkbox" checked={it.done} disabled={!connected} onChange={() => void put(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))} /> {it.text}</label>
+            <label className="check"><input type="checkbox" checked={it.done} disabled={!connected} onChange={() => { if (!it.done) celebrate(w.id); void put(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x))); }} /> {it.text}</label>
             <button type="button" className="btn ghost" aria-label={`Remove item ${it.text}`} disabled={!connected} onClick={() => void put(items.filter((_, j) => j !== i))}>×</button>
           </li>))}
       </ul>
@@ -210,7 +215,7 @@ function Habit({ w, save, connected }: Sub<"habit">) {
   return (
     <div className="row">
       <button type="button" className={`btn ${done ? "primary" : "ghost"}`} aria-pressed={done} aria-label={`Done today: ${w.title}`} disabled={!connected}
-        onClick={() => void save(w, { ...w.config, days: toggleToday(w.config.days) })}>{done ? "Done today" : "Check today"}</button>
+        onClick={() => { if (!done) celebrate(w.id); void save(w, { ...w.config, days: toggleToday(w.config.days) }); }}>{done ? "Done today" : "Check today"}</button>
       <span aria-live="polite">{s === 0 ? "No streak yet" : `${s} ${s === 1 ? "day" : "days"} in a row`}</span>
     </div>
   );

@@ -796,3 +796,46 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 
 .cockpit .compass { position: absolute; right: 12px; bottom: 296px; z-index: 4; background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 50%; }
 .cockpit .compass:focus-visible { outline: 3px solid #ffd37a; outline-offset: 2px; }
+
+.daybucket { margin: 14px 0 4px; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+.notegrid { list-style: none; margin: 10px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.notecard { width: 100%; height: 100%; min-height: 96px; text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel, transparent); color: inherit; cursor: pointer; }
+.notecard:hover { border-color: var(--accent); }
+.notecard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.notetags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Dock hotkey badge and the sparkle when a habit is done */
+.cockpit .dock-row { display: flex; align-items: center; justify-content: space-between; }
+.cockpit .dock-num { font-size: 10px; opacity: .55; padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.08); font-family: var(--mono, monospace); }
+.cockpit .burst { position: absolute; width: 0; height: 0; z-index: 6; pointer-events: none; }
+.cockpit .burst i { position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; border-radius: 50%; background: #ffd37a; box-shadow: 0 0 6px #ffbe0b; animation: burst-fly 1.2s ease-out forwards; }
+@keyframes burst-fly { 0% { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 1; } 100% { transform: rotate(var(--a)) translateX(var(--d)) scale(.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cockpit .burst { display: none; } }
+
+.meter { height: 8px; border-radius: 99px; background: rgba(143,180,255,.18); overflow: hidden; margin: 6px 0; }
+.meter > span { display: block; height: 100%; background: linear-gradient(90deg, #38ef7d, #00bbf9); transition: width .3s ease; }
+.seg { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+.seg button { padding: 8px 16px; min-height: 40px; background: transparent; border: 0; color: inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent, #fff); }
+
+.scan-rows { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.scan-rows li { padding: 4px 8px; border-left: 3px solid #3ee0a0; border-radius: 4px; background: rgba(62,224,160,.07); }
+.scan-rows li.warn { border-left-color: #ffc857; background: rgba(255,200,87,.10); }
+.scan-ideas h4 { margin: 10px 0 4px; }
+
+.graph-preview-card { background: rgba(8,14,30,.82); color: #e8eefc; border: 1px solid rgba(143,180,255,.35); border-radius: 12px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 26px rgba(0,0,0,.4); }
+.graph-excerpt { margin: 6px 0; line-height: 1.35; }
+
+/* Ambient display: large type for a wall screen or TV */
+.ambient { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-between; padding: 4vh 5vw; background: #05080f; color: #f3f6ff; font-size: clamp(32px, 4.2vw, 64px); }
+.ambient h1 { font-size: 1.3em; margin: 0 0 .4em; color: #ffd37a; }
+.ambient ol, .ambient ul { margin: 0; padding-left: 1.2em; line-height: 1.5; }
+.ambient li { margin-bottom: .3em; }
+.ambient-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ambient-clock { font-size: 1.6em; font-weight: 700; }
+.ambient-date, .ambient-sub { opacity: .8; font-size: .6em; margin-left: .6em; }
+.ambient-quote { font-size: 1.1em; line-height: 1.35; }
+.ambient-foot { display: flex; gap: 1.2em; font-size: .45em; opacity: .75; }
+.ambient-foot .on { color: #ffd37a; font-weight: 700; }
+.ambient:focus-visible { outline: 4px solid #ffd37a; }

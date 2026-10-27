@@ -73,3 +73,20 @@ export const resolveWiki = (target: string, idx: TitleIndex): string | null => i
 export function filterNotes(notes: NoteRow[], f: { tag?: string; type?: string; scope?: string; status?: string }): NoteRow[] {
   return notes.filter((n) => (!f.tag || n.tags.some((t) => t === f.tag || t.startsWith(`${f.tag}/`))) && (!f.type || n.type === f.type) && (!f.scope || n.scope === f.scope) && (!f.status || n.status === f.status));
 }
+
+export interface CardFilter { id: string; label: string }
+
+/** Filter chips for the card view: everything, each kind of note that exists, and the most used tags. */
+export function cardFilters(notes: NoteRow[], maxTags = 6): CardFilter[] {
+  const types = TYPE_ORDER.filter((t) => notes.some((n) => n.type === t)).map((t) => ({ id: `type:${t}`, label: TYPE_LABEL[t] ?? t }));
+  const counts = new Map<string, number>();
+  for (const n of notes) for (const t of n.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+  const tags = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, maxTags).map(([t]) => ({ id: `tag:${t}`, label: `#${t}` }));
+  return [{ id: "all", label: "All notes" }, ...types, ...tags];
+}
+
+export function applyCardFilter(notes: NoteRow[], filter: string): NoteRow[] {
+  if (filter.startsWith("type:")) return notes.filter((n) => n.type === filter.slice(5));
+  if (filter.startsWith("tag:")) return notes.filter((n) => n.tags.includes(filter.slice(4)));
+  return notes;
+}
