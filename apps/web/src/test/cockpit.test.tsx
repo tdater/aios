@@ -74,7 +74,10 @@ describe("the cockpit", () => {
     open();
     const cockpit = await screen.findByTestId("cockpit");
     await screen.findByRole("complementary", { name: /Claude: details/ });
-    fireEvent.click(screen.getByRole("button", { name: "Face the Sun and level the view" }));
+    const compass = screen.getByRole("button", { name: "Face the Sun and level the view" });
+    expect(compass.getAttribute("title")).toMatch(/tilted -?\d+°/);
+    expect(compass.querySelector('[data-testid="horizon"]')).toBeTruthy();
+    fireEvent.click(compass);
     expect(location.hash).toBe("#/home/o/planet%3Aclaude");                           // facing the Sun only moves the camera
     fireEvent.keyDown(cockpit, { key: "0" });
     expect(location.hash).toBe("#/home");

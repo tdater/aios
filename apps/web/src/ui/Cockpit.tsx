@@ -1,7 +1,7 @@
 import { Suspense, lazy, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyArrivals } from "../core/arrival";
 import { UObject, REGIONS, Region, layoutWorld, posAt, posAtExact } from "../core/scene";
-import { Camera, clamp, defaultCamera, ease, faceSun, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
+import { Camera, MAX_PITCH, clamp, defaultCamera, ease, faceSun, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
 import { ObjectList } from "../core/objects";
 import { Universe } from "../core/types";
 import { CELEBRATE_EVENT } from "../core/celebrate";
@@ -20,6 +20,7 @@ import { ObjectCard } from "./ObjectCard";
 import { WidgetGallery } from "./WidgetGallery";
 import { ObjectField } from "./ObjectField";
 import { useArrivals, prefersReducedMotion } from "./useArrivals";
+import { useZenOrbit } from "./useZenOrbit";
 
 const UniverseGL = lazy(() => import("./UniverseGL"));
 const PRIORITY = ["sun", "planet", "home", "allstop", "station", "comet", "log", "wormhole", "beacon", "probe"];
@@ -112,6 +113,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
     return () => window.removeEventListener(CELEBRATE_EVENT, on);
   }, []);
   const [sound, setSound] = useState(soundEnabled());
+  useZenOrbit(box, { enabled: !reduced, paused: !!objectId || day || gallery || goOpen || listView, onDrift: (r) => setCam(orbit(camRef.current, r, 0)) });
   const flyTo = useCallback((to: Camera, ms = 700) => {
     cancelAnimationFrame(raf.current);
     if (reduced || typeof requestAnimationFrame !== "function") { setCam(to); return; }
@@ -266,12 +268,15 @@ function GoTo({ world, onPick, onClose }: { world: NonNullable<ReturnType<typeof
 
 /** Lost? The needle shows which way you are turned; pressing it faces the Sun and levels the view. The 0 key goes all the way back to the start view. */
 function Compass({ cam, onFaceSun }: { cam: Camera; onFaceSun: () => void }) {
+  const tilt = Math.round((cam.pitch * 180) / Math.PI);                                // looking down is positive
+  const horizon = clamp((cam.pitch / MAX_PITCH) * 14, -14, 14);                         // the artificial horizon sits lower the more you look down
   return (
-    <button type="button" className="compass" aria-label="Face the Sun and level the view" title="Face the Sun and level the view (0 shows everything)" onClick={onFaceSun}>
+    <button type="button" className="compass" aria-label="Face the Sun and level the view" title={`Face the Sun and level the view (tilted ${tilt}°; 0 shows everything)`} onClick={onFaceSun}>
       <svg width="44" height="44" viewBox="-22 -22 44 44" aria-hidden="true">
         <circle r="20" fill="rgba(5,10,24,.7)" stroke="#8fb4ff" strokeOpacity=".5" />
         <g transform={`rotate(${(-cam.yaw * 180) / Math.PI})`}><path d="M0 -15 L4 0 L-4 0 Z" fill="#ffd37a" /><path d="M0 15 L4 0 L-4 0 Z" fill="#456" /></g>
         <circle r="3" fill="#ffd37a" />
+        <line data-testid="horizon" x1="-15" x2="15" y1={horizon} y2={horizon} stroke="#5ee2d6" strokeWidth="1.2" strokeOpacity=".8" />
       </svg>
     </button>
   );
