@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALWAYS_SHOWN, MODE_TABS, hiddenReason, hideable, tabVisible } from "./modes";
+import { ALWAYS_SHOWN, MODE_TABS, hiddenReason, hideable, navLabel, tabVisible } from "./modes";
 import { DEFAULT_SETTINGS, sanitizeSettings } from "./settings";
 
 const S = (o = {}) => ({ mode: "standard" as const, hiddenNav: [] as string[], ...o });
@@ -14,6 +14,13 @@ describe("modes", () => {
     expect(["projects", "runs", "graph"].map((t) => tabVisible(S({ mode: "simple" }), t as never))).toEqual([false, false, false]);
     expect(["projects", "runs", "graph"].map((t) => tabVisible(S({ mode: "power" }), t as never))).toEqual([true, true, true]);
     expect(tabVisible(S(), "graph")).toBe(false);
+  });
+  it("Simple is four anchors plus Settings, and says what each is for", () => {
+    expect(MODE_TABS.simple).toEqual(["home", "work", "knowledge", "inbox", "settings"]);
+    expect(navLabel("simple", "work", "Workspace")).toBe("Missions");
+    expect(navLabel("standard", "work", "Workspace")).toBe("Workspace");
+    expect(navLabel("simple", "knowledge", "Knowledge")).toBe("Knowledge");
+    expect(["ais", "insights"].map((t) => tabVisible(S({ mode: "simple" }), t as never))).toEqual([false, false]);
   });
   it("a person can switch sections off inside their mode, but never Home or Settings", () => {
     expect(tabVisible(S({ hiddenNav: ["runs"] }), "runs")).toBe(false);

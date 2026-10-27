@@ -566,13 +566,74 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .topbar > * { pointer-events: auto; }
 .cockpit .crumbs { flex: 1; font-size: 14px; background: rgba(5,10,24,.6); padding: 4px 10px; border-radius: 999px; width: fit-content; }
 .cockpit .crumbs button { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
-.cockpit .dock { position: absolute; left: 8px; top: 52px; display: flex; flex-direction: column; gap: 6px; z-index: 5; max-width: 190px; }
-.cockpit .dock button { text-align: left; background: rgba(5,10,24,.7); color: inherit; border: 1px solid rgba(143,180,255,.3); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
-.cockpit .dock button.on { border-color: #ffd37a; }
-.cockpit .dock-name { display: block; font-weight: 600; }
-.cockpit .dock-q { display: block; font-size: 11px; opacity: .75; }
+.cockpit .dock { position: absolute; left: 10px; top: 52px; display: flex; flex-direction: column; gap: 7px; z-index: 5; width: min(210px, calc(100% - 20px)); pointer-events: none; }
+.cockpit .dock > * { pointer-events: auto; }
+.cockpit .dock button.dock-btn {
+  position: relative; display: flex; align-items: stretch; text-align: left;
+  background: rgba(5, 12, 28, 0.76);
+  color: #e8eefc;
+  border: 1px solid rgba(143, 180, 255, 0.24);
+  border-radius: 12px;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(0, 4, 14, 0.45);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.cockpit .dock button.dock-btn:hover {
+  transform: translateX(3px);
+  background: rgba(10, 22, 48, 0.88);
+}
+.cockpit .dock-accent {
+  width: 5px; flex: none;
+  background: rgba(143, 180, 255, 0.4);
+  transition: width .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.cockpit .dock-body { padding: 7px 11px; flex: 1; min-width: 0; }
+.cockpit .dock-name { display: block; font-size: 13.5px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.25; }
+.cockpit .dock-q { display: block; font-size: 11px; opacity: .75; margin-top: 2px; line-height: 1.25; }
+
+/* Distinct standout color schemes per region on the dock */
+.cockpit .dock button.dock-sun .dock-accent { background: linear-gradient(180deg, #ffbe0b, #fb5607); }
+.cockpit .dock button.dock-sun:hover { border-color: rgba(255, 190, 11, 0.6); box-shadow: 0 0 16px rgba(255, 190, 11, 0.25); }
+.cockpit .dock button.dock-sun.on { border-color: #ffbe0b; background: rgba(30, 20, 4, 0.88); box-shadow: 0 0 18px rgba(255, 190, 11, 0.4); transform: translateX(5px); }
+.cockpit .dock button.dock-sun.on .dock-accent { width: 7px; box-shadow: 0 0 10px #ffbe0b; }
+.cockpit .dock button.dock-sun .dock-name { color: #ffe28a; }
+
+.cockpit .dock button.dock-fleet .dock-accent { background: linear-gradient(180deg, #00f5d4, #00bbf9); }
+.cockpit .dock button.dock-fleet:hover { border-color: rgba(0, 245, 212, 0.6); box-shadow: 0 0 16px rgba(0, 245, 212, 0.25); }
+.cockpit .dock button.dock-fleet.on { border-color: #00f5d4; background: rgba(3, 28, 34, 0.88); box-shadow: 0 0 18px rgba(0, 245, 212, 0.4); transform: translateX(5px); }
+.cockpit .dock button.dock-fleet.on .dock-accent { width: 7px; box-shadow: 0 0 10px #00f5d4; }
+.cockpit .dock button.dock-fleet .dock-name { color: #94fdf0; }
+
+.cockpit .dock button.dock-stars .dock-accent { background: linear-gradient(180deg, #c77dff, #7b2cbf); }
+.cockpit .dock button.dock-stars:hover { border-color: rgba(199, 125, 255, 0.6); box-shadow: 0 0 16px rgba(199, 125, 255, 0.25); }
+.cockpit .dock button.dock-stars.on { border-color: #c77dff; background: rgba(26, 8, 42, 0.88); box-shadow: 0 0 18px rgba(199, 125, 255, 0.4); transform: translateX(5px); }
+.cockpit .dock button.dock-stars.on .dock-accent { width: 7px; box-shadow: 0 0 10px #c77dff; }
+.cockpit .dock button.dock-stars .dock-name { color: #e2b6ff; }
+
+.cockpit .dock button.dock-yards .dock-accent { background: linear-gradient(180deg, #ff9e00, #ff5400); }
+.cockpit .dock button.dock-yards:hover { border-color: rgba(255, 158, 0, 0.6); box-shadow: 0 0 16px rgba(255, 158, 0, 0.25); }
+.cockpit .dock button.dock-yards.on { border-color: #ff9e00; background: rgba(36, 18, 3, 0.88); box-shadow: 0 0 18px rgba(255, 158, 0, 0.4); transform: translateX(5px); }
+.cockpit .dock button.dock-yards.on .dock-accent { width: 7px; box-shadow: 0 0 10px #ff9e00; }
+.cockpit .dock button.dock-yards .dock-name { color: #ffd180; }
+
+.cockpit .dock button.dock-home .dock-accent { background: linear-gradient(180deg, #38ef7d, #11998e); }
+.cockpit .dock button.dock-home:hover { border-color: rgba(56, 239, 125, 0.6); box-shadow: 0 0 16px rgba(56, 239, 125, 0.25); }
+.cockpit .dock button.dock-home.on { border-color: #38ef7d; background: rgba(6, 30, 20, 0.88); box-shadow: 0 0 18px rgba(56, 239, 125, 0.4); transform: translateX(5px); }
+.cockpit .dock button.dock-home.on .dock-accent { width: 7px; box-shadow: 0 0 10px #38ef7d; }
+.cockpit .dock button.dock-home .dock-name { color: #a3f7c4; }
+
+.cockpit .dock button.dock-control .dock-accent { background: linear-gradient(180deg, #ff0054, #9e0059); }
+.cockpit .dock button.dock-control:hover { border-color: rgba(255, 0, 84, 0.6); box-shadow: 0 0 16px rgba(255, 0, 84, 0.25); }
+.cockpit .dock button.dock-control.on { border-color: #ff0054; background: rgba(38, 4, 15, 0.88); box-shadow: 0 0 18px rgba(255, 0, 84, 0.4); transform: translateX(5px); }
+.cockpit .dock button.dock-control.on .dock-accent { width: 7px; box-shadow: 0 0 10px #ff0054; }
+.cockpit .dock button.dock-control .dock-name { color: #ff80a6; }
+
 .cockpit .radar { position: absolute; right: 8px; bottom: 8px; z-index: 4; }
-.cockpit .object-card { position: absolute; right: 8px; top: 52px; bottom: 140px; width: min(380px, calc(100% - 16px)); overflow: auto; z-index: 6; background: color-mix(in srgb, var(--surface, #0d1426) 94%, transparent); color: var(--text, #e8eefc); border: 1px solid rgba(143,180,255,.35); border-radius: 12px; padding: 12px 14px; }
+.cockpit .object-card { position: absolute; right: 10px; top: 52px; bottom: 140px; width: min(390px, calc(100% - 20px)); overflow: auto; z-index: 6; background: linear-gradient(160deg, rgba(8, 18, 40, 0.94) 0%, rgba(4, 9, 22, 0.90) 100%); color: var(--text, #e8eefc); border: 1px solid rgba(94, 226, 214, 0.35); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), 0 0 24px rgba(94, 226, 214, 0.10), inset 0 1px 0 rgba(143, 180, 255, 0.25); }
 .cockpit .tiers { display: flex; gap: 6px; margin: 8px 0; }
 .cockpit .tiers button.on { outline: 2px solid #ffd37a; }
 .cockpit .goto { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); width: min(520px, 94%); z-index: 20; background: #0d1426; border: 1px solid #456; border-radius: 12px; padding: 10px; }
@@ -629,20 +690,81 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .dock button.on, .cockpit .btn-quiet[aria-pressed="true"] { border-color: var(--teal); box-shadow: 0 0 12px rgba(94, 226, 214, .25); }
 .cockpit .u-label.needs-you { border-color: #ffc857; animation: needs-pulse 2s ease-out infinite; }
 @keyframes needs-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 200, 87, .55); } 70%, 100% { box-shadow: 0 0 0 12px rgba(255, 200, 87, 0); } }
-.cockpit .hud { position: absolute; right: 8px; top: 52px; width: min(300px, calc(100% - 230px)); display: grid; gap: 8px; z-index: 5; max-height: calc(100% - 215px); overflow: auto; }
-.cockpit .hud-toggle { justify-self: end; }
-.cockpit .hud-show { position: absolute; right: 8px; top: 52px; z-index: 5; }
+.cockpit .hud { position: absolute; right: 10px; top: 52px; width: min(310px, calc(100% - 240px)); display: grid; gap: 10px; z-index: 5; max-height: calc(100% - 200px); overflow: auto; padding-right: 2px; }
+.cockpit .hud-toggle { justify-self: end; background: rgba(6, 14, 30, 0.75); border: 1px solid var(--edge); }
+.cockpit .hud-show { position: absolute; right: 10px; top: 52px; z-index: 5; }
 .cockpit .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.cockpit .tile { text-align: left; background: var(--glass); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; color: inherit; cursor: pointer; backdrop-filter: blur(10px); }
-.cockpit .tile-label { display: block; font-size: 11px; opacity: .75; }
-.cockpit .tile-value { display: block; font-size: 26px; font-weight: 600; line-height: 1.1; }
-.cockpit .tile.warn { border-color: #ffc857; } .cockpit .tile.bad { border-color: #ff5d6c; } .cockpit .tile.ok .tile-value { color: #3ee0a0; }
-.cockpit .glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; backdrop-filter: blur(10px); }
-.cockpit .glass h2 { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
-.cockpit .systems, .cockpit .shiplog { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
-.cockpit .systems button { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; color: inherit; text-align: left; padding: 3px 0; cursor: pointer; }
-.cockpit .systems .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.cockpit .systems .muted { margin-left: auto; }
+.cockpit .tile {
+  position: relative; text-align: left;
+  background: linear-gradient(145deg, rgba(8, 18, 38, 0.84) 0%, rgba(4, 10, 24, 0.74) 100%);
+  border: 1px solid rgba(94, 226, 214, 0.22);
+  border-radius: 12px; padding: 10px 12px; color: inherit; cursor: pointer;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 4, 14, 0.38);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.cockpit .tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(94, 226, 214, 0.55);
+  box-shadow: 0 6px 20px rgba(94, 226, 214, 0.2);
+}
+.cockpit .tile-glow {
+  position: absolute; top: -12px; right: -12px; width: 38px; height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(94, 226, 214, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cockpit .tile-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: .82; color: #a5c0ee; }
+.cockpit .tile-value { display: block; font-size: 28px; font-weight: 700; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+.cockpit .tile.warn { border-color: rgba(255, 200, 87, 0.5); }
+.cockpit .tile.warn .tile-glow { background: radial-gradient(circle, rgba(255, 200, 87, 0.35) 0%, transparent 70%); }
+.cockpit .tile.warn .tile-value { color: #ffc857; text-shadow: 0 0 10px rgba(255, 200, 87, 0.35); }
+
+.cockpit .tile.bad { border-color: rgba(255, 93, 108, 0.55); }
+.cockpit .tile.bad .tile-glow { background: radial-gradient(circle, rgba(255, 93, 108, 0.4) 0%, transparent 70%); }
+.cockpit .tile.bad .tile-value { color: #ff5d6c; text-shadow: 0 0 12px rgba(255, 93, 108, 0.4); }
+
+.cockpit .tile.ok { border-color: rgba(62, 224, 160, 0.4); }
+.cockpit .tile.ok .tile-glow { background: radial-gradient(circle, rgba(62, 224, 160, 0.3) 0%, transparent 70%); }
+.cockpit .tile.ok .tile-value { color: #3ee0a0; text-shadow: 0 0 10px rgba(62, 224, 160, 0.3); }
+
+/* Glass panels on the right */
+.cockpit .hud-panel {
+  background: linear-gradient(160deg, rgba(7, 16, 36, 0.88) 0%, rgba(3, 8, 20, 0.80) 100%);
+  border: 1px solid rgba(94, 226, 214, 0.24);
+  border-radius: 12px; padding: 12px 14px;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 6px 22px rgba(0, 4, 14, 0.45), inset 0 1px 0 rgba(143, 180, 255, 0.15);
+}
+.cockpit .glass-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(143, 180, 255, 0.12); }
+.cockpit .glass-dot { width: 7px; height: 7px; border-radius: 50%; background: #3ee0a0; box-shadow: 0 0 8px #3ee0a0; flex: none; }
+.cockpit .glass-dot.log-dot { background: #5ee2d6; box-shadow: 0 0 8px #5ee2d6; }
+.cockpit .hud-panel h2 { margin: 0; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #b4cdfc; font-weight: 700; }
+
+.cockpit .systems, .cockpit .shiplog { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 12px; }
+.cockpit .systems button {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  background: transparent; border: 0; border-radius: 6px; color: inherit;
+  text-align: left; padding: 5px 6px; cursor: pointer;
+  transition: background .15s ease;
+}
+.cockpit .systems button:hover { background: rgba(94, 226, 214, 0.14); }
+.cockpit .systems .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 6px currentColor; }
+.cockpit .systems .muted { margin-left: auto; font-size: 11px; opacity: .75; }
+
+.cockpit .shiplog li {
+  padding: 4px 6px; border-radius: 6px; transition: background .15s ease;
+  line-height: 1.35;
+}
+.cockpit .shiplog li:hover { background: rgba(143, 180, 255, 0.08); }
+.cockpit .log-time {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px; color: #7cb1ff; background: rgba(143, 180, 255, 0.12);
+  padding: 1px 5px; border-radius: 4px; margin-right: 4px; display: inline-block;
+}
+.cockpit .log-summary { color: #dce5fa; }
 @media (max-width: 900px) { .cockpit .hud { display: none; } .cockpit .hud-show { display: none; } }
 @media (prefers-reduced-motion: reduce) { .cockpit .u-label.needs-you { animation: none; } }
 .cockpit .ask-dock { border-radius: 14px; box-shadow: 0 0 22px rgba(94, 226, 214, .10); }
@@ -662,3 +784,15 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 
 /* Remote-control (D-pad) and keyboard use: the focused control is always obvious, from across a room */
 .cockpit button:focus-visible, .cockpit a:focus-visible, .cockpit select:focus-visible, .cockpit input:focus-visible { outline: 3px solid #ffd37a; outline-offset: 2px; }
+
+/* Quick add (+) in the ribbon */
+.quickadd { position: relative; display: contents; }
+.quickadd-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; background: transparent; border: 0; color: inherit; cursor: pointer; }
+.quickadd-btn:focus-visible, .quickadd-menu button:focus-visible { outline: 2px solid var(--accent, #8fb4ff); outline-offset: 2px; }
+.quickadd-menu { position: fixed; left: 72px; bottom: 80px; z-index: 30; list-style: none; margin: 0; padding: 6px; min-width: 220px; background: var(--panel, #1c2233); border: 1px solid var(--line, #456); border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.45); }
+.quickadd-menu button { width: 100%; text-align: left; padding: 10px 12px; min-height: 44px; background: transparent; border: 0; color: inherit; border-radius: 8px; cursor: pointer; }
+.quickadd-menu button:hover { background: rgba(143,180,255,.15); }
+@media (max-width: 700px) { .quickadd-menu { left: 8px; right: 8px; bottom: 70px; } }
+
+.cockpit .compass { position: absolute; right: 136px; bottom: 8px; z-index: 4; background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 50%; }
+.cockpit .compass:focus-visible { outline: 3px solid #ffd37a; outline-offset: 2px; }

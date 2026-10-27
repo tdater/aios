@@ -224,12 +224,16 @@ describe("approvals on the phone", () => {
     fakeServer({ "GET /approvals/apr_1": () => ({ body: APPROVAL() }) });
     const { ctx } = ctxFor();
     render(<Wrap ctx={ctx}><Inbox sub="approval" id="apr_1" /></Wrap>);
-    await screen.findByText("Exact target");
+    expect(await screen.findByRole("heading", { name: "AIOS wants to create the file a.txt." })).toBeTruthy();
+    expect(screen.getByText(/This adds a new file/)).toBeTruthy();
+    expect(screen.queryByText("Exact target")).toBeNull();                                      // the hash and target are tucked away until asked for
+    fireEvent.click(screen.getByRole("button", { name: /Technical details and proof/ }));
+    expect(screen.getByText("Exact target")).toBeTruthy();
     expect(screen.getByText("C:\\x\\a.txt", { selector: "code" })).toBeTruthy();
     expect(screen.getByText("hello")).toBeTruthy();
     expect(screen.getByText(/Creates the file/)).toBeTruthy();
     expect(screen.getByText(/v4 · hash/)).toBeTruthy();
-    expect(screen.getByText(/in 60 min/)).toBeTruthy();
+    expect(screen.getAllByText(/in 60 min/).length).toBeGreaterThan(0);      // in the friendly line and again in the technical details
     expect(screen.getByText(/scanned 3 files/)).toBeTruthy();
   });
 
@@ -238,7 +242,7 @@ describe("approvals on the phone", () => {
     const { ctx } = ctxFor({ connected: false });
     render(<Wrap ctx={ctx}><Inbox sub="approval" id="apr_1" /></Wrap>);
     await screen.findByText(/never queued/);
-    expect((screen.getByRole("button", { name: /Approve this exact action/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /^Approve / }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Reject" }) as HTMLButtonElement).disabled).toBe(true);
     expect(srv.calls.filter((c) => c.method === "POST")).toHaveLength(0);
   });
@@ -249,7 +253,7 @@ describe("approvals on the phone", () => {
       "POST /approvals/apr_1/decide": async () => { n++; await new Promise((r) => setTimeout(r, 30)); return { body: APPROVAL({ status: "approved" }) }; } });
     const { ctx } = ctxFor();
     render(<Wrap ctx={ctx}><Inbox sub="approval" id="apr_1" /></Wrap>);
-    const btn = await screen.findByRole("button", { name: /Approve this exact action/ });
+    const btn = await screen.findByRole("button", { name: /^Approve / });
     fireEvent.click(btn); fireEvent.click(btn); fireEvent.click(btn);
     await waitFor(() => expect(srv.count("POST", "/approvals/apr_1/decide")).toBe(1));
     expect(srv.calls.find((c) => c.method === "POST")!.body).toMatchObject({ approve: true, expected_version: 4, action_hash: "h".repeat(64), confirm_destructive: false });
@@ -260,7 +264,7 @@ describe("approvals on the phone", () => {
       "POST /approvals/apr_1/decide": () => ({ body: APPROVAL({ status: "approved" }) }) });
     const { ctx } = ctxFor();
     render(<Wrap ctx={ctx}><Inbox sub="approval" id="apr_1" /></Wrap>);
-    const btn = await screen.findByRole("button", { name: /Approve this exact action/ }) as HTMLButtonElement;
+    const btn = await screen.findByRole("button", { name: /^Approve / }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
     expect(screen.getByText(/Destructive or unrecognised action/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText(/I understand this may overwrite/));
@@ -274,7 +278,7 @@ describe("approvals on the phone", () => {
       fakeServer({ "GET /approvals/apr_1": () => ({ body: APPROVAL() }), "POST /approvals/apr_1/decide": () => err(409, code, `refused: ${code}`) });
       const { ctx } = ctxFor();
       render(<Wrap ctx={ctx}><Inbox sub="approval" id="apr_1" /></Wrap>);
-      fireEvent.click(await screen.findByRole("button", { name: /Approve this exact action/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Approve / }));
       await screen.findByText(`refused: ${code}`);
     });
 
@@ -283,6 +287,7 @@ describe("approvals on the phone", () => {
     fakeServer({ "GET /approvals/apr_1": () => ({ body: APPROVAL({ summary: evil, review: { ...APPROVAL().review, target: evil, content_preview: evil, side_effects: [evil] } }) }) });
     const { ctx } = ctxFor();
     const { container } = render(<Wrap ctx={ctx}><Inbox sub="approval" id="apr_1" /></Wrap>);
+    fireEvent.click(await screen.findByRole("button", { name: /Technical details and proof/ }));
     await screen.findByText("Exact target");
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("script")).toBeNull();
@@ -388,11 +393,22 @@ describe("modes change what the menu lists, and nothing else", () => {
     const nav = () => within(screen.getByRole("navigation", { name: "Main" }));
     expect(nav().queryByRole("button", { name: /Projects/ })).toBeNull();
     expect(nav().queryByRole("button", { name: /Runs/ })).toBeNull();
-    expect(nav().getByRole("button", { name: /Insights/ })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: /Insights/ })).toBeNull();      // Simple keeps four anchors and Settings
+    expect(nav().queryByRole("button", { name: /My AIs/ })).toBeNull();
+    for (const n of [/Home/, /Missions/, /Knowledge/, /Inbox/, /Settings/]) expect(nav().getByRole("button", { name: n })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: /Workspace/ })).toBeNull();     // renamed Missions in Simple
+    fireEvent.click(nav().getByRole("button", { name: "Quick add" }));
+    const menu = within(screen.getByRole("menu", { name: "Quick add" }));
+    for (const n of ["Ask AIOS anything", "Quick note", "New mission or project"]) expect(menu.getByRole("menuitem", { name: n })).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu", { name: "Quick add" })).toBeNull();
     fireEvent.click(nav().getByRole("button", { name: /Settings/ }));
     fireEvent.click(await screen.findByLabelText(/Standard/));
     await waitFor(() => expect(nav().getByRole("button", { name: /Projects/ })).toBeTruthy());
     expect(nav().getByRole("button", { name: /Runs/ })).toBeTruthy();
+    expect(nav().getByRole("button", { name: /Workspace/ })).toBeTruthy();     // the plain name returns outside Simple
+    expect(nav().getByRole("button", { name: /Insights/ })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: "Quick add" })).toBeNull();
     expect(nav().queryByRole("button", { name: /Graph/ })).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import { ConnectionMonitor } from "./core/connection";
 import { createRuntime, Runtime } from "./core/runtime";
 import { tokenKey } from "./core/secure";
 import { ServerEntry } from "./core/servers";
-import { tabVisible } from "./core/modes";
+import { navLabel, tabVisible } from "./core/modes";
 import { THEME_MODES } from "./core/settings";
 import { applyTheme } from "./core/theme";
 import { API_VERSION, Home as HomeData, Meta } from "./core/types";
@@ -34,6 +34,7 @@ import { useHotkeys } from "./ui/hotkeys";
 import { Icon, IconName } from "./ui/icons";
 import { Btn, Notice } from "./ui/kit";
 import { invalidatePaletteIndex, Palette } from "./ui/Palette";
+import { QuickAdd } from "./ui/QuickAdd";
 import { closePalette, helpStore, layoutPrefs, openPalette, paletteStore, setExplorer, summaryStore, toast, tourStore, openTour } from "./ui/uiState";
 import { modLabel } from "./ui/hotkeys";
 
@@ -254,11 +255,12 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
         <nav className="nav" aria-label="Main">
           {NAV.filter((n) => tabVisible(settings, n.tab)).map((n) => (
             <span key={n.tab} style={{ display: "contents" }}>
+              {n.tab === "settings" && settings.mode === "simple" && <QuickAdd />}
               {n.tab === "settings" && <span className="spacer" />}
               {n.tab === "knowledge" && <span className="navdivider" aria-hidden="true" />}
               <button className={`${route.tab === n.tab ? "on" : ""} ${n.wideOnly ? "only-wide" : ""} ${n.secondary ? "secondary" : ""}`} aria-current={route.tab === n.tab ? "page" : undefined}
-                title={n.label} onClick={() => go({ tab: n.tab })}>
-                <Icon name={n.icon} size={wide ? 20 : 22} /><span className="navlabel">{n.label}</span>
+                title={navLabel(settings.mode, n.tab, n.label)} onClick={() => go({ tab: n.tab })}>
+                <Icon name={n.icon} size={wide ? 20 : 22} /><span className="navlabel">{navLabel(settings.mode, n.tab, n.label)}</span>
                 {n.tab === "inbox" && badge > 0 && <span className="badgecount" aria-label={`${badge} waiting`}>{badge > 99 ? "99+" : badge}</span>}
               </button>
             </span>

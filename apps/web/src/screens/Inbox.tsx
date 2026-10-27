@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ApiError } from "../core/client";
+import { plainApproval } from "../core/approvals";
 import { Approval, Candidate, Paged } from "../core/types";
 import { useApp } from "../ui/Context";
 import { go, useLoad, useViewport } from "../ui/hooks";
@@ -68,6 +69,7 @@ function ApprovalDetail({ id }: { id: string }) {
     await a.reload();
   });
   const d = a.data;
+  const plain = d ? plainApproval(d) : null;
   return (
     <div className="screen">
       <Btn kind="ghost" onClick={() => history.back()}>← Inbox</Btn>
@@ -75,8 +77,12 @@ function ApprovalDetail({ id }: { id: string }) {
       {a.loading && !d && <Loading />}
       {d && (
         <>
-          <div className="row"><h2>{d.summary}</h2><Badge s={d.status} /></div>
+          <div className="row"><h2>{plain!.headline}</h2><Badge s={d.status} /></div>
+          <Notice tone={plain!.tone}>{plain!.safety}</Notice>
+          <p className="muted small">{d.status === "pending" ? `Asked ${ago(d.requested_at)}. Expires in ${fmtDuration(d.expires_in_s)}.` : `Asked ${ago(d.requested_at)}.`}</p>
           {d.destructive && <Notice tone="bad"><strong>Destructive or unrecognised action.</strong> It can overwrite or change existing data.</Notice>}
+          <Collapsible title="Technical details and proof">
+          <p className="muted small">{d.summary}</p>
           <dl className="facts">
             <dt>Action</dt><dd><code>{d.review.type}</code></dd>
             <dt>Exact target</dt><dd><code className="wrap">{d.review.target || "(none given)"}</code></dd>
@@ -84,10 +90,11 @@ function ApprovalDetail({ id }: { id: string }) {
             <dt>Expires</dt><dd>{d.status === "pending" ? `in ${fmtDuration(d.expires_in_s)} (${fmtLocal(d.expires_at)})` : fmtLocal(d.expires_at)}</dd>
             <dt>Action version</dt><dd>v{d.version} · hash <code>{d.action_hash.slice(0, 16)}…</code></dd>
           </dl>
-          <h3>Side effects</h3>
-          <ul>{d.review.side_effects.map((s) => <li key={s}>{s}</li>)}</ul>
           <h3>Content to be written</h3>
           <Untrusted text={d.review.content_preview || "(empty)"} />
+          </Collapsible>
+          <h3>What will happen</h3>
+          <ul>{d.review.side_effects.map((s) => <li key={s}>{s}</li>)}</ul>
           <Collapsible title="Evidence and context" startOpen count={d.context?.evidence.length}>
             {d.context?.run && <p>Run: <button className="link" onClick={() => go({ tab: "runs", id: d.context!.run!.id })}>{d.context.run.task_title}</button> ({d.context.run.state})</p>}
             {d.context?.evidence.length ? <ul className="plain">{d.context.evidence.map((e, i) => <li key={i}><code>{e.kind}</code> {e.summary}</li>)}</ul> : <Empty>No evidence recorded for this run yet.</Empty>}
@@ -100,7 +107,7 @@ function ApprovalDetail({ id }: { id: string }) {
               {d.destructive && <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I understand this may overwrite or change existing data.</label>}
               {!connected && <Notice tone="warn">You are offline. Approvals are never queued: reconnect to decide.</Notice>}
               <div className="row">
-                <Btn busy={decide.busy} disabled={!connected || (d.destructive && !ack)} onClick={() => void decide.run(true)}>Approve this exact action</Btn>
+                <Btn busy={decide.busy} disabled={!connected || (d.destructive && !ack)} onClick={() => void decide.run(true)}>{plain!.approveLabel}</Btn>
                 <Btn kind="danger" busy={decide.busy} disabled={!connected} onClick={() => void decide.run(false)}>Reject</Btn>
               </div>
             </div>

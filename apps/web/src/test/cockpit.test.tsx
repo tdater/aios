@@ -69,6 +69,17 @@ describe("the cockpit", () => {
     fireEvent.keyDown(cockpit, { key: "-" });
   });
 
+  it("has a compass that faces the Sun, and the 0 key goes back to the start view and closes any card", async () => {
+    resetRoute("#/home/o/planet%3Aclaude");
+    open();
+    const cockpit = await screen.findByTestId("cockpit");
+    await screen.findByRole("complementary", { name: /Claude: details/ });
+    fireEvent.click(screen.getByRole("button", { name: "Face the Sun and level the view" }));
+    expect(location.hash).toBe("#/home/o/planet%3Aclaude");                           // facing the Sun only moves the camera
+    fireEvent.keyDown(cockpit, { key: "0" });
+    expect(location.hash).toBe("#/home");
+  });
+
   it("double-clicking an object's label opens it", async () => {
     open();
     fireEvent.doubleClick(await screen.findByRole("button", { name: /Claude: Connected/ }));

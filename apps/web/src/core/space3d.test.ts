@@ -138,3 +138,15 @@ describe("the scene on screen", () => {
     for (const s of projectScene(sc, defaultCamera(), V).stars) { expect(s.opacity).toBeGreaterThanOrEqual(0.3); expect(s.opacity).toBeLessThanOrEqual(1); }
   });
 });
+
+describe("faceSun", () => {
+  it("points at the Sun and levels the view without changing distance or heading", async () => {
+    const { faceSun, defaultCamera } = await import("./space3d");
+    const lost = { yaw: -2.1, pitch: -0.9, dist: 333, target: [400, -50, 120] as [number, number, number] };
+    const c = faceSun(lost);
+    expect(c.target).toEqual([0, 0, 0]);
+    expect(c.pitch).toBe(defaultCamera().pitch);
+    expect(c.dist).toBe(333);
+    expect(c.yaw).toBeCloseTo(-2.1);
+  });
+});
