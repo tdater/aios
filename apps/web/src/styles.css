@@ -587,7 +587,7 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 @media (max-width: 700px) {
   .cockpit .dock { flex-direction: row; flex-wrap: wrap; top: auto; bottom: 150px; max-width: calc(100% - 140px); }
   .cockpit .dock-q { display: none; }
-  .cockpit .object-card { top: 52px; bottom: 8px; left: 8px; width: auto; }
+  .cockpit .object-card { top: auto; bottom: 8px; left: 8px; width: auto; max-height: 62vh; border-radius: 18px 18px 10px 10px; }  /* a bottom sheet on a phone */
   .cockpit .listview { inset: 52px 8px 8px 8px; }
   .cockpit-bottom { left: 8px; right: 136px; }
 }
@@ -659,3 +659,6 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .zoombar { position: absolute; right: 8px; bottom: 140px; z-index: 5; display: flex; flex-direction: column; gap: 6px; }
 .cockpit .zoombar button { min-width: 44px; min-height: 44px; border-radius: 12px; font-size: 1.3rem; cursor: pointer; color: inherit; background: rgba(8,14,30,.7); border: 1px solid rgba(143,180,255,.4); }
 .cockpit .zoombar button:focus-visible { outline: 2px solid var(--accent, #8fb4ff); outline-offset: 2px; }
+
+/* Remote-control (D-pad) and keyboard use: the focused control is always obvious, from across a room */
+.cockpit button:focus-visible, .cockpit a:focus-visible, .cockpit select:focus-visible, .cockpit input:focus-visible { outline: 3px solid #ffd37a; outline-offset: 2px; }
