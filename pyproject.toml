@@ -1,6 +1,7 @@
 [project]
 name = "aios"
 version = "0.3.0"
+license = "MIT"
 description = "Local-first personal agentic workflow and project operating layer"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "pydantic>=2.7"]
