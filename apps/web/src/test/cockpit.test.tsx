@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleObjects, sampleUniverse } from "../core/scene.fixtures";
 import { Cockpit } from "../ui/Cockpit";
 import { routeStore, parseRoute } from "../ui/hooks";
@@ -78,6 +78,39 @@ describe("the cockpit", () => {
     expect(location.hash).toBe("#/home/o/planet%3Aclaude");                           // facing the Sun only moves the camera
     fireEvent.keyDown(cockpit, { key: "0" });
     expect(location.hash).toBe("#/home");
+  });
+
+  it("numbers the dock 1 to 6 and the number keys travel there", async () => {
+    open();
+    const cockpit = await screen.findByTestId("cockpit");
+    const dock = within(await screen.findByRole("navigation", { name: "Travel to a region" }));
+    expect(dock.getAllByRole("button").map((b) => b.querySelector(".dock-num")?.textContent)).toEqual(["1", "2", "3", "4", "5", "6"]);
+    fireEvent.keyDown(cockpit, { key: "4" });
+    expect(dock.getByRole("button", { name: /The Shipyards/ }).getAttribute("aria-current")).toBe("true");
+    fireEvent.keyDown(cockpit, { key: "2", ctrlKey: true });                         // with a modifier it is the browser's, not ours
+    expect(dock.getByRole("button", { name: /The Shipyards/ }).getAttribute("aria-current")).toBe("true");
+  });
+
+  it("has a sound switch that is off until pressed and remembers the choice", async () => {
+    localStorage.removeItem("aios.sound.ui");
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: "Turn interface sounds on" }));
+    expect(localStorage.getItem("aios.sound.ui")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: "Turn interface sounds off" }));
+    expect(localStorage.getItem("aios.sound.ui")).toBe("0");
+  });
+
+  it("a completed habit makes its probe sparkle, once and then it goes away", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      open();
+      await vi.waitFor(() => expect(screen.getByTestId("cockpit")).toBeTruthy());
+      await vi.waitFor(() => expect(document.querySelector(".u-label")).toBeTruthy());
+      window.dispatchEvent(new CustomEvent("aios:celebrate", { detail: { widgetId: "list" } }));
+      await vi.waitFor(() => expect(document.querySelectorAll(".burst i").length).toBe(30));
+      vi.advanceTimersByTime(1400);
+      await vi.waitFor(() => expect(document.querySelector(".burst")).toBeNull());
+    } finally { vi.useRealTimers(); }
   });
 
   it("double-clicking an object's label opens it", async () => {

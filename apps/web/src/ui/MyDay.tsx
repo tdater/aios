@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../core/client";
 import { AssistView } from "../core/assist";
+import { celebrate } from "../core/celebrate";
 import { canSpeak, speak, stopAllVoice } from "../core/voice";
 import {
   ChecklistItem, ConfigByKind, Fact, findFacts, MAX_FACTS, MAX_ITEMS, RoutineConfig, RoutineWhen, Widget, WEEKDAYS, doneToday, isAbilityOn, listWidgets, getAbilities, mmss, nextRunText,
@@ -133,7 +134,7 @@ function Checklist({ w, save, connected }: Sub<"checklist">) {
       <ul className="plain">
         {items.map((it, i) => (
           <li key={i} className="row">
-            <label className="check"><input type="checkbox" checked={it.done} disabled={!connected} onChange={() => void put(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))} /> {it.text}</label>
+            <label className="check"><input type="checkbox" checked={it.done} disabled={!connected} onChange={() => { if (!it.done) celebrate(w.id); void put(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x))); }} /> {it.text}</label>
             <button type="button" className="btn ghost" aria-label={`Remove item ${it.text}`} disabled={!connected} onClick={() => void put(items.filter((_, j) => j !== i))}>×</button>
           </li>))}
       </ul>
@@ -210,7 +211,7 @@ function Habit({ w, save, connected }: Sub<"habit">) {
   return (
     <div className="row">
       <button type="button" className={`btn ${done ? "primary" : "ghost"}`} aria-pressed={done} aria-label={`Done today: ${w.title}`} disabled={!connected}
-        onClick={() => void save(w, { ...w.config, days: toggleToday(w.config.days) })}>{done ? "Done today" : "Check today"}</button>
+        onClick={() => { if (!done) celebrate(w.id); void save(w, { ...w.config, days: toggleToday(w.config.days) }); }}>{done ? "Done today" : "Check today"}</button>
       <span aria-live="polite">{s === 0 ? "No streak yet" : `${s} ${s === 1 ? "day" : "days"} in a row`}</span>
     </div>
   );
