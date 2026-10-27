@@ -195,3 +195,33 @@ def test_a_memory_can_be_marked_public_or_private_and_that_changes_who_may_be_to
     assert ok.status_code == 200 and ok.json()["sensitivity"] == "public"
     assert told("gemini") == ["Likes short answers"]
     assert client.patch(f"{V}/memories/{mem['id']}", json={"sensitivity": "everyone"}).status_code == 422
+
+
+GEMINI_PROSE = """Here is a summary of what I know about you:
+
+**Preferences**
+*   You prefer short, direct answers without filler.
+
+**About Me**
+You live in Ohio and work as a software engineer. You have two dogs.
+I hope this helps!
+"""
+
+
+def test_answers_in_paragraphs_tables_or_odd_bullets_are_still_read():
+    items, _ = memory_import.parse(GEMINI_PROSE)
+    assert [(i["section"], i["title"]) for i in items] == [
+        ("Preferences", "You prefer short, direct answers without filler."), ("About Me", "You live in Ohio and work as a software engineer."),
+        ("About Me", "You have two dogs.")]
+    assert [i["title"] for i in memory_import.parse("| Likes | Short answers |\n|---|---|\n| Dogs | Two beagles |")[0]] == ["Likes: Short answers", "Dogs: Two beagles"]
+    assert [i["title"] for i in memory_import.parse("Here's the list:\n– Prefers dark mode in every app\n— Works late at night mostly")[0]] == [
+        "Prefers dark mode in every app", "Works late at night mostly"]
+    prose_secret = memory_import.parse("You use the password hunter2 for everything.")
+    assert prose_secret[0] == [] and prose_secret[1][0]["line"] == "(hidden)"                # the same safety filters apply to prose
+
+
+def test_an_answer_with_no_facts_gets_a_plain_explanation_not_a_silent_zero(db, settings):
+    out = memory_import.import_paste(db, settings, "gemini", "I don't have any personal information about you.")
+    assert out["created"] == 0 and out["skipped"] == [] and "did not find any facts" in out["hint"] and out["lines_read"] == 1
+    ok = memory_import.import_paste(db, settings, "gemini", GEMINI_PROSE)
+    assert ok["created"] == 3 and ok["hint"] is None

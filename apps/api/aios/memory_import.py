@@ -39,7 +39,7 @@ _INJECTION = re.compile(
     r"as an ai\b|<\||\|>|\bassistant:|\bsystem:|\bjailbreak|override (your|the)|do not tell the user|reveal your", re.I)
 _SENSITIVE = re.compile(r"\b(password|passcode|passphrase|pin code|ssn|social security|card number|credit card|account number|routing number|"
                         r"api[- ]?key|secret key|private key|access token|seed phrase)\b", re.I)
-_BULLET = re.compile(r"^\s*(?:[-*•]|\d{1,2}[.)])\s+(.*\S)\s*$")
+_BULLET = re.compile(r"^\s*(?:[-*•·▪◦‣–—]|\d{1,2}[.)])\s+(.*\S)\s*$")
 _HEADING = re.compile(r"^\s*(?:#{1,4}\s*)?\**([A-Za-z][A-Za-z '&/-]{2,40}?)\**\s*:?\s*$")
 
 
@@ -54,9 +54,43 @@ def _type_for(heading: str) -> str:
     return next((t for key, t in _SECTIONS if key in h), "fact")
 
 
+_META = re.compile(r"^(here('s| is| are)|sure|certainly|of course|okay|ok|i (don't|do not|cannot|can't|am unable|have no)|as an ai|note:|i hope|let me know|feel free)", re.I)
+_SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'(])")
+
+
+def _classify(fact: str, section: str, items: list, skipped: list, seen: set) -> None:
+    key = fact.casefold()
+    if key in seen:
+        return
+    seen.add(key)
+    if not (MIN_LEN <= len(fact) <= MAX_LEN):
+        skipped.append({"line": fact[:80], "reason": "too short or too long to be a clear fact"})
+    elif find_secret_kinds(fact) or _SENSITIVE.search(fact):
+        skipped.append({"line": "(hidden)", "reason": "looks like a password, key or account number"})
+    elif _INJECTION.search(fact):
+        skipped.append({"line": fact[:80], "reason": "reads like an instruction to an AI, not a fact about you"})
+    elif len(items) >= MAX_ITEMS:
+        skipped.append({"line": fact[:80], "reason": f"over the limit of {MAX_ITEMS} suggestions at a time"})
+    else:
+        items.append({"type": _type_for(section), "title": fact, "section": section})
+
+
+def _table_cells(line: str) -> str | None:
+    """A markdown table row such as `| Likes | Short answers |` becomes 'Likes: Short answers'. Separator rows give nothing."""
+    if "|" not in line or not line.strip().startswith("|"):
+        return None
+    cells = [c.strip().strip("*_ ") for c in line.strip().strip("|").split("|")]
+    if all(re.fullmatch(r":?-{2,}:?", c) or not c for c in cells):
+        return ""
+    return ": ".join(c for c in cells if c)
+
+
 def parse(text: str) -> tuple[list[dict], list[dict]]:
-    """Returns (items, skipped). An item is {type, title}. Nothing is dropped silently: skipped says why."""
-    items, skipped, section, seen = [], [], "", set()
+    """Returns (items, skipped). An item is {type, title}. Nothing is dropped silently: skipped says why.
+    A list of dashed or numbered lines is the expected shape. When the answer has none (some AIs reply in paragraphs or a
+    table), each sentence or table row is read as a fact instead, so a perfectly good answer is not thrown away."""
+    items, skipped, section, seen, bulleted = [], [], "", set(), set()
+    loose: list[tuple[str, str]] = []                    # (section, text) read only if no list was found
     for raw in text.splitlines():
         line = raw.rstrip()
         if not line.strip():
@@ -66,22 +100,21 @@ def parse(text: str) -> tuple[list[dict], list[dict]]:
             h = _HEADING.match(line)
             if h:
                 section = h.group(1).strip()
+                continue
+            row = _table_cells(line)
+            if row is not None:
+                if row:
+                    loose.append((section, row))
+                continue
+            plain = " ".join(line.split()).strip("*_ ")
+            if plain and not _META.match(plain):
+                loose += [(section, sent.strip()) for sent in _SENTENCE.split(plain) if sent.strip()]
             continue
-        fact = " ".join(m.group(1).split()).strip("*_ ")
-        key = fact.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        if not (MIN_LEN <= len(fact) <= MAX_LEN):
-            skipped.append({"line": fact[:80], "reason": "too short or too long to be a clear fact"})
-        elif find_secret_kinds(fact) or _SENSITIVE.search(fact):
-            skipped.append({"line": "(hidden)", "reason": "looks like a password, key or account number"})
-        elif _INJECTION.search(fact):
-            skipped.append({"line": fact[:80], "reason": "reads like an instruction to an AI, not a fact about you"})
-        elif len(items) >= MAX_ITEMS:
-            skipped.append({"line": fact[:80], "reason": f"over the limit of {MAX_ITEMS} suggestions at a time"})
-        else:
-            items.append({"type": _type_for(section), "title": fact, "section": section})
+        bulleted.add(section)
+        _classify(" ".join(m.group(1).split()).strip("*_ "), section, items, skipped, seen)
+    for sec, fact in loose:                              # prose or table rows: under a heading that has no list of its own, or when there is no list at all
+        if not _META.match(fact) and (not bulleted or (sec and sec not in bulleted)):
+            _classify(fact, sec, items, skipped, seen)
     return items, skipped
 
 
@@ -106,4 +139,7 @@ def import_paste(db: Database, settings: Settings, provider: str, text: str) -> 
     if created:
         abilities.receipt(db, actor="import", kind="memory.imported", changed=True,
                           summary=f"Added {len(created)} suggested memor{'y' if len(created) == 1 else 'ies'} from {SOURCES[provider]}. None are used until you approve them.")
-    return {"created": len(created), "memory_ids": created, "duplicates": duplicates, "skipped": skipped, "source": SOURCES[provider]}
+    return {"created": len(created), "memory_ids": created, "duplicates": duplicates, "skipped": skipped, "source": SOURCES[provider],
+            "lines_read": len([x for x in text.splitlines() if x.strip()]),
+            "hint": None if created or duplicates or skipped else
+            "AIOS did not find any facts about you in that text. Check that you pasted the answer and not the request, and that the AI did not say it has nothing to share."}

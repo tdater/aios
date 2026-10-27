@@ -101,6 +101,13 @@ describe("Bring in memories", () => {
     expect(screen.getByText(/exports from Claude and ChatGPT/)).toBeTruthy();
   });
 
+  it("explains plainly when an answer held no facts, instead of just saying zero", async () => {
+    show("import", { "GET /import/prompt": () => ({ body: PROMPT }), "POST /import/paste": () => ({ status: 201, body: { created: 0, memory_ids: [], duplicates: 0, skipped: [], source: "Gemini", lines_read: 1, hint: "AIOS did not find any facts about you in that text. Check that you pasted the answer." } }) });
+    fireEvent.change(await screen.findByLabelText("ChatGPT's answer"), { target: { value: "I do not have any information about you." } });
+    fireEvent.click(screen.getByRole("button", { name: "Add as suggestions" }));
+    expect(await screen.findByText(/did not find any facts about you/)).toBeTruthy();
+  });
+
   it("shows the server's reason when the paste is refused", async () => {
     show("import", { "GET /import/prompt": () => ({ body: PROMPT }), "POST /import/paste": () => ({ status: 422, body: { error: { code: "bad_text", message: "paste the answer (up to 40000 characters)" } } }) });
     fireEvent.change(await screen.findByLabelText("ChatGPT's answer"), { target: { value: "x" } });

@@ -171,7 +171,7 @@ export interface Universe {
   comets: { approvals: number; blocked: number; to_review: number }; paused: boolean;
 }
 export interface SharingRow { provider: string; name: string; level: ShareLevel; default_level: ShareLevel; told_count: number }
-export interface ImportResult { created: number; memory_ids: string[]; duplicates: number; skipped: { line: string; reason: string }[]; source: string }
+export interface ImportResult { created: number; memory_ids: string[]; duplicates: number; skipped: { line: string; reason: string }[]; source: string; lines_read?: number; hint?: string | null }
 
 // ---- Abilities, receipts, widgets, system scan (docs/api-v1.md, "Abilities")
 export interface AbilityInfo { name: string; title: string; can_see: string[]; can_do: string[]; cannot: string[]; enabled: boolean }
