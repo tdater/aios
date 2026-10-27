@@ -25,6 +25,7 @@ export function QuickAdd() {
           <li role="none"><button type="button" role="menuitem" onClick={pick(ask)}>Ask AIOS anything</button></li>
           <li role="none"><button type="button" role="menuitem" onClick={pick(() => go({ tab: "knowledge", id: "new" }))}>Quick note</button></li>
           <li role="none"><button type="button" role="menuitem" onClick={pick(() => go({ tab: "projects" }))}>New mission or project</button></li>
+          <li role="none"><button type="button" role="menuitem" onClick={pick(() => go({ tab: "home", sub: "tools" }))}>Check a message or document</button></li>
         </ul>)}
     </div>
   );
