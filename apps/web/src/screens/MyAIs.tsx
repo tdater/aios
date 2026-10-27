@@ -130,6 +130,7 @@ function Import() {
         {result && (
           <div role="status">
             <Notice tone={result.created ? "info" : "warn"}>Added <strong>{result.created}</strong> suggestion{result.created === 1 ? "" : "s"} from {result.source}{result.duplicates ? `; ${result.duplicates} were already there` : ""}. <Btn kind="ghost" onClick={() => go({ tab: "ais", id: "knows" })}>Review them</Btn></Notice>
+            {result.hint && <p className="muted small">{result.hint}</p>}
             {result.skipped.length > 0 && <details><summary>{result.skipped.length} line{result.skipped.length === 1 ? " was" : "s were"} left out</summary>
               <ul className="plain">{result.skipped.map((s, i) => <li key={i}><span className="muted small">{s.reason}:</span> {s.line}</li>)}</ul></details>}
           </div>)}
