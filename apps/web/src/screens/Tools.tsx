@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ApiError, newKey } from "../core/client";
 import { AssistView } from "../core/assist";
 import { MAX_DOC, Found, squeezeLocally, squeezePrompt } from "../core/document";
+import { COMPANIONS, openCompanion } from "../core/companion";
+import { Criterion, Matrix, Option, clampScore, decide, reviewPrompt } from "../core/decision";
 import { ScamResult, checkMessage } from "../core/scam";
 import { useApp } from "../ui/Context";
 import { go } from "../ui/hooks";
@@ -14,10 +16,11 @@ const msg = (e: unknown) => (e instanceof ApiError ? e.message : (e as Error).me
 export function Tools() {
   return (
     <div className="screen">
-      <h2>Check a message or document</h2>
+      <h2>Check a message, a document, or a decision</h2>
       <p className="muted">Two helpers for the things that make people uneasy. The first works only on this computer. The second starts on this computer too, and only goes further if you ask.</p>
       <ScamCheck />
       <DocumentSqueezer />
+      <DecisionHelper />
     </div>
   );
 }
@@ -84,6 +87,88 @@ function DocumentSqueezer() {
           <Notice tone="info">This sends the first {MAX_DOC.toLocaleString()} characters of what you pasted to Claude, through your own Claude subscription, the same way a question in the Ask box does. Leave out anything you are not comfortable sharing, such as account numbers.</Notice>
           <ErrorBox msg={err} />
           <Btn busy={busy} disabled={!connected} onClick={() => void ask()}>Explain it in plain words with Claude</Btn>
+        </div>)}
+    </section>
+  );
+}
+
+const nextId = (l: { id: number }[]) => l.reduce((n, x) => Math.max(n, x.id), 0) + 1;
+
+/** A side-by-side comparison for big choices. You say what matters and how each option does; AIOS adds it up here and says plainly when it is close. */
+function DecisionHelper() {
+  const { client, connected } = useApp();
+  const [question, setQuestion] = useState("");
+  const [criteria, setCriteria] = useState<Criterion[]>([{ id: 1, name: "Cost", weight: 4 }, { id: 2, name: "", weight: 3 }]);
+  const [options, setOptions] = useState<Option[]>([{ id: 1, name: "", scores: {} }, { id: 2, name: "", scores: {} }]);
+  const [shown, setShown] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const matrix: Matrix = { question, criteria: criteria.filter((c) => c.name.trim()), options: options.filter((o) => o.name.trim()) };
+  const out = shown ? decide(matrix) : null;
+  const setCrit = (id: number, patch: Partial<Criterion>) => { setShown(false); setCriteria((l) => l.map((c) => (c.id === id ? { ...c, ...patch } : c))); };
+  const setOpt = (id: number, patch: Partial<Option>) => { setShown(false); setOptions((l) => l.map((o) => (o.id === id ? { ...o, ...patch } : o))); };
+  const setScore = (oid: number, cid: number, v: number) => setOpt(oid, { scores: { ...(options.find((o) => o.id === oid)?.scores ?? {}), [cid]: clampScore(v) } });
+
+  const askClaude = async () => {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await client.post<AssistView>("/assist", { prompt: reviewPrompt(matrix), kind: "answer" }, { idempotencyKey: `decide-${newKey()}` });
+      go({ tab: "home", id: r.data.id });
+    } catch (e) { setErr(msg(e)); } finally { setBusy(false); }
+  };
+  const relay = async (provider: string, name: string) => {
+    setErr(null); setNote(null);
+    try { await navigator.clipboard.writeText(reviewPrompt(matrix)); } catch { setErr("Could not copy automatically."); return; }
+    openCompanion(provider);
+    setNote(`Copied. Paste it into ${name} in the window that opened.`);
+  };
+
+  return (
+    <section className="card" aria-label="Help me decide">
+      <h3>Help me decide</h3>
+      <p className="muted small">For a big choice like lease or buy, or which plan to pick. Say what matters and how each option does, 1 to 5. AIOS adds it up here on this computer. A second opinion is optional.</p>
+      <label className="field"><span>What are you deciding?</span><input value={question} maxLength={200} onChange={(e) => { setQuestion(e.target.value); setShown(false); }} placeholder="Lease or buy my next car?" /></label>
+      <h4>What matters (1 = a little, 5 = a lot)</h4>
+      {criteria.map((c, i) => (
+        <div key={c.id} className="row">
+          <input aria-label={`What matters ${i + 1}`} value={c.name} maxLength={40} onChange={(e) => setCrit(c.id, { name: e.target.value })} placeholder="Something that matters" />
+          <select aria-label={`Importance of ${c.name || `thing ${i + 1}`}`} value={c.weight} onChange={(e) => setCrit(c.id, { weight: Number(e.target.value) })}>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+        </div>))}
+      {criteria.length < 6 && <Btn kind="ghost" onClick={() => setCriteria((l) => [...l, { id: nextId(l), name: "", weight: 3 }])}>Add something that matters</Btn>}
+      <h4>The options and how each does (5 is best)</h4>
+      {options.map((o, i) => (
+        <fieldset key={o.id} className="field">
+          <legend><input aria-label={`Option ${i + 1} name`} value={o.name} maxLength={40} onChange={(e) => setOpt(o.id, { name: e.target.value })} placeholder={`Option ${i + 1}`} /></legend>
+          {criteria.filter((c) => c.name.trim()).map((c) => (
+            <label key={c.id} className="row"><span>{c.name}</span>
+              <select aria-label={`${o.name || `Option ${i + 1}`} on ${c.name}`} value={o.scores[c.id] ?? 3} onChange={(e) => setScore(o.id, c.id, Number(e.target.value))}>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>))}
+        </fieldset>))}
+      {options.length < 4 && <Btn kind="ghost" onClick={() => setOptions((l) => [...l, { id: nextId(l), name: "", scores: {} }])}>Add an option</Btn>}
+      <div><Btn onClick={() => setShown(true)}>Compare</Btn></div>
+      {out && (
+        <div className="decision-result" aria-label="Comparison">
+          <Notice tone={out.verdict === "clear" ? "info" : "warn"}><strong>{out.headline}</strong></Notice>
+          {out.ranked.length > 0 && (
+            <table>
+              <thead><tr><th>Option</th><th>Score</th></tr></thead>
+              <tbody>{out.ranked.map((r) => <tr key={r.option.id}><td>{r.option.name}</td><td>{r.total} ({r.percent}%)</td></tr>)}</tbody>
+            </table>)}
+          {out.flips.length > 0 && <><h4>What could change the answer</h4><ul>{out.flips.map((f) => <li key={f}>{f}</li>)}</ul></>}
+          {out.verdict !== "none" && (
+            <>
+              <h4>Want a second opinion?</h4>
+              <p className="muted small">It argues against the front-runner and asks what you missed. Claude uses your own subscription. For Gemini or Perplexity, AIOS copies the question and opens their site; you paste it yourself.</p>
+              <ErrorBox msg={err} />
+              {note && <p role="status">{note}</p>}
+              <div className="row">
+                <Btn busy={busy} disabled={!connected} onClick={() => void askClaude()}>Ask Claude</Btn>
+                {COMPANIONS.map(([k, name]) => <Btn key={k} kind="ghost" onClick={() => void relay(k, name)}>{`Copy for ${name}`}</Btn>)}
+              </div>
+            </>)}
+          <p className="muted small">This is arithmetic on your own numbers, not advice. It cannot know what you did not tell it.</p>
         </div>)}
     </section>
   );
