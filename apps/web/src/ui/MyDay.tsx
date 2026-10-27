@@ -10,6 +10,7 @@ import {
 import { useApp } from "./Context";
 import { go, routeHref } from "./hooks";
 import { ErrorBox } from "./kit";
+import { Dispatch } from "./Dispatch";
 import { MissionCard } from "./Mission";
 import { VoiceButton } from "./VoiceButton";
 
@@ -64,6 +65,7 @@ export function MyDay({ startOpen = true, onAdd, refreshKey = 0 }: { startOpen?:
               <p>Nothing here yet. Pick a small tool for your day, like a checklist or a habit.</p>
               {onAdd && <button type="button" className="btn primary" onClick={onAdd}>Launch your first probe</button>}
             </div>)}
+          {items && count > 0 && <Dispatch widgets={items} connected={connected} saveChecklist={(w, list) => save(w, { items: list })} />}
           {items?.map((w) => <WidgetCard key={w.id} w={w} save={save} remove={remove} reload={load} connected={connected} scheduling={scheduling} setErr={setErr} />)}
         </div>)}
     </aside>
