@@ -134,3 +134,23 @@ def test_the_routines_ability_says_what_it_does_and_cannot_do(client):
     a = next(x for x in client.get(f"{V}/abilities").json()["abilities"] if x["name"] == "routines")
     assert a["enabled"] is False and "your own Claude plan" in a["can_do"][0] and any("more than once a day" in c for c in a["cannot"])
     assert client.put(f"{V}/abilities/routines", json={"enabled": True}).status_code == 422     # needs the explicit confirmation like every ability
+
+
+def test_the_household_vault_keeps_labelled_facts_and_rejects_nonsense():
+    t, c = widgets.validate("facts", "Household vault", {"items": [{"label": " Furnace filter ", "value": "16x25x4"}]})
+    assert c == {"items": [{"label": "Furnace filter", "value": "16x25x4"}]}
+    assert any(x["id"] == "household" and x["kind"] == "facts" and not x["needs_claude"] for x in widgets.CATALOG)
+    assert "Home" in widgets.GROUPS
+    bad = [{"items": [{"label": "x"}]}, {"items": [{"label": "", "value": "y"}]}, {"items": [{"label": "a", "value": "b", "extra": 1}]},
+           {"items": [{"label": "a", "value": "b" * 201}]}, {"items": "no"}, {"items": [{"label": "a", "value": "b"}] * (widgets.MAX_FACTS + 1)}, {"surprise": 1}]
+    for b in bad:
+        with pytest.raises(ApiError):
+            widgets.validate("facts", "Household vault", b)
+
+
+def test_the_household_vault_survives_a_round_trip_through_the_api(client):
+    on(client)
+    w = client.post(f"{V}/widgets/from-catalog", json={"template": "household", "confirm": True})
+    assert w.status_code == 201 and w.json()["kind"] == "facts"
+    new = {"items": [{"label": "AC filter", "value": "20x25x1"}]}
+    assert client.put(f"{V}/widgets/{w.json()['id']}", json={"config": new}).json()["config"] == new

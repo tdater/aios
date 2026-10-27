@@ -37,7 +37,7 @@ export const NOTES: FakeNote[] = [
   { id: "mem_c", title: "No force push", type: "preference", status: "candidate", tags: [], body: "Never force push." },
 ];
 
-export const META = { api_version: 1, min_client_api: 1, server_version: "0.2.0", server_id: "srv_test1", time: "2026-01-01T00:00:00+00:00", auth: { required: true }, capabilities: {} };
+export const META = { api_version: 1, min_client_api: 1, server_version: "0.3.0", server_id: "srv_test1", time: "2026-01-01T00:00:00+00:00", auth: { required: true }, capabilities: {} };
 export const HOME = {
   server_time: "2026-01-01T00:00:00+00:00",
   counts: { active_runs: 1, blocked_runs: 1, pending_approvals: 2, pending_candidates: 3 },

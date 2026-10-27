@@ -1,12 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../core/client";
+import { AssistView } from "../core/assist";
+import { canSpeak, speak, stopAllVoice } from "../core/voice";
 import {
-  ChecklistItem, ConfigByKind, MAX_ITEMS, RoutineConfig, RoutineWhen, Widget, WEEKDAYS, doneToday, isAbilityOn, listWidgets, getAbilities, mmss, nextRunText,
+  ChecklistItem, ConfigByKind, Fact, findFacts, MAX_FACTS, MAX_ITEMS, RoutineConfig, RoutineWhen, Widget, WEEKDAYS, doneToday, isAbilityOn, listWidgets, getAbilities, mmss, nextRunText,
   progressText, removeWidget, runRoutine, saveWidget, streak, timerNext, toggleToday,
 } from "../core/widgets";
 import { useApp } from "./Context";
 import { go, routeHref } from "./hooks";
 import { ErrorBox } from "./kit";
+import { VoiceButton } from "./VoiceButton";
 
 type Save = <K extends Widget["kind"]>(w: Extract<Widget, { kind: K }>, config: ConfigByKind[K], title?: string) => Promise<void>;
 const msgOf = (e: unknown) => (e instanceof ApiError ? e.message : (e as Error).message);
@@ -104,6 +107,7 @@ function WidgetCard(p: CardProps) {
       {w.kind === "checklist" && <Checklist w={w} save={save} connected={connected} />}
       {w.kind === "counter" && <Counter w={w} save={save} connected={connected} />}
       {w.kind === "note" && <Note w={w} save={save} connected={connected} />}
+      {w.kind === "facts" && <Facts w={w} save={save} connected={connected} />}
       {w.kind === "habit" && <Habit w={w} save={save} connected={connected} />}
       {w.kind === "timer" && <Timer w={w} save={save} connected={connected} />}
       {w.kind === "routine" && <Routine w={w} save={save} connected={connected} reload={p.reload} scheduling={p.scheduling} setErr={p.setErr} />}
@@ -138,6 +142,42 @@ function Checklist({ w, save, connected }: Sub<"checklist">) {
           <input aria-label={`New item for ${w.title}`} value={text} maxLength={120} onChange={(e) => setText(e.target.value)} placeholder="Add an item" />
           <button type="submit" className="btn ghost" disabled={!connected || !text.trim()}>Add item</button>
         </form>) : <p className="muted small">A checklist holds up to {MAX_ITEMS} items.</p>}
+    </div>
+  );
+}
+
+function Facts({ w, save, connected }: Sub<"facts">) {
+  const [q, setQ] = useState("");
+  const [label, setLabel] = useState("");
+  const [value, setValue] = useState("");
+  const items = w.config.items;
+  const shown = findFacts(items, q);
+  const put = (next: Fact[]) => save(w, { items: next });
+  const add = async () => {
+    if (!label.trim() || !value.trim()) return;
+    await put([...items, { label: label.trim(), value: value.trim() }]);
+    setLabel(""); setValue("");
+  };
+  return (
+    <div>
+      <div className="row">
+        <label className="grow">Find a fact{" "}<input type="search" aria-label={`Find in ${w.title}`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="filter, paint, size…" /></label>
+        <VoiceButton label={`Say what to find in ${w.title}`} onText={setQ} />
+      </div>
+      <ul className="plain" aria-live="polite">
+        {shown.map((f) => (
+          <li key={`${f.label}|${f.value}`} className="row">
+            <span><strong>{f.label}:</strong> {f.value}</span>
+            <button type="button" className="btn ghost" aria-label={`Remove fact ${f.label}`} disabled={!connected} onClick={() => void put(items.filter((x) => x !== f))}>×</button>
+          </li>))}
+      </ul>
+      {items.length > 0 && shown.length === 0 && <p className="muted small">Nothing matches &ldquo;{q}&rdquo;.</p>}
+      {items.length < MAX_FACTS ? (
+        <form className="row" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+          <input aria-label={`New fact name for ${w.title}`} value={label} maxLength={60} onChange={(e) => setLabel(e.target.value)} placeholder="What (Furnace filter)" />
+          <input aria-label={`New fact value for ${w.title}`} value={value} maxLength={200} onChange={(e) => setValue(e.target.value)} placeholder="Answer (16x25x4)" />
+          <button type="submit" className="btn ghost" disabled={!connected || !label.trim() || !value.trim()}>Add fact</button>
+        </form>) : <p className="muted small">The vault holds up to {MAX_FACTS} facts.</p>}
     </div>
   );
 }
@@ -215,6 +255,17 @@ function Routine({ w, save, connected, reload, scheduling, setErr }: Sub<"routin
   const [prompt, setPrompt] = useState(c.prompt);
   const [busy, setBusy] = useState(false);
   const setCfg = (patch: Partial<RoutineConfig>) => save(w, { ...c, ...patch });
+  const [reading, setReading] = useState(false);
+  /** Reads the last answer aloud with this device's own voice. Nothing is sent anywhere; Stop (or Esc) silences it. */
+  const readAloud = async () => {
+    if (reading) { stopAllVoice(); setReading(false); return; }
+    setErr(null);
+    try {
+      const a = (await client.get<AssistView>(`/assist/${c.last_task}`)).answer;
+      if (!a?.text) { setErr("There is no finished answer to read yet."); return; }
+      if (speak(a.text, () => setReading(false))) setReading(true); else setErr("This device has no voice to read with.");
+    } catch (e) { setErr(msgOf(e)); }
+  };
   const run = async () => {
     if (busy) return;
     setBusy(true);
@@ -228,6 +279,8 @@ function Routine({ w, save, connected, reload, scheduling, setErr }: Sub<"routin
         <button type="button" className="btn primary" aria-label={`Run now: ${w.title}`} disabled={!connected || busy} aria-busy={busy} onClick={() => void run()}>{busy ? "Starting…" : "Run now"}</button>
         {c.last_task && (
           <a href={routeHref({ tab: "home", id: c.last_task })} aria-label={`Last result of ${w.title}`} onClick={(e) => { e.preventDefault(); go({ tab: "home", id: c.last_task }); }}>Last result</a>)}
+        {c.last_task && canSpeak() && (
+          <button type="button" className="btn ghost" aria-label={`${reading ? "Stop reading" : "Read aloud"}: ${w.title}`} disabled={!connected} onClick={() => void readAloud()}>{reading ? "Stop reading" : "Read aloud"}</button>)}
       </div>
       <div className="row">
         <label>Runs{" "}

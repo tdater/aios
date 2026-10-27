@@ -104,6 +104,8 @@ passing verification of exactly this revision and no high-severity finding in a 
   `answer`; `GET /assist` lists recent tasks. Offered steps are the owner's to do (copy and paste) and are never reported as done.
   `GET /dashboard` returns the four agents (`claude`, `gemini`, `perplexity`, `antigravity`) with an honest `status` and what each is doing, the
   counts and first few items that need the owner, and the recent tasks.
+- `GET /calibration` returns the last reviewer scorecard from the firing range (`available`, `model`, `at`, per-case `results`, and a `scorecard` with `catch_rate`,
+  `false_alarm_rate`, `nitpicks_per_case`, `by_category`, `missed`, `incomplete`), or `{available: false, how}`. Read-only: only `scripts/run_calibration.py` starts a review.
 - `GET /companion/{provider}?conversation_id=` (`gemini` or `perplexity`; 404 `unknown_companion` otherwise, and Antigravity has none because AIOS never starts it)
   returns the official `url`, the sharing `level`, a `notice`, and suggested prompts (`id`, `title`, `why`, `prompt`, `chars`,
   `includes_project_text`, `includes_memories`): `second_opinion` and `explain` (from the conversation's change and Claude's last answer),

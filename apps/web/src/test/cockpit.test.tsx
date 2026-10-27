@@ -57,6 +57,24 @@ describe("the cockpit", () => {
     expect(parseRoute(location.hash)).toMatchObject({ sub: "o", id: "planet:claude" });
   });
 
+  it("has on-screen zoom in, zoom out and show-everything buttons, and the plus and minus keys zoom too", async () => {
+    open();
+    const cockpit = await screen.findByTestId("cockpit");
+    const bar = within(await screen.findByRole("group", { name: "Zoom" }));
+    for (const n of ["Zoom in", "Zoom out", "Reset view"]) expect(bar.getByRole("button", { name: n })).toBeTruthy();
+    fireEvent.click(bar.getByRole("button", { name: "Zoom in" }));
+    fireEvent.click(bar.getByRole("button", { name: "Reset view" }));
+    expect(location.hash).toBe("#/home");                                            // reset also closes any open card
+    fireEvent.keyDown(cockpit, { key: "+" });
+    fireEvent.keyDown(cockpit, { key: "-" });
+  });
+
+  it("double-clicking an object's label opens it", async () => {
+    open();
+    fireEvent.doubleClick(await screen.findByRole("button", { name: /Claude: Connected/ }));
+    expect(location.hash).toBe("#/home/o/planet%3Aclaude");
+  });
+
   it("changing a setting on the card saves it on the server", async () => {
     resetRoute("#/home/o/planet%3Aclaude");
     const { server } = open();

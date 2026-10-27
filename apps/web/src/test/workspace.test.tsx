@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import axe from "axe-core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConversationScreen } from "../screens/work/Conversation";
 import { HOLD_MS } from "../ui/VaultDoor";
 import { WorkPicker } from "../screens/work/Picker";
@@ -561,6 +561,36 @@ describe("ask several AIs together", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save Gemini's answer" }));
     await waitFor(() => expect(within(screen.getByRole("article", { name: "Gemini's answer" })).getByText(/Gemini says use descriptive names/)).toBeTruthy());
     expect(screen.getByText(/AIOS did not run or check this/)).toBeTruthy();
+  });
+
+  it("relay: copies and opens the official site on one click, and fills the answer from the clipboard only when pressed, rejecting the question echoed back", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const clip = { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn() };
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: clip });
+    const srv = fakeServer(base(view(), {
+      "POST /conversations/cnv_1/handoff": () => ({ status: 201, body: { prompt: "PROMPT FOR gemini", message_id: "m", briefing_items: 0, briefing_sha256: null } }),
+      "POST /conversations/cnv_1/messages": () => ({ status: 201, body: {} }),
+      "POST /conversations/cnv_1/handoff/reply": () => ({ status: 201, body: { message_id: "x" } }),
+    }));
+    render(<Wrap ctx={ctxFor().ctx}><ConversationScreen id="cnv_1" /></Wrap>);
+    await screen.findByRole("heading", { name: "Fix the add bug" });
+    tab(/^Together/);
+    for (const n of [/^Claude/, /Perplexity/]) fireEvent.click(screen.getByRole("checkbox", { name: n }));
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "How should I name tests?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask together" }));
+    await screen.findByRole("article", { name: "Gemini's answer" });
+    expect(clip.readText).not.toHaveBeenCalled();                                    // never read in the background
+    fireEvent.click(screen.getByRole("button", { name: "Copy and open Gemini" }));
+    await waitFor(() => expect(open).toHaveBeenCalledWith("https://gemini.google.com/app", "aios-gemini", expect.stringContaining("noopener")));
+    expect(clip.writeText).toHaveBeenCalledWith("PROMPT FOR gemini");
+    clip.readText.mockResolvedValueOnce("PROMPT FOR gemini");
+    fireEvent.click(screen.getByRole("button", { name: "Paste Gemini's answer from clipboard" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("still holds the question");
+    clip.readText.mockResolvedValueOnce("  Use descriptive names.  ");
+    fireEvent.click(screen.getByRole("button", { name: "Paste Gemini's answer from clipboard" }));
+    await waitFor(() => expect((screen.getByRole("textbox", { name: "Gemini's answer" }) as HTMLTextAreaElement).value).toBe("Use descriptive names."));
+    expect(srv.calls.filter((c) => c.path.endsWith("/handoff/reply")).length).toBe(0);   // nothing saved until you press Save
+    expect(screen.getByText(/Read it over before saving/)).toBeTruthy();
   });
 
   it("will not ask Claude when it is not signed in, and needs at least one AI and a question", async () => {

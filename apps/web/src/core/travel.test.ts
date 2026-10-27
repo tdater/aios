@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { breadcrumb, cameraForBody, destinations, goTo, objectLink, radar, regionCamera, regionNear } from "./travel";
-import { REGIONS, layoutWorld } from "./scene";
+import { breadcrumb, cameraForBody, destinations, goTo, objectLink, pickBody, radar, regionCamera, regionNear } from "./travel";
+import { REGIONS, layoutWorld, posAtExact } from "./scene";
 import { sampleObjects, sampleUniverse } from "./scene.fixtures";
-import { defaultCamera } from "./space3d";
+import { defaultCamera, project, viewFor } from "./space3d";
 
 const world = layoutWorld(sampleUniverse(), sampleObjects());
 
@@ -47,5 +47,35 @@ describe("every setting has a home", () => {
   it("covers every setting on this device, once", () => {
     for (const k of Object.keys(DEFAULT_SETTINGS)) expect(SETTING_HOME[k as keyof typeof DEFAULT_SETTINGS], k).toBeTruthy();
     expect(new Set(LOCAL_DEFS.map((d) => d.key)).size).toBe(LOCAL_DEFS.length);
+  });
+});
+
+describe("picking what you click in 3D", () => {
+  const view = viewFor(900, 560);
+  it("every object on screen can be picked by clicking where it is drawn", () => {
+    const cam = defaultCamera();
+    let checked = 0;
+    for (const b of world.bodies) {
+      const p = project(cam, posAtExact(world, b, 0), view);
+      if (!p || p.x < 0 || p.y < 0 || p.x > view.w || p.y > view.h) continue;
+      const got = pickBody(world, cam, view, 0, p.x, p.y);
+      expect(got, b.id).not.toBeNull();                    // something is picked; an overlapping neighbour may win, never nothing
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(3);
+  });
+  it("picks the sun at the centre, and nothing in empty space", () => {
+    const cam = defaultCamera();
+    const sun = world.bodies.find((b) => b.type === "sun")!;
+    const p = project(cam, posAtExact(world, sun, 0), view)!;
+    expect(pickBody(world, cam, view, 0, p.x, p.y)?.id).toBe("sun");
+    expect(pickBody(world, cam, view, 0, 2, 2)).toBeNull();
+  });
+  it("a click just off a small object still finds it, but a far click does not", () => {
+    const cam = defaultCamera();
+    const b = world.bodies.find((x) => x.type === "planet")!;
+    const p = project(cam, posAtExact(world, b, 0), view)!;
+    expect(pickBody(world, cam, view, 0, p.x + 6, p.y + 6)?.id).toBe(b.id);
+    expect(pickBody(world, cam, view, 0, p.x + 400, p.y + 300)?.id).not.toBe(b.id);
   });
 });

@@ -114,14 +114,16 @@ def test_a_build_keeps_every_guard_and_ends_with_a_plain_result(client, ready, r
             break
         wf = client.get(f"{V}/conversations/{v['conversation_id']}/workflow").json()["workflow"]
         if wf["pending_approvals"]:
-            saw_waiting = saw_waiting or (v["state"] == "waiting_you" and {s["id"]: s["status"] for s in v["steps"]}["verify"] == "waiting")
             # The approval row appears a moment before the run's state flips, so give the dashboard a few seconds to agree (it must, and it must say so plainly).
             settle = time.time() + 10
             while True:
                 dash = client.get(f"{V}/dashboard").json()
-                if (dash["needs_you"]["approvals"] == 1 and dash["agents"][0]["status"] == "needs_you") or time.time() > settle:
+                cur = client.get(f"{V}/assist/{aid}").json()                      # the task view flips a moment after the approval row too
+                waiting = cur["state"] == "waiting_you" and {s["id"]: s["status"] for s in cur["steps"]}["verify"] == "waiting"
+                if (dash["needs_you"]["approvals"] == 1 and dash["agents"][0]["status"] == "needs_you" and waiting) or time.time() > settle:
                     break
                 time.sleep(0.1)
+            saw_waiting = saw_waiting or waiting
             assert dash["needs_you"]["approvals"] == 1 and dash["agents"][0]["status"] == "needs_you"      # the dashboard says it is waiting for you
             asked += list(approve_pending(client, wf))
         time.sleep(0.25)

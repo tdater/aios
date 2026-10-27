@@ -81,6 +81,7 @@ function server(initial: Widget[], opts: { widgets?: boolean; routines?: boolean
     "GET /widgets": () => ({ body: { items: list } }),
     "GET /widgets/catalog": () => ({ body: CATALOG }),
     "GET /abilities": () => ({ body: abilities() }),
+    "GET /assist/task_9": () => ({ body: { id: "task_9", answer: { text: "## Today\n**Call** the dentist.", author: "claude", at: "t", message_id: "m" } } }),
     "PUT /abilities/widgets": () => { widgetsOn = true; return { body: abilities() }; },
     "POST /widgets/from-catalog": (c) => {
       if (!widgetsOn) return { status: 403, body: { error: { code: "ability_off", message: "Turn on small panels first.", details: {} }, request_id: "r" } };
@@ -216,6 +217,42 @@ describe("My Day dock", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save request for Morning briefing" }));
     await waitFor(() => expect(puts()).toHaveLength(3));
     expect((puts()[2].body as { config: RoutineConfig }).config.prompt).toBe("New request");
+  });
+
+  it("routine: reads the last answer aloud with the device voice, and the same button stops it", async () => {
+    const synth = { cancel: vi.fn(), speak: vi.fn(), getVoices: () => [] };
+    vi.stubGlobal("SpeechSynthesisUtterance", class { text: string; onend: (() => void) | null = null; constructor(t: string) { this.text = t; } });
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: synth });
+    server([w("r1", "routine", "Morning briefing", { ...ROUTINE, last_run: "2026-10-26T10:00:00+00:00", last_task: "task_9" })]);
+    mount(<MyDay />);
+    fireEvent.click(await screen.findByRole("button", { name: "Read aloud: Morning briefing" }));
+    await waitFor(() => expect(synth.speak).toHaveBeenCalledTimes(1));
+    expect(synth.speak.mock.calls[0][0].text).toBe("Today Call the dentist.");
+    fireEvent.click(await screen.findByRole("button", { name: "Stop reading: Morning briefing" }));
+    expect(synth.cancel).toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Read aloud: Morning briefing" })).toBeTruthy();
+    Reflect.deleteProperty(window, "speechSynthesis");
+  });
+
+  it("household vault: finds a fact by any word, keeps new ones, removes one, and says when nothing matches", async () => {
+    const items = [{ label: "Furnace filter", value: "16x25x4" }, { label: "Living room paint", value: "Chantilly Lace" }];
+    const { puts } = server([w("f1", "facts", "Household vault", { items })]);
+    mount(<MyDay />);
+    expect(await screen.findByText("16x25x4")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Find in Household vault"), { target: { value: "paint lace" } });
+    expect(screen.queryByText("16x25x4")).toBeNull();
+    expect(screen.getByText("Chantilly Lace")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Find in Household vault"), { target: { value: "boiler" } });
+    expect(screen.getByText(/Nothing matches/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Find in Household vault"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("New fact name for Household vault"), { target: { value: " Shoe size " } });
+    fireEvent.change(screen.getByLabelText("New fact value for Household vault"), { target: { value: "10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add fact" }));
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    expect((puts()[0].body as { config: { items: unknown[] } }).config.items).toEqual([...items, { label: "Shoe size", value: "10" }]);
+    fireEvent.click(await screen.findByRole("button", { name: "Remove fact Furnace filter" }));
+    await waitFor(() => expect(puts()).toHaveLength(2));
+    expect((puts()[1].body as { config: { items: { label: string }[] } }).config.items.map((f) => f.label)).toEqual(["Living room paint", "Shoe size"]);
   });
 
   it("rename saves the title; remove asks first and then deletes", async () => {

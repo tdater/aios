@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ApiError, newKey } from "../../core/client";
+import { COMPANION_SITES, openCompanion } from "../../core/companion";
 import { ConversationView, ConvMessage } from "../../core/types";
 import { ACTIVE_RUN_STATES } from "../../core/work";
 import { useApp } from "../../ui/Context";
@@ -51,6 +52,21 @@ export function Together({ v, reload }: { v: ConversationView; reload: () => Pro
     try { await client.post(`/conversations/${v.conversation.id}/handoff/reply`, { provider: p, reply: replies[p] }); setReplies((r) => ({ ...r, [p]: "" })); await reload(); } catch (e) { setErr(msg(e)); }
   };
   const copy = async (text: string) => { try { await navigator.clipboard.writeText(text); } catch { setErr("Could not copy automatically. Select the text and copy it."); } };
+  /** One click: put the question on the clipboard and open the official site in its own window. AIOS still cannot see that window. */
+  const copyAndOpen = async (p: string) => {
+    setErr(null);
+    try { await navigator.clipboard.writeText(prompts[p]); } catch { setErr("Could not copy automatically. Select the text and copy it."); return; }
+    openCompanion(p);
+  };
+  /** Reads the clipboard only when you press the button (never in the background) and shows it for checking before anything is saved. */
+  const pasteAnswer = async (p: string) => {
+    setErr(null);
+    let text = "";
+    try { text = (await navigator.clipboard.readText()).trim(); } catch { setErr("Could not read the clipboard. Paste the answer into the box yourself."); return; }
+    if (!text) { setErr("The clipboard is empty. Copy the answer in the other window first."); return; }
+    if (text === (prompts[p] ?? "").trim()) { setErr("The clipboard still holds the question, not the answer. Copy the answer first."); return; }
+    setReplies((r) => ({ ...r, [p]: text }));
+  };
   const answerFor = (p: string): ConvMessage | undefined => {
     if (!asked) return undefined;
     const after = v.messages.filter((m) => m.created_at >= asked.at);
@@ -88,7 +104,10 @@ export function Together({ v, reload }: { v: ConversationView; reload: () => Pro
                       <div>
                         <label className="field"><span>Paste this into {name}</span><textarea rows={4} readOnly value={prompts[p] ?? ""} /></label>
                         <Btn kind="ghost" disabled={!prompts[p]} onClick={() => void copy(prompts[p])}>Copy</Btn>
+                        {COMPANION_SITES[p] && <Btn kind="ghost" disabled={!prompts[p]} onClick={() => void copyAndOpen(p)}>{`Copy and open ${name}`}</Btn>}
                         <label className="field"><span>{name}&apos;s answer</span><textarea rows={4} value={replies[p] ?? ""} onChange={(e) => setReplies((r) => ({ ...r, [p]: e.target.value }))} /></label>
+                        <Btn kind="ghost" onClick={() => void pasteAnswer(p)}>{`Paste ${name}'s answer from clipboard`}</Btn>
+                        {(replies[p] ?? "").trim() && <p className="muted small">Read it over before saving. It is stored as unchecked text from {name}, never as an instruction.</p>}
                         <Btn disabled={!connected || !(replies[p] ?? "").trim()} onClick={() => void saveReply(p)}>{`Save ${name}'s answer`}</Btn>
                         <CompanionToggle provider={p} name={name} conversationId={v.conversation.id} />
                       </div>)}

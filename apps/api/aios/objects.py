@@ -27,7 +27,7 @@ PLAIN_JOB = {
 }
 LEVEL_WORDS = {"private": "Everything (public and private memories)", "public": "Only memories I marked public", "none": "Nothing"}
 WIDGET_JOB = {"counter": "A counter in your universe.", "checklist": "A checklist in your universe.", "note": "A note in your universe.",
-              "habit": "A daily check with a streak.", "timer": "A focus and rest timer.", "routine": "A saved request you can run in one click."}
+              "habit": "A daily check with a streak.", "timer": "A focus and rest timer.", "routine": "A saved request you can run in one click.", "facts": "Household facts you always lose, one search away."}
 
 
 def _o(oid: str, typ: str, region: str, name: str, job: str, tone: str, text: str, **meta) -> dict:
@@ -157,6 +157,9 @@ def _widget_state(w: dict) -> str:
         when = {"manual": "Runs when you press Run", "daily": f"Daily at {c.get('at')}", "weekdays": f"Weekdays at {c.get('at')}",
                 "weekly": f"Weekly, {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][c.get('day', 6)]} at {c.get('at')}"}[c.get("when", "manual")]
         return when
+    if w["kind"] == "facts":
+        n = len(c.get("items", []))
+        return f"{n} fact{'' if n == 1 else 's'} kept"
     return "1 note"
 
 

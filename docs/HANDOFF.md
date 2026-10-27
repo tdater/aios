@@ -2,7 +2,23 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-10-26, branch `phase5-universe`; read this first)
+## Checkpoint (2026-10-26, branch `phase6-roadmap`; newest, read this first)
+
+Queue and order: `docs/roadmap-phase6.md`. Release steps: `docs/release-checklist.md`, `CHANGELOG.md`.
+
+Built on this branch (all committed): Together "Copy and open" and "Paste answer from clipboard" (click-to-read, never background); the reviewer calibration range
+(`apps/api/aios/calibration.py`, `scripts/run_calibration.py`, read-only `GET /calibration`; 8 cases: 6 planted faults that pass their own tests and 2 clean controls,
+deterministic scoring); voice (`core/voice.ts`, `ui/useVoiceInput.ts`, `ui/VoiceButton.tsx`: opt-in push-to-talk in the prompt box, Esc stops, "Read aloud" on routine widgets);
+the Household vault panel (widget kind `facts`, migration 0012, catalog entry `household`).
+
+Verified: backend `pytest` 631 passed (includes the calibration range and the vault); web `vitest` 601 passed (50 files), `tsc` clean, build OK.
+Not verified: the calibration range on real Claude (stand-in only, so it has produced no real scorecard yet); voice in a real browser or on Android (jsdom fakes only; Chrome/Edge send
+dictation audio to the browser maker's service, which the opt-in notice says); e2e suites were not re-run for this branch.
+
+Not built yet from the owner's lists: Life Stations, Decision Matrix, Document Squeezer, Rover scam/popup explainer and spoken steps, Daily Dispatch page, plain-word label
+translation, Rover Ghost Overlay, 3D Flight Recorder, Universal Android (TV, car, autonomy). A release is prepared but not published.
+
+## Earlier checkpoint (2026-10-26, branch `phase5-universe`)
 
 State: the universe is the app. Home is a full-screen universe (photoreal procedural WebGL, with a flat SVG fallback) with a travel dock, Go to, radar, breadcrumb,
 list view, deep links (`#/home/o/<object id>`), a plain-words card with Basics/More/Expert settings for every object, arrival animations, My Day (19 ready-made daily
