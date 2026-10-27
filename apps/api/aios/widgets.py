@@ -15,8 +15,9 @@ from .db import Database
 from .errors import ApiError
 from .util import new_id, now
 
-KINDS = ("counter", "checklist", "note", "habit", "timer", "routine")
+KINDS = ("counter", "checklist", "note", "habit", "timer", "routine", "facts")
 MAX_WIDGETS, MAX_ITEMS = 24, 20
+MAX_FACTS = 60
 WHENS = ("manual", "daily", "weekdays", "weekly")
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 _TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -39,7 +40,7 @@ def _int(v, lo: int, hi: int, field: str) -> int:
 
 
 ALLOWED = {"counter": {"value", "step"}, "checklist": {"items"}, "note": {"text"}, "habit": {"days", "per_week"}, "timer": {"focus", "rest", "sessions"},
-           "routine": {"prompt", "when", "at", "day", "last_run", "last_task"}}
+           "routine": {"prompt", "when", "at", "day", "last_run", "last_task"}, "facts": {"items"}}
 
 
 def validate(kind: str, title, config) -> tuple[str, dict]:
@@ -76,6 +77,16 @@ def validate(kind: str, title, config) -> tuple[str, dict]:
             raise ApiError(422, "bad_widget", "at must be a time like 08:30")
         return title, {"prompt": _text(config.get("prompt", ""), 1500, "request"), "when": when, "at": at, "day": _int(config.get("day", 6), 0, 6, "day of the week"),
                        "last_run": _text(config.get("last_run", ""), 40, "last run", allow_empty=True), "last_task": _text(config.get("last_task", ""), 64, "last task", allow_empty=True)}
+    if kind == "facts":
+        facts = config.get("items", [])
+        if not isinstance(facts, list) or len(facts) > MAX_FACTS:
+            raise ApiError(422, "bad_widget", f"a household vault holds up to {MAX_FACTS} facts")
+        out = []
+        for f in facts:
+            if not isinstance(f, dict) or set(f) != {"label", "value"}:
+                raise ApiError(422, "bad_widget", "each fact is {label, value}")
+            out.append({"label": _text(f.get("label"), 60, "label"), "value": _text(f.get("value"), 200, "value")})
+        return title, {"items": out}
     items = config.get("items", [])
     if not isinstance(items, list) or len(items) > MAX_ITEMS:
         raise ApiError(422, "bad_widget", f"a checklist holds up to {MAX_ITEMS} items")
@@ -193,6 +204,8 @@ CATALOG: list[dict] = [
     _t("sleep", "Lights out on time", "Constellation: Rest", "Track", "Everyone", "A nightly check for going to bed when you meant to.", "habit", "Lights out on time", {"days": [], "per_week": 6}, change="the name and days per week"),
     _t("budget", "Spent this month", "Cargo manifest", "Track", "Everyone", "Add up what you spend by hand. Nothing connects to your bank.", "counter", "Spent this month", {"value": 0, "step": 10}, change="the name and the step"),
     _t("focus", "Focus timer", "Warp burn", "Focus", "Everyone", "A work-and-rest timer. It counts your finished sessions.", "timer", "Focus timer", {"focus": 25, "rest": 5, "sessions": 0}, change="focus and rest minutes"),
+    _t("household", "Household vault", "Home station", "Home", "Everyone", "The facts you always lose: filter sizes, paint codes, clothing sizes, model numbers. Type to find one. Nothing leaves this computer.", "facts", "Household vault",
+       {"items": [{"label": "Furnace filter size", "value": "16x25x4"}, {"label": "Living room paint", "value": "Add the brand and colour code"}]}, change="every fact"),
     _t("shopping", "Shopping list", "Supply depot", "Lists", "Everyone", "Things to buy. Tick them off in the shop.", "checklist", "Shopping list", {"items": [{"text": "Milk", "done": False}]}, change="the items"),
     _t("reading", "Reading list", "Cargo bay: Read", "Lists", "Everyone", "Books and articles to get to.", "checklist", "Reading list", {"items": [{"text": "A book you have been meaning to read", "done": False}]}, change="the items"),
     _t("meals", "Plan this week's dinners", "Galley", "Lists", "Everyone", "Answer three questions and get seven dinners plus a shopping list.", "routine", "Plan this week's dinners",
@@ -205,7 +218,7 @@ CATALOG: list[dict] = [
     _t("release", "Release checklist", "Launch checklist", "For technical work", "Technical", "The steps you take every time you ship.", "checklist", "Release checklist",
        {"items": [{"text": "Tests pass", "done": False}, {"text": "Notes written", "done": False}, {"text": "Backed up", "done": False}]}, change="the steps"),
 ]
-GROUPS = ["Plan your day", "Capture", "Track", "Focus", "Lists", "For technical work"]
+GROUPS = ["Plan your day", "Capture", "Track", "Focus", "Lists", "Home", "For technical work"]
 
 
 def catalog() -> dict:

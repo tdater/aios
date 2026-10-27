@@ -3,10 +3,11 @@ import { AiosClient } from "./client";
 /** Daily widgets: types, API calls and the small pure helpers the "My Day" dock and the gallery share.
  *  A widget is data (a kind plus plain settings). Nothing here renders HTML or runs anything the owner typed. */
 
-export type WidgetKind = "counter" | "checklist" | "note" | "habit" | "timer" | "routine";
+export type WidgetKind = "counter" | "checklist" | "note" | "habit" | "timer" | "routine" | "facts";
 export type RoutineWhen = "manual" | "daily" | "weekdays" | "weekly";
 
 export interface ChecklistItem { text: string; done: boolean }
+export interface Fact { label: string; value: string }
 export interface RoutineConfig { prompt: string; when: RoutineWhen; at: string; day: number; last_run: string; last_task: string }
 export interface ConfigByKind {
   counter: { value: number; step: number };
@@ -15,6 +16,7 @@ export interface ConfigByKind {
   habit: { days: string[]; per_week: number };
   timer: { focus: number; rest: number; sessions: number };
   routine: RoutineConfig;
+  facts: { items: Fact[] };
 }
 export type Widget = { [K in WidgetKind]: { id: string; kind: K; title: string; config: ConfigByKind[K]; created_at?: string } }[WidgetKind];
 
@@ -27,6 +29,7 @@ export interface AbilityRow { name: string; title: string; enabled: boolean; can
 export interface AbilityStatus { paused: boolean; abilities: AbilityRow[] }
 
 export const MAX_ITEMS = 20;
+export const MAX_FACTS = 60;
 export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // ---- API ----
@@ -85,6 +88,7 @@ export function progressText(w: Widget, today: Date = new Date()): string {
     }
     case "timer": return `${plural(w.config.sessions, "session", "sessions")} finished`;
     case "note": return w.config.text ? `${w.config.text.length} of 500 characters` : "Empty";
+    case "facts": return plural(w.config.items.length, "fact kept", "facts kept");
     case "routine": return w.config.last_run ? `Last run ${fmtWhen(w.config.last_run)}` : "Not run yet";
   }
 }
@@ -132,4 +136,10 @@ export function timerNext(phase: "focus" | "rest", cfg: { focus: number; rest: n
 export function filterCatalog(items: CatalogItem[], who: "All" | "Everyone" | "Technical", q: string): CatalogItem[] {
   const needle = q.trim().toLowerCase();
   return items.filter((i) => (who === "All" || i.who === who) && (!needle || `${i.name} ${i.space} ${i.blurb} ${i.group}`.toLowerCase().includes(needle)));
+}
+
+/** Facts whose label or value contains every word typed (any case). An empty search shows them all, in the order kept. */
+export function findFacts(items: Fact[], query: string): Fact[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length === 0 ? items : items.filter((f) => words.every((w) => `${f.label} ${f.value}`.toLowerCase().includes(w)));
 }

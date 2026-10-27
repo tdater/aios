@@ -234,6 +234,27 @@ describe("My Day dock", () => {
     Reflect.deleteProperty(window, "speechSynthesis");
   });
 
+  it("household vault: finds a fact by any word, keeps new ones, removes one, and says when nothing matches", async () => {
+    const items = [{ label: "Furnace filter", value: "16x25x4" }, { label: "Living room paint", value: "Chantilly Lace" }];
+    const { puts } = server([w("f1", "facts", "Household vault", { items })]);
+    mount(<MyDay />);
+    expect(await screen.findByText("16x25x4")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Find in Household vault"), { target: { value: "paint lace" } });
+    expect(screen.queryByText("16x25x4")).toBeNull();
+    expect(screen.getByText("Chantilly Lace")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Find in Household vault"), { target: { value: "boiler" } });
+    expect(screen.getByText(/Nothing matches/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Find in Household vault"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("New fact name for Household vault"), { target: { value: " Shoe size " } });
+    fireEvent.change(screen.getByLabelText("New fact value for Household vault"), { target: { value: "10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add fact" }));
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    expect((puts()[0].body as { config: { items: unknown[] } }).config.items).toEqual([...items, { label: "Shoe size", value: "10" }]);
+    fireEvent.click(await screen.findByRole("button", { name: "Remove fact Furnace filter" }));
+    await waitFor(() => expect(puts()).toHaveLength(2));
+    expect((puts()[1].body as { config: { items: { label: string }[] } }).config.items.map((f) => f.label)).toEqual(["Living room paint", "Shoe size"]);
+  });
+
   it("rename saves the title; remove asks first and then deletes", async () => {
     const { srv, puts } = server([w("n1", "note", "Old name", { text: "" })]);
     mount(<MyDay />);

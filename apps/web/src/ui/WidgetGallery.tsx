@@ -105,10 +105,11 @@ export function WidgetGallery({ onAdded, onClose }: { onAdded?: (w: Widget) => v
 }
 
 function Preview({ t, routinesOn }: { t: CatalogItem; routinesOn: boolean }) {
-  const c = t.config as { items?: { text: string }[]; text?: string; prompt?: string; focus?: number; rest?: number; step?: number; per_week?: number };
+  const c = t.config as { items?: { text: string; label?: string; value?: string }[]; text?: string; prompt?: string; focus?: number; rest?: number; step?: number; per_week?: number };
   return (
     <div className="wgallery-preview" role="region" aria-label={`Preview of ${t.name}`}>
       {t.kind === "checklist" && <ul>{(c.items ?? []).map((i, n) => <li key={n}>{i.text}</li>)}</ul>}
+      {t.kind === "facts" && <ul>{(c.items ?? []).map((i, n) => <li key={n}>{i.label}: {i.value}</li>)}</ul>}
       {t.kind === "note" && <p>{c.text}</p>}
       {t.kind === "counter" && <p>A number you add to or take from, {c.step} at a time.</p>}
       {t.kind === "habit" && <p>A daily check with a streak. Goal: {c.per_week} days a week.</p>}
