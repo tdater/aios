@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { TYPE_LABEL } from "../core/vault";
+import { useMemo, useState } from "react";
+import { TYPE_LABEL, applyCardFilter, cardFilters } from "../core/vault";
 import { go, useStore, useViewport } from "../ui/hooks";
 import { Icon } from "../ui/icons";
 import { Btn, Empty, ago } from "../ui/kit";
@@ -9,8 +9,29 @@ import { NewNote } from "./knowledge/NewNote";
 import { NoteView } from "./knowledge/NoteView";
 import { VaultContext, useVault, useVaultProvider } from "./knowledge/vaultContext";
 
+/** Notes as cards you can scan, with filter chips: the friendlier face of the same notes. */
+function CardGrid({ notes }: { notes: ReturnType<typeof useVault>["notes"] }) {
+  const [filter, setFilter] = useState("all");
+  const chips = useMemo(() => cardFilters(notes), [notes]);
+  const shown = applyCardFilter(notes, chips.some((c) => c.id === filter) ? filter : "all");
+  return (
+    <section aria-label="Notes as cards">
+      <div className="chips" role="group" aria-label="Show">
+        {chips.map((c) => <button key={c.id} type="button" className={`chip btnchip ${filter === c.id ? "on" : ""}`} aria-pressed={filter === c.id} onClick={() => setFilter(c.id)}>{c.label}</button>)}
+      </div>
+      <ul className="notegrid">{shown.map((n) => (
+        <li key={n.id}><button type="button" className="notecard" onClick={() => go({ tab: "knowledge", id: n.id })}>
+          <strong>{n.title}</strong>
+          <span className="muted small">{TYPE_LABEL[n.type] ?? n.type} · {ago(n.last_reviewed_at ?? n.created_at)}</span>
+          {n.tags.length > 0 && <span className="notetags">{n.tags.slice(0, 4).map((t) => <span key={t} className="chip">#{t}</span>)}</span>}
+        </button></li>))}</ul>
+    </section>
+  );
+}
+
 function Overview() {
   const vault = useVault();
+  const [cards, setCards] = useState(true);
   const recent = useMemo(() => [...vault.notes].sort((a, b) => (b.last_reviewed_at ?? b.created_at ?? "").localeCompare(a.last_reviewed_at ?? a.created_at ?? "")).slice(0, 6), [vault.notes]);
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -27,6 +48,8 @@ function Overview() {
       </div>
       {vault.notes.length === 0 ? <Empty>No notes yet. Create one, or approve a proposal from the Inbox to turn history into memory.</Empty> : (
         <>
+          <label className="check"><input type="checkbox" checked={cards} onChange={(e) => setCards(e.target.checked)} /> Show notes as cards</label>
+          {cards && <CardGrid notes={vault.notes} />}
           <div className="chips">{Object.entries(counts).map(([t, n]) => <span key={t} className="chip">{TYPE_LABEL[t] ?? t}: {n}</span>)}</div>
           <h3>Recently touched</h3>
           <ul className="cards">{recent.map((n) => (

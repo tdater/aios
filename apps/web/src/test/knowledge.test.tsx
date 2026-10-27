@@ -217,6 +217,50 @@ describe("note view", () => {
   });
 });
 
+describe("notes as cards and starter templates", () => {
+  it("shows the overview as a card grid with filter chips, and a card opens its note", async () => {
+    fakeServer(vaultRoutes());
+    renderK();
+    const grid = await screen.findByRole("region", { name: "Notes as cards" });
+    const chips = within(grid).getByRole("group", { name: "Show" });
+    expect(within(chips).getByRole("button", { name: "All notes" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(chips).getByRole("button", { name: "Facts" })).toBeTruthy();
+    const all = within(grid).getAllByRole("button").filter((b) => b.classList.contains("notecard")).length;
+    expect(all).toBe(NOTES.length);
+    fireEvent.click(within(chips).getByRole("button", { name: "Facts" }));
+    expect(within(grid).getAllByRole("button").filter((b) => b.classList.contains("notecard")).length).toBe(NOTES.filter((n) => n.type === "fact").length);
+    fireEvent.click(within(grid).getAllByRole("button").find((b) => b.classList.contains("notecard"))!);
+    expect(location.hash).toMatch(/^#\/knowledge\/mem_/);
+  });
+
+  it("can switch the cards off to get the plain list back", async () => {
+    fakeServer(vaultRoutes());
+    renderK();
+    await screen.findByRole("region", { name: "Notes as cards" });
+    fireEvent.click(screen.getByLabelText("Show notes as cards"));
+    expect(screen.queryByRole("region", { name: "Notes as cards" })).toBeNull();
+  });
+
+  it("a starter template fills the title, tags and headings, and is saved as written", async () => {
+    const srv = fakeServer(vaultRoutes(NOTES, { "POST /memories": () => ({ status: 201, body: noteFull({ id: "mem_new", title: "Furnace" }) }) }));
+    renderK("new");
+    const starts = within(await screen.findByRole("group", { name: "Start from" }));
+    fireEvent.click(starts.getByRole("button", { name: /Appliance spec and manual/ }));
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Appliance: ");
+    expect((screen.getByLabelText(/Body/) as HTMLTextAreaElement).value).toContain("Filter or part size");
+    expect(screen.getByText("#appliance")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Appliance: Furnace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create note" }));
+    await waitFor(() => expect(srv.count("POST", "/memories")).toBe(1));
+    const body = srv.calls.find((c) => c.method === "POST" && c.path === "/memories")!.body as { title: string; body: string; tags: string[] };
+    expect(body.title).toBe("Appliance: Furnace");
+    expect(body.tags).toEqual(["home", "appliance"]);
+    expect(body.body).toContain("# Appliance");
+    fireEvent.click(starts.getByRole("button", { name: /Blank note/ }));
+    expect((screen.getByLabelText(/Body/) as HTMLTextAreaElement).value).toBe("");
+  });
+});
+
 describe("new note", () => {
   it("prefills from a ghost link and creates with tags, type and project", async () => {
     newNoteTitle.set("Missing note");
