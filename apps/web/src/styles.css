@@ -812,3 +812,9 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .cockpit .burst i { position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; border-radius: 50%; background: #ffd37a; box-shadow: 0 0 6px #ffbe0b; animation: burst-fly 1.2s ease-out forwards; }
 @keyframes burst-fly { 0% { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 1; } 100% { transform: rotate(var(--a)) translateX(var(--d)) scale(.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .cockpit .burst { display: none; } }
+
+.meter { height: 8px; border-radius: 99px; background: rgba(143,180,255,.18); overflow: hidden; margin: 6px 0; }
+.meter > span { display: block; height: 100%; background: linear-gradient(90deg, #38ef7d, #00bbf9); transition: width .3s ease; }
+.seg { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+.seg button { padding: 8px 16px; min-height: 40px; background: transparent; border: 0; color: inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent, #fff); }

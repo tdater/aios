@@ -10,6 +10,7 @@ import {
 import { useApp } from "./Context";
 import { go, routeHref } from "./hooks";
 import { ErrorBox } from "./kit";
+import { MissionCard } from "./Mission";
 import { VoiceButton } from "./VoiceButton";
 
 type Save = <K extends Widget["kind"]>(w: Extract<Widget, { kind: K }>, config: ConfigByKind[K], title?: string) => Promise<void>;
@@ -108,6 +109,7 @@ function WidgetCard(p: CardProps) {
       {w.kind === "checklist" && <Checklist w={w} save={save} connected={connected} />}
       {w.kind === "counter" && <Counter w={w} save={save} connected={connected} />}
       {w.kind === "note" && <Note w={w} save={save} connected={connected} />}
+      {w.kind === "mission" && <MissionCard w={w} save={(x, config) => save(x, config)} connected={connected} />}
       {w.kind === "facts" && <Facts w={w} save={save} connected={connected} />}
       {w.kind === "habit" && <Habit w={w} save={save} connected={connected} />}
       {w.kind === "timer" && <Timer w={w} save={save} connected={connected} />}
