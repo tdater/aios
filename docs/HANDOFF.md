@@ -2,7 +2,17 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-10-27, release 0.4.0; newest, read this first)
+## Checkpoint (2026-10-28, release 0.5.0; newest, read this first)
+
+0.5.0 adds, from the owner's overhaul and proposal files: the computer-check fix (it showed `[object Object]`) plus a much fuller read-only check with ideas; life missions (widget kind `mission`,
+migration 0013); the scam second opinion and document squeezer (`screens/Tools.tsx`, local rules in `core/scam.ts` and `core/document.ts`); daily dispatch, evening wrap-up and brain dump
+(`ui/Dispatch.tsx`, `ui/BrainDump.tsx`, `core/braindump.ts`); Knowledge cards and templates; Graph radial mode and hover previews; Inbox suggestion cards; day-grouped Runs; numbered dock, sounds,
+probe sparkle, zen orbit and compass horizon; ambient display (`screens/Ambient.tsx`).
+Verified: backend `pytest` 648 passed, 1 skipped; web `vitest` 685 passed (67 files), `tsc` clean, build OK; the computer check was also run for real on this PC. Real-browser e2e: see the release notes.
+Not verified: the new screens on a phone or TV; voice on a real browser; the Android emulator e2e (not run since 0.3.x). Process rule learned: never merge before every CI job reads success, and push branches by explicit name.
+Not built: weather in the ambient display (needs an online service), Android on-device engine, car mode, Rover overlay and popup explainer, 3D flight recorder, Decision Matrix, Life Stations.
+
+## Earlier checkpoint (2026-10-27, release 0.4.0)
 
 Released: 0.3.1 (tour radio fix, MIT license), 0.3.2 (memory import fix, `scripts/phone-access.ps1`), 0.4.0 (Simple mode = four anchors + Quick add, plain-English approval
 cards, cockpit compass and 0 key). Verified for 0.4.0: web `vitest` 615 passed, `tsc` clean, build OK, backend `pytest` 640 passed locally, CI per PR. Not verified: the new nav, compass and approval

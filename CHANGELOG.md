@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.5.0 - 2026-10-28
+### Fixed
+- **"Check this computer now" showed `[object Object]`** for memory, disk and temporary files. Results are now plain rows (for example "14.3 GB of 15.5 GB in use (92%)") with a tone, and older raw results are still readable.
+
+### Added
+- **A much fuller computer check**, still read-only: every fixed drive, Downloads size, programs that start with Windows (names only), the programs using the most memory (names only), time since the last restart, a pending Windows restart, and battery. New findings explain what they mean and give by-hand steps; nothing is changed or deleted for you.
+- **Ideas after a check**: rule-based next steps, some with a ready-made question you can send to AIOS with one click (nothing is sent until you press Go).
+- **Life missions**: goals with a target date and steps, on the Projects screen (Developer projects / Life missions switch), in My Day, and as probes in the universe.
+- **Check a message or document** (Quick add menu): a local scam second opinion that says "looks like a scam" and never "safe", and a document squeezer that finds dates, amounts and tricky clauses on this computer before you choose to ask Claude for a plain-words explanation.
+- **Daily dispatch and evening wrap-up** in My Day, with an optional spoken dispatch, a "a year ago today" flashback, "start tomorrow fresh", and a **brain dump** that sorts what you say into to-dos, shopping and notes and saves only what you accept.
+- **Knowledge**: a card grid with filter chips, and six starter templates (appliance, vehicle, doctor visit, trip, bills, emergency card).
+- **Graph**: a radial mind-map layout and frosted hover preview cards with an excerpt.
+- **Inbox**: suggestions one at a time (Remember this, Not now, Ignore). One tap is only offered when no extra safeguard applies; global, flagged or suspicious ones go to the full review.
+- **Runs** are grouped by day (Today, Yesterday, This week) and described in plain words.
+- **Cockpit**: numbered dock with the 1 to 6 keys, optional interface sounds (off by default), a sparkle on a probe when you complete a habit, a slow "zen orbit" after 90 seconds of no input (any input stops it), and a horizon on the compass.
+- **Ambient display** (Quick add, "Show on a big screen"): large type, rotating Today, Missions and Remember views, arrow keys and OK for a remote.
+
+### Notes
+- Everything above was tested with the automated suites and, for the computer check, run for real on a Windows PC. The new screens were not checked on a phone or TV.
+- Not built: weather in the ambient display (it would need an online service), Android on-device engine, car mode, Rover overlay and popup explainer, 3D flight recorder.
+
+
 ## 0.4.0 - 2026-10-27
 - **Simple mode is now four anchors plus Settings** (Home, Missions, Knowledge, Inbox), with a **Quick add (+)** menu: ask AIOS anything, quick note, new mission or project. My AIs and Insights moved to Standard mode (still reachable from the universe, Go to, and Settings).
 - **Plain-English approvals**: an approval now opens with what AIOS wants to do, in everyday words, and how safe it is (for example that a check command runs on your computer and is not a sandbox). The action hash, exact target and content moved under "Technical details and proof".
