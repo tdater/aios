@@ -10,4 +10,4 @@ Publishing is outward-facing, so each step that leaves this computer needs the o
 6. Re-read the diff for private data: no tokens, keystores, personal paths, imported history or state. The repo is public.
 7. Tag and publish (owner approves each): `git tag -a v0.3.0 -m "AIOS 0.3.0"`, `git push origin v0.3.0`, then `gh release create v0.3.0 --title "AIOS 0.3.0" --notes-file <notes>`.
 8. Attach assets only if they exist and were built from the tag: a debug APK is for testers, not a store release. A signed release APK needs the owner's keystore, which never goes in the repo.
-9. No LICENSE file exists yet. Decide before publishing: without one, others have no permission to reuse the code.
+9. The project is MIT licensed (`LICENSE`). Keep the copyright line current.

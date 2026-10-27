@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- MIT license added. AIOS opens in its own Edge window from the AIOS icon when Edge is installed (otherwise your default browser); README explains pinning the icon to the taskbar and Start.
+
 ## 0.3.0 - 2026-10-26
 
 ### Added

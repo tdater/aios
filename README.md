@@ -100,6 +100,8 @@ scripts\pair.ps1               # one-time code to sign a browser or phone in
 cd apps\web; npm test; npm run build        # web tests and production build
 ```
 
+**One-click icon:** `scripts\setup.ps1` (or double-clicking `Install AIOS.cmd`) puts an **AIOS** icon on your Desktop and in the Start menu. To keep it on the taskbar, right-click the icon, choose *Show more options*, then *Pin to taskbar* (or *Pin to Start*). Windows does not let a program pin itself. To make the icons again later, run `scripts\create_shortcuts.ps1`. AIOS opens in its own Edge window when Edge is installed, otherwise in your default browser.
+
 If you update AIOS while it is running, restart it (`scripts\stop.ps1`, then `scripts\start.ps1`) and refresh with Ctrl+Shift+R, or the universe will say it needs a restart.
 
 Android: `scripts\android-build.ps1 -Variant debug` (see `docs/mobile-android.md`). Release signing keys are yours to create and are never committed.
@@ -117,6 +119,10 @@ Android: `scripts\android-build.ps1 -Variant debug` (see `docs/mobile-android.md
 `apps/api` FastAPI app and SQLite migrations · `apps/web` React client, WebGL renderer, PWA, Capacitor Android project, e2e scripts · `tests` backend tests · `scripts` setup, run, build, demo and scan helpers · `docs` architecture, API, mobile and handoff notes.
 
 Start with `docs/universe-spec.md` (the design), `docs/architecture.md`, `docs/api-v1.md` and `docs/HANDOFF.md` (current state, honest about what is untested).
+
+## License
+
+MIT, see `LICENSE`. The software is provided as is, without warranty.
 
 ---
 

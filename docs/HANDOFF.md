@@ -184,8 +184,7 @@ The emulator needs ~3–5 GB RAM; with a browser and other apps open the host ru
 - Visibility: created private; made **public on 2026-10-24 at the owner's decision** (all of the owner's repos are public and
   they will not pay for private features). Before that, the tree and the full git history were reviewed: no secrets, no email
   addresses, no account IDs, no Windows-username paths. History keeps a few mild earlier mentions (laptop model, subscription
-  tier); it was deliberately **not** rewritten. **No LICENSE file** has been added (an owner decision): without one, others have
-  no permission to reuse the code.
+  tier); it was deliberately **not** rewritten. **MIT LICENSE added** on 2026-10-26 at the owner's decision.
 - Never commit private runtime state, imported history, tokens or keystores (all git-ignored). Defense in depth:
   `scripts/scan_secrets.py`, the pre-commit hook (`scripts/install-hooks.ps1`, run once per clone), the CI secret job, and
   GitHub's own secret scanning/push protection where enabled. Dependabot alerts are enabled.
@@ -251,7 +250,7 @@ elsewhere: done | 13 mock provider tests: done | 14 redaction/path tests: done |
 - Provider discovery shells out to the real `claude` CLI and can take tens of seconds at startup; two backend tests used to race it and now wait for it. One web test failed once right after a heavy backend run and passed on 5 reruns (suspected load timing; not identified).
 - Emulator e2e flakes if the host is low on RAM (the emulator is software-rendered). Close heavy apps or use `-memory 2560`.
 - `docs/history-bootstrap.md` predates the full brief; ingestion is implemented but its real-data pilot has not happened.
-- No LICENSE file (owner decision).
+- (Resolved) LICENSE: MIT.
 
 ## Earlier next actions (2026-10-24; still open unless the Course correction section says otherwise)
 1. User decides on a LICENSE (until then all rights are reserved).

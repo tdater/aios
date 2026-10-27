@@ -31,4 +31,8 @@ if ($NewCode -or -not (Test-Path $flag)) {
     $url = "$url#pair=$code"
     Set-Content -Path $flag -Value (Get-Date -Format o)
 }
-if ($NoBrowser) { Write-Output $url } else { Start-Process $url }
+if ($NoBrowser) { Write-Output $url; exit 0 }
+# Open AIOS in its own window (no tabs or address bar) when Microsoft Edge is installed, so it feels like an app and sits on the taskbar
+# on its own. Any other setup falls back to your default browser.
+$edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($edge) { Start-Process $edge -ArgumentList "--app=$url" } else { Start-Process $url }
