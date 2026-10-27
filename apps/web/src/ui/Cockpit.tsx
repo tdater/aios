@@ -4,7 +4,7 @@ import { UObject, REGIONS, Region, layoutWorld, posAt, posAtExact } from "../cor
 import { Camera, clamp, defaultCamera, ease, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
 import { ObjectList } from "../core/objects";
 import { Universe } from "../core/types";
-import { breadcrumb, cameraForBody, goTo, radar, regionCamera, regionNear } from "../core/travel";
+import { breadcrumb, cameraForBody, goTo, pickBody, radar, regionCamera, regionNear } from "../core/travel";
 import { ArrivalCaption } from "./ArrivalCaption";
 import { useApp } from "./Context";
 import { go, useLoad } from "./hooks";
@@ -88,6 +88,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
   }, [reduced]);
 
   const raf = useRef(0);
+  const useGLRef = useRef(false);
   const flyTo = useCallback((to: Camera, ms = 700) => {
     cancelAnimationFrame(raf.current);
     if (reduced || typeof requestAnimationFrame !== "function") { setCam(to); return; }
@@ -118,7 +119,23 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const onDown = (e: React.PointerEvent) => { if ((e.target as Element).closest("button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar")) return; drag.current = { x: e.clientX, y: e.clientY, moved: false }; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); };
   const onMove = (e: React.PointerEvent) => { const d = drag.current; if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (Math.abs(dx) + Math.abs(dy) > 2) d.moved = true; d.x = e.clientX; d.y = e.clientY; cancelAnimationFrame(raf.current); setCam(orbit(camRef.current, -dx * 0.006, dy * 0.006)); };
-  const onUp = () => { drag.current = null; };
+  const wasDrag = useRef(false);                       // a drag that just ended must not count as a click
+  const onUp = () => { wasDrag.current = !!drag.current?.moved; drag.current = null; };
+  const CHROME = "button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar, .zoombar";
+  const hit = (e: React.MouseEvent) => {                // what is under the pointer in 3D space (the flat picture handles its own clicks)
+    if (!world || !useGLRef.current || (e.target as Element).closest(CHROME) || wasDrag.current) return null;
+    const r = (e.currentTarget as Element).getBoundingClientRect();
+    return pickBody(world, camRef.current, view, simT, e.clientX - r.left, e.clientY - r.top);
+  };
+  const onClick = (e: React.MouseEvent) => { const b = hit(e); if (b) open(b.id); };
+  /** Double-click anything to fly in on it; double-click empty space to move closer to that spot. */
+  const onDouble = (e: React.MouseEvent) => {
+    const b = hit(e);
+    if (b && world) { open(b.id); flyTo(cameraForBody(b, camRef.current, posAt(world, b, simT)), 600); return; }
+    if ((e.target as Element).closest(CHROME) || wasDrag.current) return;
+    flyTo(zoom(camRef.current, 0.55), 450);
+  };
+  const zoomBy = (f: number) => flyTo(zoom(camRef.current, f), 300);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -145,10 +162,11 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
       </div>);
   }
   const useGL = glOk && settings.universeView !== "flat" && !listView;
+  useGLRef.current = useGL;
   const crumbs = breadcrumb(world, selected, region ?? regionNear(world, cam.target));
 
   return (
-    <div className="cockpit" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onKeyDown={onKey} tabIndex={-1} data-testid="cockpit">
+    <div className="cockpit" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onClick={onClick} onDoubleClick={onDouble} onKeyDown={onKey} tabIndex={-1} data-testid="cockpit">
       {!listView && (useGL ? (
         <Suspense fallback={null}>
           <UniverseGL world={shown} cam={cam} selected={selected} hovered={hovered} told={told} time={reduced ? 0 : simT} reducedMotion={reduced} onUnsupported={() => setGlOk(false)} />
@@ -158,7 +176,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
       ))}
       {!listView && declutter(shown, cam, view, simT, selected, hovered).map(({ b, x, y, r }) => (
         <button key={b.id} type="button" className={`u-label ${selected === b.id ? "on" : ""} ${needsYou(b) ? "needs-you" : ""}`} style={{ left: x, top: y + Math.max(8, r) + 4, opacity: arrivals.frames.get(b.id)?.alpha ?? 1 }}
-          onClick={() => open(b.id)} onPointerEnter={() => setHovered(b.id)} onPointerLeave={() => setHovered(null)} aria-label={`${b.name}: ${b.state.text}`}>{b.name}</button>))}
+          onClick={() => open(b.id)} onDoubleClick={(e) => { e.stopPropagation(); open(b.id); flyTo(cameraForBody(b, camRef.current, posAt(world, b, simT)), 600); }} onPointerEnter={() => setHovered(b.id)} onPointerLeave={() => setHovered(null)} aria-label={`${b.name}: ${b.state.text}`}>{b.name}</button>))}
       {listView && <ListView world={world} onPick={(id) => { setListView(false); open(id); }} />}
 
       <div className="topbar">
@@ -169,6 +187,12 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
         <button type="button" className="btn btn-quiet" aria-pressed={listView} onClick={() => setListView((v) => !v)}>{listView ? "Back to space" : "List view"}</button>
       </div>
 
+      {!listView && (
+        <div className="zoombar" role="group" aria-label="Zoom">
+          <button type="button" aria-label="Zoom in" title="Zoom in (+)" onClick={() => zoomBy(0.7)}>+</button>
+          <button type="button" aria-label="Zoom out" title="Zoom out (-)" onClick={() => zoomBy(1.4)}>−</button>
+          <button type="button" aria-label="Reset view" title="Show everything" onClick={() => { open(null); setRegion(null); flyTo(defaultCamera()); }}>⌂</button>
+        </div>)}
       <nav className="dock" aria-label="Travel to a region">
         {REGIONS.map((r) => (
           <button key={r.id} type="button" className={region === r.id ? "on" : ""} aria-current={region === r.id ? "true" : undefined} title={r.question} onClick={() => travelTo(r.id)}>

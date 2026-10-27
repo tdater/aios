@@ -1,6 +1,6 @@
 import { rank } from "./fuzzy";
-import { Body, REGIONS, Region, World, regionName } from "./scene";
-import { Camera, Vec3, clampCamera, defaultCamera, flyTo } from "./space3d";
+import { Body, REGIONS, Region, World, posAtExact, regionName } from "./scene";
+import { Camera, Vec3, View, clampCamera, defaultCamera, flyTo, project } from "./space3d";
 
 // Travel: how a person moves around the universe. Pure functions, so the dock, Go to, the radar, the breadcrumb and
 // deep links all agree and can be tested without a screen.
@@ -59,4 +59,18 @@ export const objectLink = (id: string) => `#/home/o/${encodeURIComponent(id)}`;
 export function radar(world: World, size: number): { id: string; x: number; y: number; region: Region }[] {
   const e = Math.max(world.extent, 1);
   return world.bodies.map((b) => ({ id: b.id, region: b.region, x: size / 2 + (b.pos[0] / e) * (size / 2 - 4), y: size / 2 + (b.pos[2] / e) * (size / 2 - 4) }));
+}
+
+/** The body under a click at (x, y) on the screen, or null. Works for every renderer because it uses the same projection as the labels.
+ *  Hit size is the drawn size plus a finger-friendly margin; when several overlap, the one nearest the pointer (then the nearest to you) wins. */
+export function pickBody(world: World, cam: Camera, view: View, t: number, x: number, y: number, margin = 14): Body | null {
+  let best: { b: Body; d: number; depth: number } | null = null;
+  for (const b of world.bodies) {
+    const p = project(cam, posAtExact(world, b, t), view);
+    if (!p) continue;
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d > Math.max(margin, b.r * p.scale + margin / 2)) continue;
+    if (!best || d < best.d - 0.5 || (Math.abs(d - best.d) <= 0.5 && p.depth < best.depth)) best = { b, d, depth: p.depth };
+  }
+  return best ? best.b : null;
 }
