@@ -22,6 +22,8 @@ export const defaultCamera = (): Camera => ({ yaw: 0.35, pitch: 0.42, dist: 760,
 export const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 export const clampCamera = (c: Camera): Camera => ({ ...c, pitch: clamp(c.pitch, -MAX_PITCH, MAX_PITCH), dist: clamp(c.dist, MIN_DIST, MAX_DIST), yaw: ((c.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI });
 export const orbit = (c: Camera, dyaw: number, dpitch: number): Camera => clampCamera({ ...c, yaw: c.yaw + dyaw, pitch: c.pitch + dpitch });
+/** Face the Sun (you) and level the horizon, keeping how far out you are and which way you were turned. For when you are lost. */
+export const faceSun = (c: Camera): Camera => clampCamera({ ...c, target: [0, 0, 0], pitch: defaultCamera().pitch });
 export const zoom = (c: Camera, factor: number): Camera => clampCamera({ ...c, dist: c.dist * factor });
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);

@@ -793,3 +793,6 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .quickadd-menu button { width: 100%; text-align: left; padding: 10px 12px; min-height: 44px; background: transparent; border: 0; color: inherit; border-radius: 8px; cursor: pointer; }
 .quickadd-menu button:hover { background: rgba(143,180,255,.15); }
 @media (max-width: 700px) { .quickadd-menu { left: 8px; right: 8px; bottom: 70px; } }
+
+.cockpit .compass { position: absolute; right: 136px; bottom: 8px; z-index: 4; background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 50%; }
+.cockpit .compass:focus-visible { outline: 3px solid #ffd37a; outline-offset: 2px; }

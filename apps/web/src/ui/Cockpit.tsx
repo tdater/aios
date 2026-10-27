@@ -1,7 +1,7 @@
 import { Suspense, lazy, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyArrivals } from "../core/arrival";
 import { UObject, REGIONS, Region, layoutWorld, posAt, posAtExact } from "../core/scene";
-import { Camera, clamp, defaultCamera, ease, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
+import { Camera, clamp, defaultCamera, ease, faceSun, lerpCamera, orbit, viewFor, zoom, project } from "../core/space3d";
 import { ObjectList } from "../core/objects";
 import { Universe } from "../core/types";
 import { breadcrumb, cameraForBody, goTo, pickBody, radar, regionCamera, regionNear } from "../core/travel";
@@ -117,11 +117,11 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
 
   // dragging looks around, the wheel moves closer or further, keys do the same
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
-  const onDown = (e: React.PointerEvent) => { if ((e.target as Element).closest("button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar")) return; drag.current = { x: e.clientX, y: e.clientY, moved: false }; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); };
+  const onDown = (e: React.PointerEvent) => { if ((e.target as Element).closest("button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar, .compass")) return; drag.current = { x: e.clientX, y: e.clientY, moved: false }; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); };
   const onMove = (e: React.PointerEvent) => { const d = drag.current; if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (Math.abs(dx) + Math.abs(dy) > 2) d.moved = true; d.x = e.clientX; d.y = e.clientY; cancelAnimationFrame(raf.current); setCam(orbit(camRef.current, -dx * 0.006, dy * 0.006)); };
   const wasDrag = useRef(false);                       // a drag that just ended must not count as a click
   const onUp = () => { wasDrag.current = !!drag.current?.moved; drag.current = null; };
-  const CHROME = "button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar, .zoombar";
+  const CHROME = "button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar, .zoombar, .compass";
   const hit = (e: React.MouseEvent) => {                // what is under the pointer in 3D space (the flat picture handles its own clicks)
     if (!world || !useGLRef.current || (e.target as Element).closest(CHROME) || wasDrag.current) return null;
     const r = (e.currentTarget as Element).getBoundingClientRect();
@@ -149,6 +149,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
     if (k === "ArrowLeft") setCam(orbit(camRef.current, 0.1, 0)); else if (k === "ArrowRight") setCam(orbit(camRef.current, -0.1, 0));
     else if (k === "ArrowUp") setCam(orbit(camRef.current, 0, 0.08)); else if (k === "ArrowDown") setCam(orbit(camRef.current, 0, -0.08));
     else if (k === "+" || k === "=") setCam(zoom(camRef.current, 0.85)); else if (k === "-") setCam(zoom(camRef.current, 1.18));
+    else if (k === "0") { open(null); setRegion(null); flyTo(defaultCamera()); }
     else if (k === "Escape") { if (goOpen) setGoOpen(false); else if (selected) open(null); }
     else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "g") { e.preventDefault(); setGoOpen(true); }
   };
@@ -204,6 +205,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
           </button>))}
       </nav>
 
+      {!listView && <Compass cam={cam} onFaceSun={() => flyTo(faceSun(camRef.current), 500)} />}
       {!listView && <Radar world={world} cam={cam} selected={selected} onPick={open} />}
       {day && <div className="mydock"><MyDay refreshKey={dayKey} onAdd={() => setGallery(true)} /></div>}
       {gallery && (
@@ -229,6 +231,19 @@ function GoTo({ world, onPick, onClose }: { world: NonNullable<ReturnType<typeof
       <ul>{results.map((d) => <li key={`${d.kind}:${d.id}`}><button type="button" onClick={() => onPick(d)}><strong>{d.label}</strong> <span className="muted small">{d.sub}</span></button></li>)}</ul>
       {!results.length && <p className="muted small">Nothing by that name.</p>}
     </div>
+  );
+}
+
+/** Lost? The needle shows which way you are turned; pressing it faces the Sun and levels the view. The 0 key goes all the way back to the start view. */
+function Compass({ cam, onFaceSun }: { cam: Camera; onFaceSun: () => void }) {
+  return (
+    <button type="button" className="compass" aria-label="Face the Sun and level the view" title="Face the Sun and level the view (0 shows everything)" onClick={onFaceSun}>
+      <svg width="44" height="44" viewBox="-22 -22 44 44" aria-hidden="true">
+        <circle r="20" fill="rgba(5,10,24,.7)" stroke="#8fb4ff" strokeOpacity=".5" />
+        <g transform={`rotate(${(-cam.yaw * 180) / Math.PI})`}><path d="M0 -15 L4 0 L-4 0 Z" fill="#ffd37a" /><path d="M0 15 L4 0 L-4 0 Z" fill="#456" /></g>
+        <circle r="3" fill="#ffd37a" />
+      </svg>
+    </button>
   );
 }
 
