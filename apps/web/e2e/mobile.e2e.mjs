@@ -215,10 +215,11 @@ try {
     await page.getByRole("button", { name: /Write 23 chars/ }).waitFor();
     expect(!existsSync(approvalFile), "effect happened before approval");
     await page.getByRole("button", { name: /Write 23 chars/ }).click();
+    await page.getByRole("button", { name: /Technical details and proof/ }).click();    // the hash, target and content sit under this
     await page.getByText("Exact target").waitFor();
     await page.getByText("approved from the phone", { exact: true }).waitFor();
     await shot("05-approval-detail");
-    const btn = page.getByRole("button", { name: "Approve this exact action" });
+    const btn = page.getByRole("button", { name: /^Approve / });
     await btn.dblclick();
     await page.getByText(/This request is (approved|consumed)/).waitFor();
     for (let i = 0; i < 40 && !existsSync(approvalFile); i++) await sleep(250);
@@ -333,6 +334,7 @@ try {
     await api("POST", "/tasks", { title: "long path", kind: "demo.guarded_write", spec: { filename: "a-very-long-file-name-that-keeps-going-and-going-and-going-and-going-forever.txt", content: "x" }, start_run: true });
     await page.goto(`${BASE}/#/inbox`);
     await page.getByRole("button", { name: /Write 1 chars/ }).click();
+    await page.getByRole("button", { name: /Technical details and proof/ }).click();
     await page.getByText("Exact target").waitFor();
     await sleep(400);
     const clipped = await page.evaluate(() => { const c = document.querySelector(".content"); return c.scrollWidth > c.clientWidth + 1; });

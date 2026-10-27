@@ -169,9 +169,10 @@ try {
     await row.waitFor();
     expect(!existsSync(file), "effect happened before approval");
     await row.click();
+    await page.getByRole("button", { name: /Technical details and proof/ }).click();
     await page.getByText("approved on emulator", { exact: true }).waitFor();
     screencap("a04-approval");
-    await page.getByRole("button", { name: "Approve this exact action" }).click();
+    await page.getByRole("button", { name: /^Approve / }).click();
     await page.getByText(/This request is (approved|consumed)/).waitFor();
     for (let i = 0; i < 40 && !existsSync(file); i++) await sleep(250);
     expect(existsSync(file) && readFileSync(file, "utf8") === "approved on emulator", "approved effect did not happen exactly once");
