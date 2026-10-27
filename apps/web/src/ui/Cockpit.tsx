@@ -195,8 +195,12 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
         </div>)}
       <nav className="dock" aria-label="Travel to a region">
         {REGIONS.map((r) => (
-          <button key={r.id} type="button" className={region === r.id ? "on" : ""} aria-current={region === r.id ? "true" : undefined} title={r.question} onClick={() => travelTo(r.id)}>
-            <span className="dock-name">{r.name}</span><span className="dock-q">{r.question}</span>
+          <button key={r.id} type="button" className={`dock-btn dock-${r.id} ${region === r.id ? "on" : ""}`} aria-current={region === r.id ? "true" : undefined} title={r.question} onClick={() => travelTo(r.id)}>
+            <span className="dock-accent" aria-hidden="true" />
+            <span className="dock-body">
+              <span className="dock-name">{r.name}</span>
+              <span className="dock-q">{r.question}</span>
+            </span>
           </button>))}
       </nav>
 

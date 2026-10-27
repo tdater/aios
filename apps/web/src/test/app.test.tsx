@@ -388,11 +388,22 @@ describe("modes change what the menu lists, and nothing else", () => {
     const nav = () => within(screen.getByRole("navigation", { name: "Main" }));
     expect(nav().queryByRole("button", { name: /Projects/ })).toBeNull();
     expect(nav().queryByRole("button", { name: /Runs/ })).toBeNull();
-    expect(nav().getByRole("button", { name: /Insights/ })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: /Insights/ })).toBeNull();      // Simple keeps four anchors and Settings
+    expect(nav().queryByRole("button", { name: /My AIs/ })).toBeNull();
+    for (const n of [/Home/, /Missions/, /Knowledge/, /Inbox/, /Settings/]) expect(nav().getByRole("button", { name: n })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: /Workspace/ })).toBeNull();     // renamed Missions in Simple
+    fireEvent.click(nav().getByRole("button", { name: "Quick add" }));
+    const menu = within(screen.getByRole("menu", { name: "Quick add" }));
+    for (const n of ["Ask AIOS anything", "Quick note", "New mission or project"]) expect(menu.getByRole("menuitem", { name: n })).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu", { name: "Quick add" })).toBeNull();
     fireEvent.click(nav().getByRole("button", { name: /Settings/ }));
     fireEvent.click(await screen.findByLabelText(/Standard/));
     await waitFor(() => expect(nav().getByRole("button", { name: /Projects/ })).toBeTruthy());
     expect(nav().getByRole("button", { name: /Runs/ })).toBeTruthy();
+    expect(nav().getByRole("button", { name: /Workspace/ })).toBeTruthy();     // the plain name returns outside Simple
+    expect(nav().getByRole("button", { name: /Insights/ })).toBeTruthy();
+    expect(nav().queryByRole("button", { name: "Quick add" })).toBeNull();
     expect(nav().queryByRole("button", { name: /Graph/ })).toBeNull();
   });
 });
