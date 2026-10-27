@@ -46,7 +46,13 @@ only the trusted desktop can produce.
 | Same Wi-Fi, no TLS | **Not supported** | the app refuses `http://` server addresses |
 | Public internet / Funnel / port forwarding | **Do not** | `tailscale funnel` publishes to the internet; this guide never uses it |
 
-### Setting up Tailscale Serve (you run these; I did not)
+### Easiest way: `scripts\phone-access.ps1`
+Run it in PowerShell on the AIOS PC. It reads this PC's Tailscale name, saves it to `<state>llowed-hosts.txt` (AIOS also accepts it as a Host name), runs `tailscale serve --bg 8765`,
+restarts AIOS, checks that Funnel is off, and prints the `https://…ts.net` address to type into the phone app. `-Status` shows what is shared; `-Off` stops sharing.
+A Tailscale IP such as `http://100.x.y.z:8765` can never work: the server listens on loopback only and the app refuses `http://`.
+If it says HTTPS is not enabled, turn on *HTTPS Certificates* on the DNS page of the Tailscale admin console and run it again.
+
+### Setting up Tailscale Serve by hand (you run these; I did not)
 Prerequisites in the Tailscale admin console: **MagicDNS** and **HTTPS Certificates** enabled; this PC and the phone
 signed in to the same tailnet; the Tailscale client healthy (`tailscale status` shows peers, not a coordination error).
 

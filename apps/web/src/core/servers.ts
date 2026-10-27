@@ -29,7 +29,10 @@ export function checkServerUrl(raw: string, allowDevLoopback = false): UrlCheck 
   if (u.search || u.hash || (u.pathname !== "/" && u.pathname !== "")) return { ok: false, reason: "Use only the server address, without a path." };
   if (u.protocol === "https:") return { ok: true, url: u.origin };
   if (allowDevLoopback && LOOPBACK.test(u.origin)) return { ok: true, url: u.origin };
-  return { ok: false, reason: "HTTPS is required. Plain HTTP is not allowed." };
+  if (u.protocol === "http:" && /^(\d{1,3}\.){3}\d{1,3}$/.test(u.hostname)) {
+    return { ok: false, reason: `Phones cannot use an IP address like ${u.hostname}: AIOS needs a secure https:// address. On your PC run scripts\phone-access.ps1, then enter the https://…ts.net address it prints.` };
+  }
+  return { ok: false, reason: "HTTPS is required. Plain HTTP is not allowed. To reach AIOS over Tailscale, run scripts\phone-access.ps1 on your PC and use the https://…ts.net address it prints." };
 }
 
 export class ServerRegistry {

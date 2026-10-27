@@ -75,6 +75,15 @@ describe("server addresses", () => {
     expect(checkServerUrl("http://evil.example", true).ok).toBe(false);
   });
 
+  it("explains the Tailscale IP address mistake and points at the setup script", () => {
+    const ip = checkServerUrl("http://100.105.125.14:8765");
+    expect(ip.ok).toBe(false);
+    expect(!ip.ok && ip.reason).toContain("IP address like 100.105.125.14");
+    expect(!ip.ok && ip.reason).toContain("scripts\phone-access.ps1");
+    const plain = checkServerUrl("http://pc.tail.ts.net");
+    expect(!plain.ok && plain.reason).toContain("phone-access.ps1");
+  });
+
   it("detects a different server at the same address and cleans up on removal", async () => {
     const removed: string[] = [];
     const r = new ServerRegistry(new MemoryKV(), (s) => void removed.push(s.id));
