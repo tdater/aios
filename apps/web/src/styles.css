@@ -826,3 +826,16 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 
 .graph-preview-card { background: rgba(8,14,30,.82); color: #e8eefc; border: 1px solid rgba(143,180,255,.35); border-radius: 12px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 26px rgba(0,0,0,.4); }
 .graph-excerpt { margin: 6px 0; line-height: 1.35; }
+
+/* Ambient display: large type for a wall screen or TV */
+.ambient { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-between; padding: 4vh 5vw; background: #05080f; color: #f3f6ff; font-size: clamp(32px, 4.2vw, 64px); }
+.ambient h1 { font-size: 1.3em; margin: 0 0 .4em; color: #ffd37a; }
+.ambient ol, .ambient ul { margin: 0; padding-left: 1.2em; line-height: 1.5; }
+.ambient li { margin-bottom: .3em; }
+.ambient-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ambient-clock { font-size: 1.6em; font-weight: 700; }
+.ambient-date, .ambient-sub { opacity: .8; font-size: .6em; margin-left: .6em; }
+.ambient-quote { font-size: 1.1em; line-height: 1.35; }
+.ambient-foot { display: flex; gap: 1.2em; font-size: .45em; opacity: .75; }
+.ambient-foot .on { color: #ffd37a; font-weight: 700; }
+.ambient:focus-visible { outline: 4px solid #ffd37a; }

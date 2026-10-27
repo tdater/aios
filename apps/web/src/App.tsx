@@ -25,6 +25,7 @@ import { Knowledge } from "./screens/Knowledge";
 import { Projects } from "./screens/Projects";
 import { Runs } from "./screens/Runs";
 import { Settings } from "./screens/Settings";
+import { Ambient } from "./screens/Ambient";
 import { Task } from "./screens/Task";
 import { Tools } from "./screens/Tools";
 import { Workspace } from "./screens/Workspace";
@@ -272,6 +273,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
           <main className={`content ${flush ? "flush" : ""}`} id="main">
             {route.tab === "home" && (route.sub === "details" ? <Home />
               : route.sub === "tools" ? <Tools />
+              : route.sub === "ambient" ? <Ambient />
               : route.id && route.sub !== "o" ? <Task id={route.id} />
               : <Cockpit objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Cockpit>)}
             {route.tab === "work" && <Workspace id={route.id} />}
