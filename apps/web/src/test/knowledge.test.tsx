@@ -261,6 +261,19 @@ describe("notes as cards and starter templates", () => {
   });
 });
 
+describe("graph layout choice", () => {
+  it("offers the radial mind map next to force physics and keeps showing the graph", async () => {
+    fakeServer(vaultRoutes(NOTES, { "GET /graph": () => ({ body: { nodes: [{ id: "mem_a", kind: "memory", label: "Gradle caching", degree: 1, type: "fact" }, { id: "mem_b", kind: "memory", label: "Android build checklist", degree: 1, type: "procedure" }], edges: [{ source: "mem_a", target: "mem_b", kind: "link" }], truncated: false } }) }));
+    render(<Wrap ctx={ctxFor().ctx}><GraphScreen /></Wrap>);
+    await screen.findByRole("img", { name: /Knowledge graph/ });
+    const layout = screen.getByLabelText("Layout") as HTMLSelectElement;
+    expect([...layout.options].map((o) => o.textContent)).toEqual(["Force physics", "Radial mind map"]);
+    fireEvent.change(layout, { target: { value: "radial" } });
+    expect(layout.value).toBe("radial");
+    expect(screen.getByRole("img", { name: /Knowledge graph/ })).toBeTruthy();
+  });
+});
+
 describe("new note", () => {
   it("prefills from a ghost link and creates with tags, type and project", async () => {
     newNoteTitle.set("Missing note");

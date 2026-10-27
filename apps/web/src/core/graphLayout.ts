@@ -86,6 +86,11 @@ export class Layout {
     this.alpha = 0.02;
   }
   reheat(a = 0.5) { this.alpha = Math.max(this.alpha, a); }
+  /** Put nodes at fixed positions (for the radial layout). Nodes not in the map keep where they are. */
+  pin(pos: Map<string, { x: number; y: number }>): void {
+    for (const n of this.nodes) { const p = pos.get(n.id); if (p) { n.x = p.x; n.y = p.y; n.vx = n.vy = 0; n.fixed = true; } }
+    this.alpha = 0.02;
+  }
 
   bounds(): { minX: number; minY: number; maxX: number; maxY: number } {
     if (!this.nodes.length) return { minX: -1, minY: -1, maxX: 1, maxY: 1 };
@@ -102,4 +107,32 @@ export class Layout {
     }
     return best;
   }
+}
+
+/** Radial mind-map positions: the centre in the middle, its direct neighbours on an inner ring, their neighbours on a second ring, everything
+ *  else on an outer ring. Same input, same output. Rings are spaced so labels have room. */
+export function radialPositions(nodeIds: string[], edges: LayoutEdge[], centerId: string, ringGap = 130): Map<string, { x: number; y: number }> {
+  const out = new Map<string, { x: number; y: number }>();
+  const ids = new Set(nodeIds);
+  if (!ids.has(centerId)) return out;
+  const adj = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!ids.has(e.source) || !ids.has(e.target) || e.source === e.target) continue;
+    (adj.get(e.source) ?? adj.set(e.source, []).get(e.source)!).push(e.target);
+    (adj.get(e.target) ?? adj.set(e.target, []).get(e.target)!).push(e.source);
+  }
+  const depth = new Map<string, number>([[centerId, 0]]);
+  const queue = [centerId];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const nb of [...(adj.get(cur) ?? [])].sort()) if (!depth.has(nb)) { depth.set(nb, Math.min(2, depth.get(cur)! + 1)); queue.push(nb); }
+  }
+  const rings: string[][] = [[], [], [], []];                                      // 0 centre, 1 inner, 2 outer, 3 not connected to the centre
+  for (const id of [...nodeIds].sort()) rings[depth.has(id) ? depth.get(id)! : 3].push(id);
+  rings.forEach((ring, d) => {
+    if (d === 0) { out.set(centerId, { x: 0, y: 0 }); return; }
+    const radius = Math.max(ringGap * d, (ring.length * 34) / (2 * Math.PI));        // grow a crowded ring so nodes do not overlap
+    ring.forEach((id, i) => { const a = (i / ring.length) * Math.PI * 2 - Math.PI / 2; out.set(id, { x: Math.cos(a) * radius, y: Math.sin(a) * radius }); });
+  });
+  return out;
 }
