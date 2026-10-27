@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-10-27
+- **Simple mode is now four anchors plus Settings** (Home, Missions, Knowledge, Inbox), with a **Quick add (+)** menu: ask AIOS anything, quick note, new mission or project. My AIs and Insights moved to Standard mode (still reachable from the universe, Go to, and Settings).
+- **Plain-English approvals**: an approval now opens with what AIOS wants to do, in everyday words, and how safe it is (for example that a check command runs on your computer and is not a sandbox). The action hash, exact target and content moved under "Technical details and proof".
+- **Cockpit orientation**: a compass that faces the Sun and levels the view, and the 0 key to go back to the start view.
+- Not in this release (queued in `docs/roadmap-phase6.md`): Graph mind-map and hover cards, Knowledge card grid and household templates, Life Mission projects, swipeable memory proposals, activity timeline, living probes.
+
 ## 0.3.2 - 2026-10-27
 - **Fixed:** memory import now reads answers written as paragraphs, tables or with en-dash bullets, and says why when it finds nothing.
 - **Added:** `scripts\phone-access.ps1` sets up private phone access over Tailscale (HTTPS in front of AIOS for your tailnet only) and prints the address for the app. The app now explains that a Tailscale IP address will not work and points at the script.

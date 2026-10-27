@@ -2,7 +2,15 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-10-26, branch `phase6-roadmap`; newest, read this first)
+## Checkpoint (2026-10-27, release 0.4.0; newest, read this first)
+
+Released: 0.3.1 (tour radio fix, MIT license), 0.3.2 (memory import fix, `scripts/phone-access.ps1`), 0.4.0 (Simple mode = four anchors + Quick add, plain-English approval
+cards, cockpit compass and 0 key). Verified for 0.4.0: web `vitest` 615 passed, `tsc` clean, build OK, backend `pytest` 640 passed locally, CI per PR. Not verified: the new nav, compass and approval
+cards in a real browser or on the phone (jsdom tests only); the phone connecting over Tailscale (the owner ran the APK before the phone-access script existed).
+Still queued from `aios_everyday_ui_overhaul.md` (owner's file, not in the repo): Graph mind map and hover cards, Knowledge card grid and templates, Life Mission projects, swipeable
+proposals, activity timeline, living probes, target-lock beam, orbital bookmarks.
+
+## Checkpoint (2026-10-26, branch `phase6-roadmap`)
 
 Queue and order: `docs/roadmap-phase6.md`. Release steps: `docs/release-checklist.md`, `CHANGELOG.md`.
 
