@@ -40,3 +40,6 @@ export function toast(msg: string, ms = 2200) {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastStore.set(null), ms);
 }
+
+/** Text waiting to be dropped into the Ask box (for example a ready-made question from a computer check). The box takes it and clears it. */
+export const askPrefill = new Store<string>("");

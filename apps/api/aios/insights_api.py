@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from . import abilities, briefing, calibration, companion, constellation, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
+from . import abilities, briefing, calibration, companion, constellation, homebase, scan_report, memory_capture, memory_import, overview, services, sharing, system_scan, universe, widgets
 from .config import Settings
 from .db import Database
 from .errors import ApiError
@@ -159,8 +159,9 @@ def build_router(db: Database, settings: Settings, require_auth) -> APIRouter:
     def run_system_scan():
         abilities.require(db, "system_scan")
         facts = system_scan.collect()
-        abilities.receipt(db, actor="system_scan", kind="system_scan.run", summary="Read memory, disk, temp-folder size and start-up count. Changed nothing.")
-        return {"facts": facts, "suggestions": system_scan.suggest(facts), "changed_anything": False}
+        abilities.receipt(db, actor="system_scan", kind="system_scan.run", summary="Read memory, drives, folder sizes, start-up and program names, uptime and battery. Changed nothing.")
+        return {"facts": facts, "suggestions": system_scan.suggest(facts), "summary": scan_report.summarize(facts),
+                "ideas": scan_report.ideas(facts, weekly_checkup_on=homebase.checkup_enabled(db)), "changed_anything": False}
 
     @r.get("/widgets")
     def get_widgets():

@@ -340,11 +340,7 @@ def act(db: Database, settings: Settings, oid: str, name: str) -> dict:
         return {"title": f"What {obj['name']} would be told", "count": len(b["items"]), "text": b["text"] or "Nothing at this level."}
     if name == "run_health_check" and obj["id"].startswith("home"):
         abilities.require(db, "system_scan")
-        facts = system_scan.collect()
-        result = {"at": now(), "facts": facts, "suggestions": system_scan.suggest(facts)}
-        abilities.set_flag(db, "last_scan", json.dumps(result))
-        abilities.receipt(db, actor="system_scan", kind="system_scan.run", summary="Read memory, disk, temp-folder size and start-up count. Changed nothing.")
-        return result
+        return homebase.run_scan(db)
     if name == "stop" and obj["id"] == "home:rover":
         return rover.stop(db, settings)
     if name == "pair_device" and obj["id"] == "home:port":

@@ -8,7 +8,8 @@ import { RoverPanel } from "./RoverPanel";
 import { useApp } from "./Context";
 import { go, useLoad } from "./hooks";
 import { Btn, ErrorBox, Loading } from "./kit";
-import { openTour, toast } from "./uiState";
+import { askPrefill, openTour, toast } from "./uiState";
+import { Idea, SummaryRow, factRows } from "../core/scanText";
 
 const say = (e: unknown) => (e instanceof ApiError ? e.message : (e as Error).message);
 
@@ -132,17 +133,29 @@ function LocalRow({ d, settings, set }: { d: LocalDef; settings: Settings; set: 
   );
 }
 
-function ActionResult({ r }: { r: Record<string, unknown> }) {
+export function ActionResult({ r }: { r: Record<string, unknown> }) {
   const facts = r.facts as Record<string, unknown> | undefined;
+  const summary = r.summary as SummaryRow[] | undefined;
   const suggestions = r.suggestions as { title?: string; text?: string }[] | undefined;
+  const ideas = r.ideas as Idea[] | undefined;
   return (
     <div className="action-result" role="status">
       {typeof r.title === "string" && <h3>{r.title}</h3>}
       {typeof r.text === "string" && <pre className="untrusted-inline">{r.text}</pre>}
       {typeof r.code === "string" && <p>Code: <strong>{r.code}</strong>. {String(r.note ?? "")}</p>}
       {r.ok === true && <p>Done.</p>}
-      {facts && <ul>{Object.entries(facts).map(([k, v]) => <li key={k}>{k.replace(/_/g, " ")}: {String(v)}</li>)}</ul>}
+      {summary?.length ? (
+        <ul className="scan-rows">{summary.map((row) => <li key={row.label} className={row.tone}><strong>{row.label}:</strong> {row.value}</li>)}</ul>
+      ) : facts ? <ul>{factRows(facts).map((row) => <li key={row.label}>{row.label}: {row.value}</li>)}</ul> : null}
       {suggestions && suggestions.map((s, i) => <p key={i}>{s.title ?? s.text}</p>)}
+      {ideas && ideas.length > 0 && (
+        <section className="scan-ideas" aria-label="Ideas">
+          <h4>Ideas</h4>
+          <ul className="plain">{ideas.map((i) => (
+            <li key={i.id}><strong>{i.title}</strong><span className="muted small"> {i.why}</span>
+              {i.ask && <> <button type="button" className="btn btn-quiet" onClick={() => { askPrefill.set(i.ask!); go({ tab: "home" }); }}>Ask AIOS about this</button></>}</li>))}</ul>
+          <p className="muted small">AIOS only reads and explains. Nothing is changed or deleted for you.</p>
+        </section>)}
     </div>
   );
 }

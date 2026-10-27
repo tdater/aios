@@ -2,7 +2,8 @@ import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, newKey } from "../core/client";
 import { AssistPlan, AssistView, EXAMPLES, greeting, KIND_SHORT, PICKABLE } from "../core/assist";
 import { useApp } from "./Context";
-import { go, useLoad } from "./hooks";
+import { go, useLoad, useStore } from "./hooks";
+import { askPrefill } from "./uiState";
 import { Icon } from "./icons";
 import { Btn } from "./kit";
 import { PlanView } from "./PlanView";
@@ -28,6 +29,13 @@ export function AskBox() {
   const projects = useLoad(() => client.get<{ items: ProjectRow[] }>("/projects", { query: { limit: 50 } }), [client]);
   const list = (projects.data?.items ?? []).filter((p) => p.name !== "Everyday");
   const prompt = text.trim();
+  const pre = useStore(askPrefill);
+  useEffect(() => {                                       // a ready-made question arrived (for example from a computer check): show it, open the box, and wait for the owner to send
+    if (!pre) return;
+    setText(pre); askPrefill.set("");
+    area.current?.closest("details")?.setAttribute("open", "");
+    area.current?.focus();
+  }, [pre]);
 
   useEffect(() => { keyRef.current = newKey(); setErr(null); }, [text, projectId, kind]);           // a changed request is a new request
   useEffect(() => {

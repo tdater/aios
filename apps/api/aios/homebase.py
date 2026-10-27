@@ -12,7 +12,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from . import abilities, system_scan
+from . import abilities, scan_report, system_scan
 from .db import Database
 from .errors import ApiError
 from .util import now
@@ -54,6 +54,46 @@ _CATALOG: dict[str, dict] = {
         "how_to": ["Open Settings, then Apps, then Startup.", "Sort by Startup impact.",
                    "Switch off programs you do not need right at start. You can switch them back on at any time.", "Leave security software and your touchpad or audio tools on."],
         "action_class": "reversible", "safe_to_automate": True, "page": "ms-settings:startupapps",
+    },
+    "reboot": {
+        "title": "Windows is waiting for a restart",
+        "explain": "Updates have been downloaded but are only finished when the computer restarts. Until then some fixes are not active.",
+        "how_to": ["Save your work in every open program.", "Open Settings, then Windows Update.", "Choose Restart now, or schedule a time that suits you.",
+                   "After the restart, open Windows Update once more to check nothing else is waiting."],
+        "action_class": "reversible", "safe_to_automate": True, "page": "ms-settings:windowsupdate",
+    },
+    "uptime": {
+        "title": "The computer has not been restarted in a while",
+        "explain": "Programs slowly use up memory and leave things half-finished while the computer stays on. A restart clears all of it.",
+        "how_to": ["Save your work in every open program.", "Click Start, then the power button, then Restart (not Shut down: on many PCs Shut down keeps part of the old session).",
+                   "When it comes back, open only what you need."],
+        "action_class": "read_only", "safe_to_automate": False, "page": None,
+    },
+    "battery": {
+        "title": "The battery is low",
+        "explain": "A laptop that runs out of battery can lose unsaved work. Heavy tasks drain it faster.",
+        "how_to": ["Connect the charger.", "Open Settings, then System, then Power and battery to see what is using the most.", "Turn on Battery saver there if you cannot charge yet."],
+        "action_class": "reversible", "safe_to_automate": True, "page": "ms-settings:batterysaver",
+    },
+    "downloads": {
+        "title": "Your Downloads folder is large",
+        "explain": "Downloads collects installers, documents and videos that are easy to forget. It is often the quickest place to free space, but only you know what you still need.",
+        "how_to": ["Open File Explorer and click Downloads.", "Click the View menu, choose Details, then click the Size column to put the biggest files first.",
+                   "Look at the biggest ones. Installers you have already used and old copies of files are usually safe to delete.", "Move anything you want to keep to Documents, then delete the rest yourself."],
+        "action_class": "read_only", "safe_to_automate": False, "page": None,
+    },
+    "drive2": {
+        "title": "Another drive is nearly full",
+        "explain": "A drive with very little free space gets slow and can fail to save files.",
+        "how_to": ["Open Settings, then System, then Storage, then Advanced storage settings, then Storage used on other drives.", "Pick the drive and see what is using the space.",
+                   "Move or delete what you no longer need, yourself."],
+        "action_class": "reversible", "safe_to_automate": True, "page": "ms-settings:storagesense",
+    },
+    "topmem": {
+        "title": "One program is using a lot of memory",
+        "explain": "Browsers, games and editing programs can grow to use gigabytes of memory over time. Closing and reopening them gives it back.",
+        "how_to": ["Press Ctrl+Shift+Esc to open Task Manager.", "Find the program in the Processes tab, sorted by Memory.", "Save your work in it, then close it the normal way and open it again."],
+        "action_class": "read_only", "safe_to_automate": False, "page": None,
     },
 }
 
@@ -116,9 +156,11 @@ def run_scan(db: Database, collect: Callable[[], dict] | None = None, actor: str
     """The same read-only check as Home Base's 'Check this computer now'. Stored so the asteroid belt can show it."""
     abilities.require(db, "system_scan")
     facts = (collect or system_scan.collect)()
-    result = {"at": now(), "facts": facts, "suggestions": system_scan.suggest(facts)}
+    result = {"at": now(), "facts": facts, "suggestions": system_scan.suggest(facts), "summary": scan_report.summarize(facts),
+              "ideas": scan_report.ideas(facts, weekly_checkup_on=checkup_enabled(db))}
     abilities.set_flag(db, "last_scan", json.dumps(result))
-    abilities.receipt(db, actor=actor if actor != "owner" else "system_scan", kind="system_scan.run", summary="Read memory, disk, temp-folder size and start-up count. Changed nothing.")
+    abilities.receipt(db, actor=actor if actor != "owner" else "system_scan", kind="system_scan.run",
+                      summary="Read memory, drives, folder sizes, start-up and program names, uptime and battery. Changed nothing.")
     return {**result, "findings": findings_from(result["suggestions"])}
 
 
