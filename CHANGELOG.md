@@ -4,6 +4,7 @@
 - **First real reviewer scorecard.** The calibration range was run on real Claude: On the first 8 cases Opus and Sonnet each caught all 6 planted faults with no false alarm on the 2 clean changes. Two harder cases (a swallowed error and a timing-unsafe token comparison) were then added; both models caught those too, and a full 10-case Opus run caught 8 of 8 with no false alarm (0.4 nitpicks per case). The range is still too easy to tell the models apart. It is a smoke test, not a quality measurement.
 - **"What does this popup mean?"** in the Rover bay: a preset Guide task that explains one window in four plain lines, including whether it *looks like* a scam (never "safe"). Same one-window opt-in, Stop and block list as every Rover task.
 - **Help me decide** (Quick add, "Check a message, a document, or a decision"): a weighted comparison worked out on this computer that says plainly when it is a close call and which weight would flip it. A devil's-advocate second opinion from Claude, or a copy-and-open for Gemini or Perplexity, only happens when you press the button.
+- **Fixed `scripts\phone-access.ps1` hanging.** If Tailscale Serve had never been switched on for your tailnet, `tailscale serve` waits forever for you to approve a link, so the script froze and the phone said "the server did not answer in time". The script now gives up after 20 seconds, shows the approval link, and tells you to run it again after approving.
 - Housekeeping: removed the temporary release folders and an old stash.
 
 
