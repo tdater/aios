@@ -100,7 +100,12 @@ try {
     adb("reverse", `tcp:${PORT}`, `tcp:${PORT}`);
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0");
     adb("shell", "settings", "put", "system", "user_rotation", "0");
-    await launch();
+    try { await launch(); } catch (e) {        // a cold start on a busy emulator sometimes never shows the process: stop the app and try once more
+      console.log(`      first launch failed (${e.message}); retrying once`);
+      adb("shell", "am", "force-stop", APP);
+      await sleep(3000);
+      await launch();
+    }
     await page.getByRole("button", { name: /Use AIOS on this phone only/ }).waitFor();         // the first screen: this phone on its own, or a PC
     screencap("a00-welcome");
     await page.getByRole("button", { name: /Connect to AIOS on my PC/ }).click();
