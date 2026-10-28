@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 - 2026-10-28
+- **First real reviewer scorecard.** The calibration range was run on real Claude: On the first 8 cases Opus and Sonnet each caught all 6 planted faults with no false alarm on the 2 clean changes. Two harder cases (a swallowed error and a timing-unsafe token comparison) were then added; both models caught those too, and a full 10-case Opus run caught 8 of 8 with no false alarm (0.4 nitpicks per case). The range is still too easy to tell the models apart. It is a smoke test, not a quality measurement.
+- **"What does this popup mean?"** in the Rover bay: a preset Guide task that explains one window in four plain lines, including whether it *looks like* a scam (never "safe"). Same one-window opt-in, Stop and block list as every Rover task.
+- **Help me decide** (Quick add, "Check a message, a document, or a decision"): a weighted comparison worked out on this computer that says plainly when it is a close call and which weight would flip it. A devil's-advocate second opinion from Claude, or a copy-and-open for Gemini or Perplexity, only happens when you press the button.
+- Housekeeping: removed the temporary release folders and an old stash.
+
+
 ## 0.5.0 - 2026-10-28
 ### Fixed
 - **"Check this computer now" showed `[object Object]`** for memory, disk and temporary files. Results are now plain rows (for example "14.3 GB of 15.5 GB in use (92%)") with a tone, and older raw results are still readable.
