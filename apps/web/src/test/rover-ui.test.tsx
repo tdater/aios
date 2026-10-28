@@ -75,3 +75,20 @@ describe("the weekly check-up switch", () => {
     await waitFor(() => expect(server.calls.find((x) => x.method === "PUT")?.body).toEqual({ enabled: true }));
   });
 });
+
+describe("the popup explainer preset", () => {
+  it("fills in the explain request at Guide level, and still needs a window name and your yes", async () => {
+    const server = show({ "POST /rover/tasks": () => ({ status: 201, body: {} }) });
+    fireEvent.click(await screen.findByRole("button", { name: "Use this for my popup" }));
+    expect((screen.getByLabelText("What do you need help with?") as HTMLInputElement).value).toMatch(/^Explain this window or popup in plain words/);
+    expect((screen.getByRole("radio", { name: /Guide/ }) as HTMLInputElement).checked).toBe(true);
+    const start = screen.getByRole("button", { name: "Start" }) as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    expect(screen.getByText(/will not look at banking, payment, password or settings windows/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Which window/), { target: { value: "Windows notification" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(start);
+    await waitFor(() => expect(server.calls.find((c) => c.method === "POST")!.body).toMatchObject({ level: 2, target: "Windows notification", opt_in: true }));
+    expect((server.calls.find((c) => c.method === "POST")!.body as { goal: string }).goal).toMatch(/^Explain this window or popup in plain words/);
+  });
+});

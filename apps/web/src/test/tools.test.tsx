@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tools } from "../screens/Tools";
 import { err, fakeServer } from "./fakeServer";
 import { ctxFor, resetRoute, setWidth, Wrap } from "./helpers";
@@ -66,5 +66,67 @@ describe("make a confusing document simple", () => {
     fireEvent.click(card.getByRole("button", { name: "Find dates, amounts and clauses" }));
     fireEvent.click(card.getByRole("button", { name: "Explain it in plain words with Claude" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Claude is not signed in");
+  });
+});
+
+describe("help me decide", () => {
+  const card = () => within(screen.getByRole("region", { name: "Help me decide" }));
+  const fill = () => {
+    const c = card();
+    fireEvent.change(c.getByLabelText("What are you deciding?"), { target: { value: "Lease or buy?" } });
+    fireEvent.change(c.getByLabelText("What matters 2"), { target: { value: "Flexibility" } });
+    fireEvent.change(c.getByLabelText("Option 1 name"), { target: { value: "Lease" } });
+    fireEvent.change(c.getByLabelText("Option 2 name"), { target: { value: "Buy" } });
+    fireEvent.change(c.getByLabelText("Lease on Cost"), { target: { value: "5" } });
+    fireEvent.change(c.getByLabelText("Buy on Cost"), { target: { value: "2" } });
+    fireEvent.change(c.getByLabelText("Lease on Flexibility"), { target: { value: "4" } });
+    fireEvent.change(c.getByLabelText("Buy on Flexibility"), { target: { value: "3" } });
+  };
+
+  it("adds it up on this computer and says plainly when it is close", () => {
+    const srv = fakeServer({} as never);
+    open();
+    fill();
+    fireEvent.click(card().getByRole("button", { name: "Compare" }));
+    const result = within(card().getByLabelText("Comparison"));
+    expect(result.getByText(/Lease is slightly ahead|Lease comes out ahead/)).toBeTruthy();
+    expect(result.getByRole("table")).toBeTruthy();
+    expect(result.getByText(/arithmetic on your own numbers, not advice/)).toBeTruthy();
+    expect(srv.calls).toHaveLength(0);                                                    // nothing was sent anywhere
+  });
+
+  it("asks Claude for a devil's-advocate second opinion only when pressed", async () => {
+    const srv = fakeServer({ "POST /assist": () => ({ status: 201, body: { id: "task_5" } }) } as never);
+    open();
+    fill();
+    fireEvent.click(card().getByRole("button", { name: "Compare" }));
+    expect(srv.calls.filter((c) => c.method === "POST")).toHaveLength(0);
+    fireEvent.click(card().getByRole("button", { name: "Ask Claude" }));
+    await waitFor(() => expect(location.hash).toBe("#/home/task_5"));
+    const body = srv.calls.find((c) => c.path === "/assist")!.body as { prompt: string; kind: string };
+    expect(body.kind).toBe("answer");
+    expect(body.prompt).toContain("devil's advocate");
+    expect(body.prompt).toContain("- Lease: Cost 5/5, Flexibility 4/5");
+  });
+
+  it("copies the question for Gemini and opens its site without contacting it", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const open2 = vi.spyOn(window, "open").mockReturnValue(null);
+    fakeServer({} as never);
+    open();
+    fill();
+    fireEvent.click(card().getByRole("button", { name: "Compare" }));
+    fireEvent.click(card().getByRole("button", { name: "Copy for Gemini" }));
+    await waitFor(() => expect(open2).toHaveBeenCalledWith("https://gemini.google.com/app", "aios-gemini", expect.stringContaining("noopener")));
+    expect(writeText.mock.calls[0][0]).toContain("<decision>");
+    expect(await screen.findByText(/Paste it into Gemini/)).toBeTruthy();
+  });
+
+  it("asks for more when there is nothing to compare", () => {
+    open();
+    fireEvent.click(card().getByRole("button", { name: "Compare" }));
+    expect(card().getByText("Add at least two options and one thing that matters.")).toBeTruthy();
+    expect(card().queryByRole("button", { name: "Ask Claude" })).toBeNull();
   });
 });

@@ -50,7 +50,7 @@ only the trusted desktop can produce.
 Run it in PowerShell on the AIOS PC. It reads this PC's Tailscale name, saves it to `<state>llowed-hosts.txt` (AIOS also accepts it as a Host name), runs `tailscale serve --bg 8765`,
 restarts AIOS, checks that Funnel is off, and prints the `https://…ts.net` address to type into the phone app. `-Status` shows what is shared; `-Off` stops sharing.
 A Tailscale IP such as `http://100.x.y.z:8765` can never work: the server listens on loopback only and the app refuses `http://`.
-If it says HTTPS is not enabled, turn on *HTTPS Certificates* on the DNS page of the Tailscale admin console and run it again.
+If it prints a login.tailscale.com link and says Serve is not switched on, open that link, sign in and approve it, then run the script again (Tailscale asks this once per tailnet). If it says HTTPS is not enabled, turn on *HTTPS Certificates* on the DNS page of the Tailscale admin console and run it again.
 
 ### Setting up Tailscale Serve by hand (you run these; I did not)
 Prerequisites in the Tailscale admin console: **MagicDNS** and **HTTPS Certificates** enabled; this PC and the phone

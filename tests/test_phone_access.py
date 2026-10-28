@@ -12,5 +12,17 @@ def test_it_never_runs_funnel_and_checks_for_it():
 
 
 def test_it_shares_only_the_aios_port_and_leaves_aios_on_loopback():
-    assert "serve --bg $Port" in CODE and "AIOS_HOST" not in CODE and "0.0.0.0" not in CODE
+    assert "'serve', '--bg', $Port" in CODE and "AIOS_HOST" not in CODE and "0.0.0.0" not in CODE
     assert "allowed-hosts.txt" in CODE and "-Off" in SCRIPT
+
+
+def test_it_never_hangs_waiting_for_tailscale_to_approve_serve():
+    assert "WaitForExit(20000)" in CODE and "Stop-Process" in CODE                          # `tailscale serve` waits forever until Serve is enabled in the browser
+    assert "login\.tailscale\.com" in CODE and "Open this link" in CODE                    # so the link it prints is shown to the person
+    assert "& $tailscale serve --bg" not in CODE                                                 # and it is never run as a blocking call
+
+
+def test_it_does_not_reuse_the_name_of_its_own_switch_and_only_blames_https_when_tailscale_does():
+    assert not re.search(r"^\s*\$status\s*=", CODE, re.I | re.M)                           # PowerShell names are case-insensitive: $status would collide with the -Status switch
+    assert "$serveStatus" in CODE
+    assert "-match 'HTTPS|certificate|cert'" in CODE

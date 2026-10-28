@@ -2,7 +2,13 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-10-28, release 0.5.0; newest, read this first)
+## Checkpoint (2026-10-28, release 0.6.0; newest, read this first)
+
+0.6.0: the reviewer calibration range has now been run on real Claude (Opus and Sonnet, 8 of 8 planted faults caught, 0 false alarms on 2 clean controls; this is a smoke test, the cases are too easy to
+separate the models: add subtler ones next). New: the Rover popup explainer preset (`EXPLAIN_GOAL` / `EXPLAIN_RULES` in `rover.py`, tested with a fake Claude only, never tried on a real popup) and the
+local decision matrix (`core/decision.ts`, Tools screen). Verified: backend 651 passed, web 696 passed, `tsc` clean, build OK. The phone-over-Tailscale connection has still never been confirmed by the owner.
+
+## Checkpoint (2026-10-28, release 0.5.0)
 
 0.5.0 adds, from the owner's overhaul and proposal files: the computer-check fix (it showed `[object Object]`) plus a much fuller read-only check with ideas; life missions (widget kind `mission`,
 migration 0013); the scam second opinion and document squeezer (`screens/Tools.tsx`, local rules in `core/scam.ts` and `core/document.ts`); daily dispatch, evening wrap-up and brain dump

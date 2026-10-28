@@ -44,26 +44,43 @@ New-Item -ItemType Directory -Force $State | Out-Null
 Set-Content -Path $HostsFile -Value $name -Encoding ascii
 
 Write-Host "Sharing AIOS to your tailnet as https://$name ..."
-$out = & $tailscale serve --bg $Port 2>&1 | Out-String
-if ($LASTEXITCODE -ne 0 -or $out -match 'not enabled|HTTPS|certificate') {
-    Write-Host $out
-    if ($LASTEXITCODE -ne 0) {
-        Stop-WithMessage ("Tailscale could not turn on HTTPS for this PC. In the Tailscale admin console (login.tailscale.com/admin/dns), scroll to " +
-            "'HTTPS Certificates' and press Enable HTTPS, then run this again. If it printed a link above, open that link and approve it.")
+# `tailscale serve` waits forever when Serve has not been switched on for the tailnet yet (it prints a link and waits for you to approve it
+# in the browser). So it runs in the background with a time limit, and its message is shown instead of leaving this window frozen.
+$outFile = Join-Path ([IO.Path]::GetTempPath()) 'aios-ts-serve.txt'
+Remove-Item -LiteralPath $outFile, "$outFile.err" -ErrorAction SilentlyContinue
+$serve = Start-Process -FilePath $tailscale -ArgumentList 'serve', '--bg', $Port -RedirectStandardOutput $outFile -RedirectStandardError "$outFile.err" -PassThru -WindowStyle Hidden
+if (-not $serve.WaitForExit(20000)) {
+    Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
+    $said = (Get-Content -LiteralPath $outFile, "$outFile.err" -ErrorAction SilentlyContinue) -join "`n"
+    $link = [regex]::Match($said, 'https://login\.tailscale\.com/\S+').Value
+    if ($link) {
+        Write-Host $said
+        Stop-WithMessage ("Tailscale Serve is not switched on for your tailnet yet. Open this link in your browser, sign in, and approve it:`n`n    $link`n`n" +
+            "Then run scripts\phone-access.ps1 again. (This only allows Serve for your own devices; nothing becomes public.)")
     }
+    Stop-WithMessage "Tailscale did not answer within 20 seconds. Open the Tailscale app, make sure it is connected, and run this again."
+}
+$out = (Get-Content -LiteralPath $outFile, "$outFile.err" -ErrorAction SilentlyContinue) -join "`n"
+if ($serve.ExitCode -ne 0) {
+    Write-Host $out
+    # Only blame HTTPS when Tailscale itself says so. Otherwise show what it said and stop: guessing sends people to settings that are already right.
+    if ($out -match 'HTTPS|certificate|cert') {
+        Stop-WithMessage ("Tailscale says HTTPS certificates are the problem. In the Tailscale admin console (login.tailscale.com/admin/dns), check 'HTTPS Certificates' is enabled, then run this again.")
+    }
+    Stop-WithMessage "Tailscale could not start sharing. What it said is shown above. If it is empty, run  tailscale serve --bg $Port  yourself in PowerShell and read what it prints."
 }
 
 # Restart AIOS so it accepts the new name.
 & "$PSScriptRoot\stop.ps1" | Out-Null
 & "$PSScriptRoot\start.ps1" | Out-Null
 
-$status = & $tailscale serve status 2>&1 | Out-String
-Write-Host $status
-if ($status -match 'Funnel on') {
+$serveStatus = & $tailscale serve status 2>&1 | Out-String
+Write-Host $serveStatus
+if ($serveStatus -match 'Funnel on') {
     & $tailscale serve reset
     Stop-WithMessage "Tailscale reported that Funnel (public internet sharing) was on. I turned all sharing off. Do not use Funnel with AIOS."
 }
-if ($status -notmatch 'tailnet only') { Write-Host "Note: could not confirm the line '(tailnet only)' in the status above. Check it before using your phone." -ForegroundColor Yellow }
+if ($serveStatus -notmatch 'tailnet only') { Write-Host "Note: could not confirm the line '(tailnet only)' in the status above. Check it before using your phone." -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "Done. In the AIOS phone app, add this server address:" -ForegroundColor Green
