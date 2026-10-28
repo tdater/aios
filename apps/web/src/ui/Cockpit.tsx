@@ -5,6 +5,7 @@ import { Camera, MAX_PITCH, clamp, defaultCamera, ease, faceSun, lerpCamera, orb
 import { ObjectList } from "../core/objects";
 import { Universe } from "../core/types";
 import { CELEBRATE_EVENT } from "../core/celebrate";
+import { buzz } from "../core/haptics";
 import { playSound, setSoundEnabled, soundEnabled } from "../core/sound";
 import { breadcrumb, cameraForBody, goTo, pickBody, radar, regionCamera, regionNear } from "../core/travel";
 import { ArrivalCaption } from "./ArrivalCaption";
@@ -50,7 +51,8 @@ export type CockpitCommand = { kind: "region"; id: Region; n: number } | { kind:
 
 /** `windowMode` is the universe seen through the bridge window: the same camera, labels and cards, without the dock, radar and panels (the bridge supplies those). `command` lets the bridge send the window somewhere. */
 export function Cockpit({ objectId, children, windowMode, command }: { objectId?: string; children?: ReactNode; windowMode?: boolean; command?: CockpitCommand }) {
-  const { client, settings } = useApp();
+  const { client, settings, server } = useApp();
+  const isPhoneOnly = server.url === "standalone:";          // the phone's own AIOS has no dashboard to open
   const uni = useLoad(() => client.get<Universe>("/universe"), [client], 15000);
   const objs = useLoad(() => client.get<ObjectList>("/universe/objects"), [client], 8000);
   const list: UObject[] | null = objs.data?.items ?? null;
@@ -141,7 +143,7 @@ export function Cockpit({ objectId, children, windowMode, command }: { objectId?
 
   const shown = useMemo(() => (world ? applyArrivals(world, arrivals.active, performance.now(), simT) : null), [world, arrivals.active, arrivals.frames, simT]);
   const open = (id: string | null) => go(id ? { tab: "home", sub: "o", id } : { tab: "home" });
-  const travelTo = (r: Region) => { if (world) { setRegion(r); flyTo(regionCamera(world, r, camRef.current)); playSound("warp", { reducedMotion: reduced }); } };
+  const travelTo = (r: Region) => { if (world) { setRegion(r); flyTo(regionCamera(world, r, camRef.current)); playSound("warp", { reducedMotion: reduced }); buzz("tick", { reducedMotion: reduced }); } };
 
   const handledCommand = useRef(0);
   useEffect(() => {                                      // the bridge sends the window to a region (or back to the start view); each command runs once, even if the world loads late
@@ -220,7 +222,7 @@ export function Cockpit({ objectId, children, windowMode, command }: { objectId?
         <nav className="crumbs" aria-label="Where you are">{crumbs.map((c, i) => <span key={i}>{i > 0 && " › "}{i === 0 && crumbs.length > 1 ? <button type="button" onClick={() => { open(null); setRegion(null); flyTo(defaultCamera()); }}>{c}</button> : c}</span>)}</nav>
         <button type="button" className="btn btn-quiet" onClick={() => setGoOpen(true)}>Go to… <kbd>Ctrl G</kbd></button>
         <button type="button" className="btn btn-quiet" aria-pressed={day} onClick={() => setDay((v) => !v)}>My Day</button>
-        <button type="button" className="btn btn-quiet" onClick={() => go({ tab: "home", sub: "details" })}>Today and details</button>
+        {!isPhoneOnly && <button type="button" className="btn btn-quiet" onClick={() => go({ tab: "home", sub: "details" })}>Today and details</button>}
         <button type="button" className="btn btn-quiet" aria-pressed={sound} aria-label={sound ? "Turn interface sounds off" : "Turn interface sounds on"} title="Interface sounds (off by default)"
           onClick={() => { const on = !sound; setSound(on); setSoundEnabled(on); if (on) playSound("chime", { enabled: true, reducedMotion: reduced }); }}><Icon name="speaker" size={15} /></button>
         <button type="button" className="btn btn-quiet" aria-pressed={listView} onClick={() => setListView((v) => !v)}>{listView ? "Back to space" : "List view"}</button>

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { buzz } from "../core/haptics";
 import { go } from "./hooks";
 import { Icon } from "./icons";
 
 /** The one "+" in the ribbon: start the three things people do most, without finding the right screen first. */
-export function QuickAdd() {
+export function QuickAdd({ phoneOnly = false }: { phoneOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -17,12 +18,12 @@ export function QuickAdd() {
   const ask = () => { go({ tab: "home" }); setTimeout(() => (document.getElementById("ask-input") as HTMLElement | null)?.focus(), 120); };
   return (
     <div className="quickadd" ref={box}>
-      <button type="button" className="quickadd-btn" aria-haspopup="menu" aria-expanded={open} aria-label="Quick add" title="Quick add" onClick={() => setOpen((v) => !v)}>
+      <button type="button" className="quickadd-btn" aria-haspopup="menu" aria-expanded={open} aria-label="Quick add" title="Quick add" onClick={() => { buzz("tick"); setOpen((v) => !v); }}>
         <Icon name="plus" size={22} /><span className="navlabel">Add</span>
       </button>
       {open && (
         <ul className="quickadd-menu" role="menu" aria-label="Quick add">
-          <li role="none"><button type="button" role="menuitem" onClick={pick(ask)}>Ask AIOS anything</button></li>
+          {!phoneOnly && <li role="none"><button type="button" role="menuitem" onClick={pick(ask)}>Ask AIOS anything</button></li>}
           <li role="none"><button type="button" role="menuitem" onClick={pick(() => go({ tab: "knowledge", id: "new" }))}>Quick note</button></li>
           <li role="none"><button type="button" role="menuitem" onClick={pick(() => go({ tab: "projects" }))}>New mission or project</button></li>
           <li role="none"><button type="button" role="menuitem" onClick={pick(() => go({ tab: "home", sub: "tools" }))}>Check a message or document</button></li>

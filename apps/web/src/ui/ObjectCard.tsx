@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ApiError } from "../core/client";
 import { Field, LOCAL_DEFS, LocalDef, ObjectCardData, TIERS, objectPath } from "../core/objects";
 import { Settings } from "../core/settings";
@@ -21,6 +21,7 @@ export function ObjectCard({ id, onClose, onReplay, reload }: { id: string; onCl
   const [tier, setTier] = useState<"basics" | "more" | "expert">("basics");
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const grabY = useRef<number | null>(null);                 // where a finger started on the grab bar: a long pull down closes the sheet
   const [pending, setPending] = useState<{ key: string; value: unknown; label: string } | null>(null);
 
   const change = async (key: string, value: unknown, confirm = false) => {
@@ -56,6 +57,9 @@ export function ObjectCard({ id, onClose, onReplay, reload }: { id: string; onCl
 
   return (
     <aside className="object-card" aria-label={`${o.name}: details`}>
+      <div className="sheet-grab" role="presentation" data-testid="sheet-grab"
+        onTouchStart={(e) => { grabY.current = e.touches[0]?.clientY ?? null; }}
+        onTouchEnd={(e) => { const y0 = grabY.current, y1 = e.changedTouches[0]?.clientY; grabY.current = null; if (y0 !== null && y1 !== undefined && y1 - y0 > 70) onClose(); }} />
       <header className="row">
         <h2>{o.name}</h2>
         <span className={`pill ${o.state.tone}`}>{o.state.text}</span>

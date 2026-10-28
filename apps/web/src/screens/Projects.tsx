@@ -10,16 +10,18 @@ const PERSONA_KEY = "aios.projects.persona";
 const savedPersona = (): "dev" | "life" => { try { return localStorage.getItem(PERSONA_KEY) === "life" ? "life" : "dev"; } catch { return "dev"; } };
 
 export function Projects({ id }: { id?: string }) {
+  const { server } = useApp();
+  const phoneOnly = server.url === "standalone:";             // the phone's own AIOS has no code projects, only life missions
   const [persona, setPersona] = useState<"dev" | "life">(savedPersona);
   const pick = (p: "dev" | "life") => { setPersona(p); try { localStorage.setItem(PERSONA_KEY, p); } catch { /* the choice just does not stick */ } };
   if (id) return <ProjectDetail id={id} />;
   return (
     <>
-      <div className="seg" role="group" aria-label="What kind of project">
+      {!phoneOnly && <div className="seg" role="group" aria-label="What kind of project">
         <button type="button" aria-pressed={persona === "dev"} onClick={() => pick("dev")}>🛠 Developer projects</button>
         <button type="button" aria-pressed={persona === "life"} onClick={() => pick("life")}>🎯 Life missions</button>
-      </div>
-      {persona === "life" ? <div className="screen"><h2>Life missions</h2><MissionBoard /></div> : <ProjectList />}
+      </div>}
+      {persona === "life" || phoneOnly ? <div className="screen"><h2>Life missions</h2><MissionBoard /></div> : <ProjectList />}
     </>
   );
 }

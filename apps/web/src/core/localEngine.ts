@@ -117,6 +117,8 @@ export class LocalEngine {
     let m: RegExpMatchArray | null;
 
     if (method === "GET" && path === "/meta") return ok({ api_version: API_VERSION, min_client_api: 1, server_version: "standalone", server_id: this.read("id", "") || this.makeId(), time: this.iso(), auth: { required: false }, capabilities: { standalone: true } });
+    if (method === "GET" && path === "/health") return ok({ status: "ok", db: "this phone", schema: [0], run_counts: {}, backup_status: "Kept on this phone only" });
+    if (method === "GET" && path === "/providers") return ok({ items: [] });
     if (method === "GET" && path === "/auth/me") return ok({ device: "This phone", kind: "local", created_at: this.iso() });
     if (method === "POST" && path === "/auth/logout") return ok({});
     if (method === "GET" && path === "/home") return ok({ server_time: this.iso(), counts: { active_runs: 0, blocked_runs: 0, pending_approvals: 0, pending_candidates: 0 }, current_runs: [], blocked_runs: [], providers: [] });
@@ -129,7 +131,7 @@ export class LocalEngine {
       return ok({ you: { approved: notes.length, suggested: 0, learning: false }, ais: [], stars, links: [], clusters: ["Everywhere"], totals: { stars: stars.length, verified: 0, hollow: 0, stale: 0 }, comets: { approvals: 0, blocked: 0, to_review: 0 }, paused: false });
     }
     if (method === "GET" && path === "/universe/objects") return ok({ items: this.objects(), version: 1 });
-    if (method === "GET" && (m = path.match(/^\/universe\/objects\/(.+)$/))) {
+    if (method === "GET" && (m = path.match(/^\/universe\/objects\/(.+?)\/card$/))) {
       const obj = this.objects().find((x) => x.id === decodeURIComponent(m![1]));
       if (!obj) return fail(404, "not_found", "No such object.");
       const links = obj.id === "wormhole:pc" ? [{ label: "Connect to my PC", to: { tab: "settings" } }] : obj.id.startsWith("probe:") ? [{ label: "Open My Day" }] : [];
@@ -137,6 +139,7 @@ export class LocalEngine {
     }
 
     // ---- abilities and receipts (the owner is the one holding the phone, so small panels are simply on)
+    if (method === "PUT" && /^\/universe\/objects\/.+\/config$/.test(path)) return needsPc("Changing that setting");
     if (method === "GET" && path === "/abilities") return ok(this.abilities());
     if (method === "PUT" && path.startsWith("/abilities/")) return ok(this.abilities());
     if (method === "GET" && path === "/receipts") return ok({ items: this.read<Receipt[]>("receipts", []) });

@@ -44,9 +44,9 @@ describe("the universe on the phone", () => {
     expect(uni.stars).toHaveLength(1);
     expect(uni.you.approved).toBe(1);
     expect(uni.ais).toEqual([]);                                                        // no AIs live on the phone
-    const card = e.handle("GET", "/universe/objects/wormhole:pc").data as { links: { label: string }[] };
+    const card = e.handle("GET", "/universe/objects/wormhole:pc/card").data as { links: { label: string }[] };
     expect(card.links[0].label).toBe("Connect to my PC");
-    expect(err(() => e.handle("GET", "/universe/objects/nope")).status).toBe(404);
+    expect(err(() => e.handle("GET", "/universe/objects/nope/card")).status).toBe(404);
   });
 });
 
