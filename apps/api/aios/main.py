@@ -246,7 +246,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @v1.post("/auth/pairing-codes", status_code=201)
     def pairing_code():
-        return auth.new_pairing_code(db)
+        c = auth.new_pairing_code(db)
+        # Addresses a phone can open: only real host names the owner allowed (the Tailscale name from phone-access), always https.
+        # The link carries the code after '#', which the browser never sends to any server, and the app only FILLS it in.
+        c["links"] = [f"https://{h}/#pair={c['code']}" for h in settings.allowed_hosts if "." in h and not h.replace(".", "").isdigit()]
+        return c
 
     # ---------------------------------------------------------------- health / providers / home
     @v1.get("/health")
