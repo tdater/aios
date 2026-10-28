@@ -63,21 +63,24 @@ if (-not $serve.WaitForExit(20000)) {
 $out = (Get-Content -LiteralPath $outFile, "$outFile.err" -ErrorAction SilentlyContinue) -join "`n"
 if ($serve.ExitCode -ne 0) {
     Write-Host $out
-    Stop-WithMessage ("Tailscale could not turn on HTTPS for this PC. In the Tailscale admin console (login.tailscale.com/admin/dns), scroll to " +
-        "'HTTPS Certificates' and press Enable HTTPS, then run this again.")
+    # Only blame HTTPS when Tailscale itself says so. Otherwise show what it said and stop: guessing sends people to settings that are already right.
+    if ($out -match 'HTTPS|certificate|cert') {
+        Stop-WithMessage ("Tailscale says HTTPS certificates are the problem. In the Tailscale admin console (login.tailscale.com/admin/dns), check 'HTTPS Certificates' is enabled, then run this again.")
+    }
+    Stop-WithMessage "Tailscale could not start sharing. What it said is shown above. If it is empty, run  tailscale serve --bg $Port  yourself in PowerShell and read what it prints."
 }
 
 # Restart AIOS so it accepts the new name.
 & "$PSScriptRoot\stop.ps1" | Out-Null
 & "$PSScriptRoot\start.ps1" | Out-Null
 
-$status = & $tailscale serve status 2>&1 | Out-String
-Write-Host $status
-if ($status -match 'Funnel on') {
+$serveStatus = & $tailscale serve status 2>&1 | Out-String
+Write-Host $serveStatus
+if ($serveStatus -match 'Funnel on') {
     & $tailscale serve reset
     Stop-WithMessage "Tailscale reported that Funnel (public internet sharing) was on. I turned all sharing off. Do not use Funnel with AIOS."
 }
-if ($status -notmatch 'tailnet only') { Write-Host "Note: could not confirm the line '(tailnet only)' in the status above. Check it before using your phone." -ForegroundColor Yellow }
+if ($serveStatus -notmatch 'tailnet only') { Write-Host "Note: could not confirm the line '(tailnet only)' in the status above. Check it before using your phone." -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "Done. In the AIOS phone app, add this server address:" -ForegroundColor Green
