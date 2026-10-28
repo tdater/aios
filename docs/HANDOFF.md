@@ -8,6 +8,15 @@ Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mob
 Verified: web `vitest` 726 passed (70 files), `tsc` clean, build OK, backend `pytest` passed (no failures), secret scan ok, real-Edge screenshots of desktop, a trip, and phone (the parallax and warp animation were not watched playing).
 Not verified: phone/TV/car head unit/Android WebView (TV detection is a user-agent guess). Deferred: Blender-rendered frame art, approving in place from Alerts, a reduced Simple-mode bridge, sharing one data load between the bridge and its window, sound.
 
+## Checkpoint (2026-10-27, branch `feat-standalone`, rebased onto 0.7.0)
+
+Standalone phone app (plan: `docs/standalone-mobile-apk-plan.md`): local engine answering the API from phone storage, first screen "Use AIOS on this phone only" or "Connect to AIOS on my PC",
+bottom-sheet card with grab bar, haptics, PC-free screens only in standalone, and pairing by QR code are all committed on this branch.
+Verified: web `vitest` 731 passed (72 files), `tsc` clean, build OK; backend `pytest` ran to 100% with no failures (summary line not captured); debug APK builds (INTERNET only).
+Emulator e2e (`android-emulator.e2e.mjs`, updated for the new first screen): first run 10/11, all passing except sign-out, where Chrome's first-run screen on the fresh emulator took the
+foreground after the navigation-restriction step. The script now force-stops Chrome there. A second run hit an app-start flake and a third was killed for low host memory, so the fixed script
+has NOT yet been seen passing 11/11. Next: close other programs, boot the emulator, rebuild with `VITE_DEV_LOOPBACK_PORT=8791`, rerun. Not verified: standalone mode on a physical phone, QR scan with a real camera.
+
 ## Earlier checkpoint (2026-10-28, release 0.6.0)
 
 0.6.0: the reviewer calibration range has now been run on real Claude (Opus and Sonnet, 8 of 8 planted faults caught, 0 false alarms on 2 clean controls; this is a smoke test, the cases are too easy to
