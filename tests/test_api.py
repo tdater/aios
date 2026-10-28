@@ -81,7 +81,7 @@ def test_approval_flow_over_http(client):
     pend = client.get(f"{V}/approvals?status=pending").json()["items"]
     assert len(pend) == 1 and pend[0]["action"]["content"] == "z"
     ok = client.post(f"{V}/approvals/{pend[0]['id']}/decide", json={"approve": True})
-    assert ok.status_code == 200 and ok.json()["status"] == "approved"
+    assert ok.status_code == 200 and ok.json()["status"] in ("approved", "consumed")      # the run can use the approval before this response is written
     assert wait_state(client, rid, {"succeeded", "failed"}) == "succeeded"
     again = client.post(f"{V}/approvals/{pend[0]['id']}/decide", json={"approve": True})
     assert again.status_code == 409
