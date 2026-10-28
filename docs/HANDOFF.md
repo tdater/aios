@@ -15,7 +15,7 @@ bottom-sheet card with grab bar, haptics, PC-free screens only in standalone, an
 Verified: web `vitest` 731 passed (72 files), `tsc` clean, build OK; backend `pytest` ran to 100% with no failures (summary line not captured); debug APK builds (INTERNET only).
 Emulator e2e (`android-emulator.e2e.mjs`, updated for the new first screen): first run 10/11, all passing except sign-out, where Chrome's first-run screen on the fresh emulator took the
 foreground after the navigation-restriction step. The script now force-stops Chrome there. A second run hit an app-start flake and a third was killed for low host memory, so the fixed script
-has NOT yet been seen passing 11/11. Next: close other programs, boot the emulator, rebuild with `VITE_DEV_LOOPBACK_PORT=8791`, rerun. Not verified: standalone mode on a physical phone, QR scan with a real camera.
+has NOT yet been seen passing 11/11. Later runs (4 to 7 of 11, a different mix each time) were disturbed by another project's KITT apps on the same AVD: KITT is the default home app and its instrumented tests start on their own, stealing focus and causing system ANRs. Use a dedicated AVD, or run when nothing else uses the emulator. Next: close other programs, boot the emulator, rebuild with `VITE_DEV_LOOPBACK_PORT=8791`, rerun. Not verified: standalone mode on a physical phone, QR scan with a real camera.
 
 ## Earlier checkpoint (2026-10-28, release 0.6.0)
 
