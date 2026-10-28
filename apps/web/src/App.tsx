@@ -12,7 +12,8 @@ import { ensureDailyNote } from "./core/daily";
 import { isDocumentRoute } from "./core/workspace";
 import { getPlatform, Platform } from "./platform";
 import { registerServiceWorker, resetAppCaches, updateStore } from "./pwa/register";
-import { Frame, Incompatible, Pair, ServerChanged, SetupServer, Unreachable } from "./screens/Boot";
+import { Frame, Incompatible, Pair, ServerChanged, STANDALONE_URL, Unreachable, Welcome } from "./screens/Boot";
+import { LocalClient, LocalEngine } from "./core/localEngine";
 import { GraphScreen } from "./screens/Graph";
 import { InsightsScreen } from "./screens/Insights";
 import { MyAIs } from "./screens/MyAIs";
@@ -55,6 +56,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
   const rt = useMemo(() => runtime ?? createRuntime(pf), [runtime, pf]);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [gen, setGen] = useState(0);
+  const [pendingCode, setPendingCode] = useState("");           // a pairing code typed on the first screen, offered again on the sign-in screen
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   const settings = useStore(rt.settings.store);
@@ -72,6 +74,13 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
       if (!server) {
         if (pf.isNative) return setPhase({ kind: "setup" });
         server = rt.registry.add("This server", "");
+      }
+      if (server.url === STANDALONE_URL) {                       // this phone's own AIOS: no network, no sign-in
+        const local = new LocalClient(new LocalEngine(rt.kv));
+        const mon = new ConnectionMonitor(local);
+        mon.start();
+        if (!cancelled) setPhase({ kind: "ready", server, client: local, monitor: mon });
+        return;
       }
       const client = new AiosClient(server.url, null, {
         onUnauthenticated: () => {
@@ -113,7 +122,9 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
 
   if (phase.kind === "loading") return <Frame title="Starting…"><p className="muted" aria-busy="true">Contacting your server…</p></Frame>;
   if (phase.kind === "setup")
-    return <SetupServer allowDevLoopback={pf.allowDevLoopback} onAdd={(label, url) => { const e = rt.registry.add(label, url); rt.registry.setActive(e.id); reinit(); }} />;
+    return <Welcome allowDevLoopback={pf.allowDevLoopback} hasStandalone={rt.registry.list().some((s) => s.url === STANDALONE_URL)}
+      onStandalone={() => { const have = rt.registry.list().find((s) => s.url === STANDALONE_URL); const e = have ?? rt.registry.add("This phone", STANDALONE_URL); rt.registry.setActive(e.id); reinit(); }}
+      onAdd={(label, url, code) => { setPendingCode(code); const e = rt.registry.add(label, url); rt.registry.setActive(e.id); reinit(); }} />;
   if (phase.kind === "unreachable")
     return <Unreachable label={phase.server.label} detail={phase.detail} onRetry={reinit} onSwitch={() => { rt.registry.clearActive(); reinit(); }} />;
   if (phase.kind === "incompatible") return <Incompatible detail={phase.detail} onReload={() => void resetAppCaches()} />;
@@ -122,7 +133,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
       onCancel={() => { rt.registry.clearActive(); reinit(); }}
       onConfirm={async () => { rt.cache.clearPartition(rt.partitionOf(phase.server)); rt.drafts.clear(rt.partitionOf(phase.server)); await pf.secure.remove(tokenKey(phase.server.id)); rt.registry.adoptServerId(phase.server.id, phase.serverId); reinit(); }} />;
   if (phase.kind === "pair")
-    return <Pair serverLabel={phase.server.label} deviceDefault={pf.deviceLabel()}
+    return <Pair serverLabel={phase.server.label} deviceDefault={pf.deviceLabel()} initialCode={pendingCode}
       onSwitch={() => { rt.registry.clearActive(); reinit(); }}
       onPair={async (code, device) => {
         const r = await phase.client.post<{ token?: string }>("/auth/pair", { code, device_name: device, kind: pf.isNative ? "native" : "browser" });

@@ -1,3 +1,4 @@
+import { STANDALONE_URL } from "../core/localEngine";
 import { useEffect, useState } from "react";
 import { MODES, Tab, hideable } from "../core/modes";
 import { ACCENTS, THEME_MODES } from "../core/settings";
@@ -15,6 +16,8 @@ import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } 
 interface Health { version: string; db: string; schema: string[]; run_counts: Record<string, number>; disk_free_gb: number; backup_status: string; billable_env: Record<string, string[]> }
 
 export function Settings({ section }: { section?: string }) {
+  const { server: active } = useApp();
+  const standalone = active.url === STANDALONE_URL;           // this phone's own AIOS has no history import, publishing or sign-in to manage
   useEffect(() => {                           // #/settings/history jumps straight to the history section
     if (section) setTimeout(() => document.getElementById(section)?.scrollIntoView?.({ block: "start" }), 60);
   }, [section]);
@@ -28,10 +31,10 @@ export function Settings({ section }: { section?: string }) {
       </section>
       <AppearanceSection />
       <AbilitiesSection />
-      <HistorySection />
-      <PublishSection />
+      {!standalone && <HistorySection />}
+      {!standalone && <PublishSection />}
       <ServerSection />
-      <SessionSection />
+      {!standalone && <SessionSection />}
       <PrivacySection />
       <section className="card">
         <h3>Notifications</h3>
@@ -112,14 +115,14 @@ function ServerSection() {
         {registry.list().map((s) => (
           <li key={s.id} className="card-static">
             <div className="row"><strong>{s.label}</strong>{s.id === server.id && <Badge s="completed" label="active" />}</div>
-            <div className="muted small">{s.url || "this site (same origin)"} {s.serverId ? `· id ${s.serverId.slice(0, 12)}…` : ""}</div>
+            <div className="muted small">{s.url === STANDALONE_URL ? "This phone only. Nothing leaves it." : s.url || "this site (same origin)"} {s.serverId ? `· id ${s.serverId.slice(0, 12)}…` : ""}</div>
             <div className="row">
               {s.id !== server.id && <Btn kind="ghost" onClick={() => switchServer(s.id)}>Switch</Btn>}
               {confirm === s.id ? <><Btn kind="danger" onClick={() => void removeServer(s.id)}>Remove + wipe its local data</Btn><Btn kind="ghost" onClick={() => setConfirm(null)}>Cancel</Btn></> : <Btn kind="ghost" onClick={() => setConfirm(s.id)}>Remove…</Btn>}
             </div>
           </li>))}
       </ul>
-      {isNative ? <Btn kind="ghost" onClick={() => switchServer(null)}>Add another server</Btn> : <p className="muted small">The browser app talks only to the site it was loaded from.</p>}
+      {isNative ? <Btn kind="ghost" onClick={() => switchServer(null)}>Connect to my PC, or add another server</Btn> : <p className="muted small">The browser app talks only to the site it was loaded from.</p>}
     </section>
   );
 }
