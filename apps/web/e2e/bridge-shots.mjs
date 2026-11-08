@@ -1,5 +1,5 @@
 // Photographs the ship bridge (desktop, an engaged trip, an opened object, phone, classic view). Isolated server, invented sample data only, nothing from a real AIOS.
-// Usage: node e2e/readme-shots.mjs [outDir]   (default: ../../docs/assets). Needs `npm run build` first and a machine with WebGL.
+// Usage: node e2e/bridge-shots.mjs [outDir]   (default: ../../docs/assets). Needs `npm run build` first and a machine with WebGL.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -87,7 +87,7 @@ export function HoloTable({ world, target, onTarget, onEngage, searchRef }: {
     <section className="bridge-panel bridge-holo" data-area="holo" aria-label="Navigation computer">
       <h2>Navigation</h2>
       <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Where to? A region, an AI, a project…" aria-label="Where to?"
-        onKeyDown={(e) => { if (e.key === "Enter" && rows[0]) { e.preventDefault(); onTarget(rows[0]); } }} />
+        onKeyDown={(e) => { if (e.key === "Enter" && rows[0]) { e.preventDefault(); if (target && key(target) === key(rows[0])) onEngage(rows[0]); else onTarget(rows[0]); } }} />
       <ul className="holo-list" aria-label="Destinations">
         {rows.map((d) => (
           <li key={key(d)}><button type="button" aria-pressed={!!target && key(target) === key(d)} onClick={() => onTarget(d)} onDoubleClick={() => onEngage(d)}>

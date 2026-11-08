@@ -81,27 +81,44 @@ export function Bridge({ objectId, children }: { objectId?: string; children?: R
     el.style.setProperty("--px", `${p.x}px`); el.style.setProperty("--py", `${p.y}px`);
   };
 
+  const focusablesOf = (panel: Element) => Array.from(panel.querySelectorAll<HTMLElement>("button:not([disabled]), input"));
+  const enterPanel = (area: Area) => {                      // arriving from another panel lands on its first button (the search box is reached with Ctrl+G or Up)
+    const items = focusablesOf(stage.current?.querySelector(`[data-area="${area}"]`) ?? document.body);
+    (items.find((x) => x.tagName !== "INPUT") ?? items[0])?.focus();
+  };
+
+  /** A trip that is under way must not override something the person has just chosen elsewhere. */
+  const cancelTrip = () => { clearTimers(); swapped.current = true; pending.current = null; setPhase("idle"); };
+  const onClickCapture = (e: React.MouseEvent) => { if (phase !== "idle" && !(e.target as Element).closest(".bridge-window")) cancelTrip(); };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     const t = e.target as Element;
+    const ctrlG = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g";
     if (e.key === "Escape" && phase !== "idle") { e.preventDefault(); skip(); return; }
-    if (t.closest("input, textarea, select") || t.closest(".cockpit")) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") { e.preventDefault(); search.current?.focus(); }
-      return;
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") { e.preventDefault(); search.current?.focus(); return; }
-    if (/^[1-6]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (ctrlG) { e.preventDefault(); search.current?.focus(); return; }
+    if (t.closest(".cockpit") || t.closest(".bridge-ask")) return;      // the window and the ask box handle their own keys
+    const inInput = !!t.closest("input, textarea, select");
+    if (inInput && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    if (!inInput && /^[1-6]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const d = dests.find((x) => x.kind === "region" && x.id === REGIONS[Number(e.key) - 1].id);
       if (d) engage(d);
       return;
     }
+    if (!inInput && e.key === "0") { go({ tab: "home" }); setCommand({ kind: "reset", n: ++counter.current }); return; }
     const dir = ({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" } as const)[e.key as "ArrowLeft"];
-    const from = t.closest("[data-area]")?.getAttribute("data-area") as Area | null;
-    if (dir && from) {
-      const to = nextArea(from, dir, layout);
-      if (to === from) return;
-      e.preventDefault();
-      stage.current?.querySelector<HTMLElement>(`[data-area="${to}"] button:not([disabled]), [data-area="${to}"] input`)?.focus();
+    const panel = t.closest("[data-area]");
+    const from = panel?.getAttribute("data-area") as Area | null;
+    if (!dir || !from || !panel) return;
+    const items = focusablesOf(panel), i = items.indexOf(t as HTMLElement);
+    const step = dir === "left" || dir === "up" ? -1 : 1;
+    const horizontal = dir === "left" || dir === "right";
+    const along = from === "today" ? horizontal : !horizontal;
+    if (along && i >= 0) {                                   // move through the items in this panel first
+      const j = i + step;
+      if (j >= 0 && j < items.length) { e.preventDefault(); items[j].focus(); return; }
     }
+    const to = nextArea(from, dir, layout);                   // at the edge of a panel, or sideways: go to the next panel
+    if (to !== from) { e.preventDefault(); enterPanel(to); }
   };
 
   if (uni.loading && !uni.data) return <p className="muted" aria-busy="true">Loading your bridge…</p>;
@@ -114,7 +131,7 @@ export function Bridge({ objectId, children }: { objectId?: string; children?: R
   }
 
   return (
-    <div className={`bridge bridge-${layout} ${reduced ? "calm" : ""} warp-${phase}`} ref={stage} data-testid="bridge" data-layout={layout} data-phase={phase} onPointerMove={onPointerMove} onKeyDown={onKeyDown}>
+    <div className={`bridge bridge-${layout} ${reduced ? "calm" : ""} warp-${phase}`} ref={stage} data-testid="bridge" data-layout={layout} data-phase={phase} onPointerMove={onPointerMove} onKeyDown={onKeyDown} onClickCapture={onClickCapture}>
       <svg className="bridge-frame" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="bf-hull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0b1220" /><stop offset="1" stopColor="#05080f" /></linearGradient>

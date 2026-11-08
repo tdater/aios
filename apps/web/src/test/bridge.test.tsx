@@ -93,6 +93,74 @@ describe("the bridge", () => {
     expect((document.activeElement as HTMLElement).closest("[data-area]")?.getAttribute("data-area")).toBe("holo");
   });
 
+  it("reaches every item in a panel with the arrow keys alone (a TV remote has no Tab)", async () => {
+    show();
+    const buttons = within(await screen.findByRole("region", { name: /Operations/ })).getAllByRole("button");
+    buttons[0].focus();
+    fireEvent.keyDown(buttons[0], { key: "ArrowDown" });
+    expect(document.activeElement).toBe(buttons[1]);
+    fireEvent.keyDown(buttons[1], { key: "ArrowUp" });
+    expect(document.activeElement).toBe(buttons[0]);
+  });
+
+  it("does not trap the remote in the search box", async () => {
+    show();
+    const search = (await screen.findByLabelText("Where to?")) as HTMLInputElement;
+    search.focus();
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect((document.activeElement as HTMLElement).closest(".holo-list")).toBeTruthy();
+  });
+
+  it("leaves a panel at its last item and goes to the next panel", async () => {
+    show();
+    const buttons = within(await screen.findByRole("region", { name: /Operations/ })).getAllByRole("button");
+    const last = buttons[buttons.length - 1];
+    last.focus();
+    fireEvent.keyDown(last, { key: "ArrowDown" });
+    expect((document.activeElement as HTMLElement).closest("[data-area]")?.getAttribute("data-area")).toBe("today");
+  });
+
+  it("Enter in the search box picks the first match, and a second Enter engages it", async () => {
+    show();
+    const search = (await screen.findByLabelText("Where to?")) as HTMLInputElement;
+    fireEvent.change(search, { target: { value: "claude" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect((screen.getByRole("button", { name: "Engage" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.keyDown(search, { key: "Enter" });
+    await waitFor(() => expect(location.hash).toMatch(/^#\/home\/o\//), { timeout: 2000 });
+  });
+
+  it("a trip under way never overrides something chosen elsewhere in the meantime", async () => {
+    vi.useFakeTimers();
+    show({ reduce: false });
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    fireEvent.click(within(screen.getByRole("list", { name: "Destinations" })).getByRole("button", { name: /Claude/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Engage" }));
+    const ops = within(screen.getByRole("region", { name: /Operations/ })).getAllByRole("button")[0];
+    fireEvent.click(ops);                                         // opens an Ops item instead
+    const chosen = location.hash;
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    expect(location.hash).toBe(chosen);
+    expect(screen.getByTestId("bridge").getAttribute("data-phase")).toBe("idle");
+  });
+
+  it("number keys start a trip to a region, but not while typing in the ask box", async () => {
+    show();
+    const ops = within(await screen.findByRole("region", { name: /Operations/ })).getAllByRole("button")[0];
+    fireEvent.keyDown(ops, { key: "1" });
+    expect(screen.getByTestId("bridge").getAttribute("data-phase")).not.toBe("idle");
+    await waitFor(() => expect(screen.getByTestId("bridge").getAttribute("data-phase")).toBe("idle"), { timeout: 2000 });
+    fireEvent.keyDown(screen.getByText("ask box here"), { key: "1" });
+    expect(screen.getByTestId("bridge").getAttribute("data-phase")).toBe("idle");
+  });
+
+  it("uses the TV layout when the device says it is a TV", async () => {
+    const spy = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 11; AFTMM Build) SmartTV");
+    show();
+    expect((await screen.findByTestId("bridge")).getAttribute("data-layout")).toBe("tv");
+    spy.mockRestore();
+  });
+
   it("explains itself instead of crashing when the server is down", async () => {
     show({ fail: true });
     expect(await screen.findByText(/cannot show your universe/)).toBeTruthy();

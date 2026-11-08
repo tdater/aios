@@ -109,3 +109,13 @@ existing tokens and `.glass`/`.hud-panel` classes. Art in `apps/web/public/bridg
 
 - Art mood: holo wall centre plus a big window over a console bank (blend of the two supplied references).
 - Sound: deferred to a later optional pass.
+
+## Implementation notes (2026-11-07)
+
+Differences from the draft above, found while building and in review:
+- Frame art is drawn in SVG/CSS (no raster layers), because Blender rendering was unavailable. Blender-rendered layers remain the intended upgrade.
+- Alerts open the object card or the inbox; approving directly from the wall is deferred.
+- The Ops wall shows jobs and systems; there is no separate test-results feed in the server's objects, so test results appear only in a job's own state text.
+- Simple mode does not yet get a reduced bridge layout; deferred.
+- Bridge and the embedded window each poll the universe endpoints (the window needs its own copy); sharing one load is deferred.
+- TV detection is a user-agent guess and is unverified on hardware.

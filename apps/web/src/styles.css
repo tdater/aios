@@ -917,3 +917,6 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .bridge-panel li > button strong { white-space: nowrap; }
 .bridge-holo .holo-list li > button { flex-wrap: wrap; align-items: baseline; }
 .bridge > .bridge-window { z-index: 5; }
+.bridge-tv .bridge-holo .holo-list li > button { min-height: 56px; }
+.bridge-tv .bridge-holo .holo-list { max-height: 240px; grid-template-columns: 1fr; }
+.bridge-tv .bridge-holo { max-height: 420px; }

@@ -2,7 +2,13 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-10-28, release 0.6.0; newest, read this first)
+## Checkpoint (2026-11-07, release 0.7.0; newest, read this first)
+
+0.7.0 makes the ship bridge the default Home (`apps/web/src/bridge/*`, `Cockpit` `windowMode`/`command` props, setting `homeView`). Spec: `docs/superpowers/specs/2026-11-07-bridge-design.md` (see its implementation notes); plan: `docs/superpowers/plans/2026-11-07-bridge.md`. Screenshots: `node e2e/bridge-shots.mjs [outDir]` (needs `npm run build`).
+Verified: web `vitest` 726 passed (70 files), `tsc` clean, build OK, backend `pytest` passed (no failures), secret scan ok, real-Edge screenshots of desktop, a trip, and phone (the parallax and warp animation were not watched playing).
+Not verified: phone/TV/car head unit/Android WebView (TV detection is a user-agent guess). Deferred: Blender-rendered frame art, approving in place from Alerts, a reduced Simple-mode bridge, sharing one data load between the bridge and its window, sound.
+
+## Earlier checkpoint (2026-10-28, release 0.6.0)
 
 0.6.0: the reviewer calibration range has now been run on real Claude (Opus and Sonnet, 8 of 8 planted faults caught, 0 false alarms on 2 clean controls; this is a smoke test, the cases are too easy to
 separate the models: add subtler ones next). New: the Rover popup explainer preset (`EXPLAIN_GOAL` / `EXPLAIN_RULES` in `rover.py`, tested with a fake Claude only, never tried on a real popup) and the
