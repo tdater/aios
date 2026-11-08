@@ -295,7 +295,7 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
               : route.sub === "tools" ? <Tools />
               : route.sub === "ambient" ? <Ambient />
               : route.id && route.sub !== "o" ? <Task id={route.id} />
-              : settings.homeView === "classic"
+              : (settings.homeView === "classic" || standalone)
                 ? <Cockpit objectId={route.sub === "o" ? route.id : undefined}>{!standalone && <details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details>}</Cockpit>
                 : <Bridge objectId={route.sub === "o" ? route.id : undefined}>{!standalone && <details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details>}</Bridge>)}
             {!(standalone && PC_ONLY[route.tab]) && route.tab === "work" && <Workspace id={route.id} />}
