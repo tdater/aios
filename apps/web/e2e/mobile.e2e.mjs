@@ -102,23 +102,26 @@ try {
     await shot("01b-tour-claude");
     await dlg.getByRole("button", { name: "Skip the tour" }).click();
     await dlg.waitFor({ state: "detached" });
-    await page.locator(".cockpit").waitFor();                                              // the universe is the first thing you see
-    await page.getByRole("navigation", { name: "Travel to a region" }).waitFor();
+    await page.locator(".bridge").waitFor();                                               // the ship bridge is the first thing you see
+    await page.getByRole("region", { name: "Navigation computer" }).waitFor();
     await shot("01c-universe-phone");
   });
-  await step("universe: pressing a planet opens its card and flies there; Esc closes it; Go to and the list view work", async () => {
-    await page.getByRole("button", { name: /^Claude:/ }).click();                          // a real click on the label
-    await page.getByRole("complementary", { name: /Claude: details/ }).waitFor();
-    expect(page.url().includes("#/home/o/planet%3Aclaude") || (await page.evaluate(() => location.hash)).includes("planet"), "the address should name the planet");
+  await step("bridge: pick Claude on the navigation table and engage; the card opens; Esc closes it; search and engage a region", async () => {
+    const dests = page.getByRole("list", { name: "Destinations" });
+    await dests.getByRole("button", { name: /^Claude/ }).first().click();
+    await page.getByRole("button", { name: "Engage" }).click();
+    await page.getByRole("complementary", { name: /Claude: details/ }).waitFor();          // the trip ends in the window with the card open
+    expect((await page.evaluate(() => location.hash)).includes("planet"), "the address should name the planet");
+    await page.locator(".bridge.warp-idle").waitFor();                                      // let the arrival flash finish (a first Esc would skip it, a second closes the card)
     await page.keyboard.press("Escape");
     await page.getByRole("complementary", { name: /Claude: details/ }).waitFor({ state: "detached" });
-    await page.getByRole("button", { name: /Go to/ }).click();
-    await page.getByLabel("Where to?").fill("shipyards");
-    await page.getByRole("dialog", { name: "Go to" }).getByRole("button").first().click();
-    await page.getByRole("button", { name: "List view" }).click();
-    await page.getByLabel(/Everything in your universe, as a list/).waitFor();
-    await page.getByRole("button", { name: "Back to space" }).click();
-    await page.locator(".cockpit").waitFor();
+    const search = page.getByLabel("Where to?");
+    await search.fill("shipyards");
+    await search.press("Enter");                                                            // first Enter picks, second engages
+    await search.press("Enter");
+    await page.locator(".bridge.warp-idle").waitFor();
+    await page.getByRole("region", { name: /Alerts/ }).waitFor();
+    await page.getByRole("region", { name: /Operations/ }).waitFor();
   });
   await step("dashboard: one prompt box shows a plan that leaves out what a task does not need, and the four agents", async () => {
     await page.goto(`${BASE}/#/home`);

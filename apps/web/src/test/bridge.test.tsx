@@ -161,6 +161,20 @@ describe("the bridge", () => {
     spy.mockRestore();
   });
 
+  it("Escape closes an open card from anywhere on the bridge", async () => {
+    fakeServer({
+      "GET /universe": () => ({ body: sampleUniverse() }),
+      "GET /universe/objects": () => ({ body: { items: sampleObjects(), version: 1 } }),
+    });
+    const c = ctxFor();
+    c.ctx.settings = { ...c.ctx.settings, universeView: "flat", reduceMotion: "on" };
+    resetRoute("#/home/o/planet%3Aclaude");
+    render(<Wrap ctx={c.ctx}><Bridge objectId="planet:claude" /></Wrap>);
+    const ops = within(await screen.findByRole("region", { name: /Operations/ })).getAllByRole("button")[0];
+    fireEvent.keyDown(ops, { key: "Escape" });
+    expect(location.hash).toBe("#/home");
+  });
+
   it("explains itself instead of crashing when the server is down", async () => {
     show({ fail: true });
     expect(await screen.findByText(/cannot show your universe/)).toBeTruthy();

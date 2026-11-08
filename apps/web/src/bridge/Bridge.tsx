@@ -91,10 +91,22 @@ export function Bridge({ objectId, children }: { objectId?: string; children?: R
   const cancelTrip = () => { clearTimers(); swapped.current = true; pending.current = null; setPhase("idle"); };
   const onClickCapture = (e: React.MouseEvent) => { if (phase !== "idle" && !(e.target as Element).closest(".bridge-window")) cancelTrip(); };
 
+  // Escape skips a trip, or else closes the open card. It listens on the page because pressing Engage disables that button and drops focus to the page.
+  const live = useRef({ phase, objectId, skip });
+  live.current = { phase, objectId, skip };
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || (e.target as Element | null)?.closest?.("[role=dialog]")) return;
+      const { phase: ph, objectId: id, skip: doSkip } = live.current;
+      if (ph !== "idle") { e.preventDefault(); doSkip(); } else if (id) { e.preventDefault(); go({ tab: "home" }); }
+    };
+    document.addEventListener("keydown", on);
+    return () => document.removeEventListener("keydown", on);
+  }, []);
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     const t = e.target as Element;
     const ctrlG = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g";
-    if (e.key === "Escape" && phase !== "idle") { e.preventDefault(); skip(); return; }
     if (ctrlG) { e.preventDefault(); search.current?.focus(); return; }
     if (t.closest(".cockpit") || t.closest(".bridge-ask")) return;      // the window and the ask box handle their own keys
     const inInput = !!t.closest("input, textarea, select");
