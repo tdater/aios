@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 - 2026-11-08
+- **AIOS on the phone, no PC needed.** The Android app has its own engine that answers from phone storage. The first screen asks whether to use AIOS on this phone only or connect to a PC. On the phone alone you get Home (the classic universe, because the bridge needs a PC), Missions, Knowledge, Graph, the daily panels and Settings; screens that need a PC say so and offer to connect instead of failing.
+- **Pair a phone by QR code.** Settings can show a pairing link as a QR code for private https names, so the phone does not need the code typed in.
+- **Phone feel.** The object card is a bottom sheet with a grab bar you can pull down, and taps give light haptic feedback (off with reduced motion).
+- Tooling: the Android emulator test now passes 11/11 on a dedicated clean emulator (`AIOS_E2E`, booted by the script when none is running), and `scripts/android-build.ps1` finds JDK 21 even when a newer JDK is the default.
+- Not verified: standalone mode on a physical phone and QR scanning with a real camera. Not built: syncing the phone's own data to a PC.
+
 ## 0.7.0 - 2026-11-07
 - **The ship bridge is now Home.** Instead of flying a camera out to each planet, you stand on a bridge. The universe is the viewscreen in the middle; around it are the walls and tables that do the work: **Ops** (jobs and systems), **Alerts** (what needs you, the only part that pulses), a **Navigation** table (every destination, search, and an Engage step), and a **Today** bank (jobs running, waiting for you, memories, widgets, and links to the details, Tools and Runs). A status line and All Stop are always on screen.
 - **Short, skippable trips.** Engage plays a 1.5 second push-in through the window while the bridge stays still. Esc or a click skips it, and Calm mode (or your device's reduced-motion setting) replaces it with a quick crossfade. A trip never overrides something you chose in the meantime.

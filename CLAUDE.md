@@ -12,7 +12,7 @@ then `docs/architecture.md` (ownership, threat model, provider rules).
 - Real Claude, the dashboard's single prompt (four kinds of task): `.venv\Scripts\python.exe scripts\demo_assist.py --auto-approve --model sonnet`
 - Real Claude, a daily-widget routine: `.venv\Scripts\python.exe scripts\demo_routine.py --model sonnet`
 - Real Claude, start-to-finish workflow: `.venv\Scripts\python.exe scripts\demo_workflow.py --auto-approve --model sonnet [--scenario notes|duration|duration_rules]`
-- Real browser e2e: `cd apps\web; node e2e\mobile.e2e.mjs` · Android: `$env:VITE_DEV_LOOPBACK_PORT="8791"; scripts\android-build.ps1 -Variant debug`, then `node e2e\android-emulator.e2e.mjs` (needs a booted emulator; it uses port 8791, never your real AIOS on 8765; AVD name: `Medium_Phone_API_37.0`). Mobile status: `docs\mobile-handoff.md`
+- Real browser e2e: `cd apps\web; node e2e\mobile.e2e.mjs` · Android: `$env:VITE_DEV_LOOPBACK_PORT="8791"; scripts\android-build.ps1 -Variant debug`, then `node e2e\android-emulator.e2e.mjs` (needs a booted emulator; it uses port 8791, never your real AIOS on 8765; use a dedicated AVD with nothing else installed, e.g. `AIOS_E2E`, and set `ANDROID_SERIAL`). Mobile status: `docs\mobile-handoff.md`
 
 ## Safety controls (code, not prompts)
 - `scripts/claude_guard.py` (wired in `.claude/settings.json`, fail-closed) blocks/asks for dangerous commands and edits. Editing it,

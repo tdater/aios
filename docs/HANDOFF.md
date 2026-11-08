@@ -2,11 +2,22 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-11-07, release 0.7.0; newest, read this first)
+## Checkpoint (2026-11-08, release 0.8.0 prepared on `feat-standalone`; newest)
+
+0.8.0 is the standalone phone app (see the next checkpoint down for details). Merge PR #18 after CI, then tag `v0.8.0` and publish with the changelog notes. v0.6.0 and v0.7.0 are published.
+
+## Checkpoint (2026-11-07, release 0.7.0)
 
 0.7.0 makes the ship bridge the default Home (`apps/web/src/bridge/*`, `Cockpit` `windowMode`/`command` props, setting `homeView`). Spec: `docs/superpowers/specs/2026-11-07-bridge-design.md` (see its implementation notes); plan: `docs/superpowers/plans/2026-11-07-bridge.md`. Screenshots: `node e2e/bridge-shots.mjs [outDir]` (needs `npm run build`).
 Verified: web `vitest` 726 passed (70 files), `tsc` clean, build OK, backend `pytest` passed (no failures), secret scan ok, real-Edge screenshots of desktop, a trip, and phone (the parallax and warp animation were not watched playing).
 Not verified: phone/TV/car head unit/Android WebView (TV detection is a user-agent guess). Deferred: Blender-rendered frame art, approving in place from Alerts, a reduced Simple-mode bridge, sharing one data load between the bridge and its window, sound.
+
+## Checkpoint (2026-10-27, branch `feat-standalone`, rebased onto 0.7.0)
+
+Standalone phone app (plan: `docs/standalone-mobile-apk-plan.md`): local engine answering the API from phone storage, first screen "Use AIOS on this phone only" or "Connect to AIOS on my PC",
+bottom-sheet card with grab bar, haptics, PC-free screens only in standalone, and pairing by QR code are all committed on this branch.
+Verified: web `vitest` 731 passed (72 files), `tsc` clean, build OK; backend `pytest` ran to 100% with no failures (summary line not captured); debug APK builds (INTERNET only).
+Emulator e2e (`android-emulator.e2e.mjs`, updated for the new first screen): **11/11** on a clean dedicated AVD named `AIOS_E2E` (boot it with `-port 5564 -no-snapshot` and set `ANDROID_SERIAL=emulator-5564`; the script refuses to run with several devices and no serial). Earlier partial runs were caused by KITT apps installed on the older `AIOS_Test` AVD (KITT is its home app and steals focus), so keep AIOS and KITT on separate AVDs. Build the APK with `VITE_DEV_LOOPBACK_PORT=8791` first. In the standalone app Home is the classic universe (the bridge needs a PC). Not verified: standalone mode on a physical phone, QR scan with a real camera.
 
 ## Earlier checkpoint (2026-10-28, release 0.6.0)
 

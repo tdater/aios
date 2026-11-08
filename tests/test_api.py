@@ -90,3 +90,19 @@ def test_approval_flow_over_http(client):
 def test_unknown_task_kind_rejected(client):
     r = client.post(f"{V}/tasks", json={"title": "x", "kind": "rm.rf"})
     assert r.status_code == 422 and r.json()["error"]["code"] == "unknown_task_kind"
+
+
+def test_a_pairing_code_comes_with_phone_links_only_for_allowed_https_names(settings):
+    from dataclasses import replace
+    s = replace(settings, allowed_hosts=("yoga2in1.tail8c1f7a.ts.net", "127.0.0.1", "localhost", "192.168.1.5"))
+    app2 = create_app(s)
+    with TestClient(app2) as c:
+        c.headers["X-CSRF-Token"] = pair(app2, c)["csrf"]
+        r = c.post(f"{V}/auth/pairing-codes")
+        assert r.status_code == 201
+        body = r.json()
+        assert body["links"] == [f"https://yoga2in1.tail8c1f7a.ts.net/#pair={body['code']}"]          # no IP addresses, no plain http, no bare names
+    plain = create_app(settings)
+    with TestClient(plain) as c3:
+        c3.headers["X-CSRF-Token"] = pair(plain, c3)["csrf"]
+        assert c3.post(f"{V}/auth/pairing-codes").json()["links"] == []                                  # nothing allowed, nothing offered

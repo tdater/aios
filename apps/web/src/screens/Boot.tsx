@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ApiError, NetworkError } from "../core/client";
+import { STANDALONE_URL } from "../core/localEngine";
 import { checkServerUrl } from "../core/servers";
 import { Btn, ErrorBox, Notice, useOnce } from "../ui/kit";
 
@@ -7,15 +8,16 @@ export function Frame({ title, children }: { title: string; children: React.Reac
   return <main className="boot"><h1>AIOS</h1><div className="card"><h2>{title}</h2>{children}</div></main>;
 }
 
-export function SetupServer({ allowDevLoopback, onAdd }: { allowDevLoopback: boolean; onAdd: (label: string, url: string) => void }) {
+export function SetupServer({ allowDevLoopback, onAdd, onBack }: { allowDevLoopback: boolean; onAdd: (label: string, url: string, code: string) => void; onBack?: () => void }) {
   const [label, setLabel] = useState("My AIOS");
   const [url, setUrl] = useState("");
+  const [code, setCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
     const c = checkServerUrl(url, allowDevLoopback);
     if (!c.ok) return setErr(c.reason);
     if (c.url === "") return setErr("Enter the server address, e.g. https://my-pc.tailnet-name.ts.net");
-    onAdd(label, c.url);
+    onAdd(label, c.url, code.trim());
   };
   return (
     <Frame title="Connect to your AIOS server">
@@ -24,15 +26,18 @@ export function SetupServer({ allowDevLoopback, onAdd }: { allowDevLoopback: boo
       <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <label className="field"><span>Name</span><input value={label} onChange={(e) => setLabel(e.target.value)} /></label>
         <label className="field"><span>Server address</span><input inputMode="url" autoCapitalize="off" autoCorrect="off" placeholder="https://…" value={url} onChange={(e) => setUrl(e.target.value)} /></label>
+        <label className="field"><span>Pairing code (from your PC)</span><input autoCapitalize="characters" autoCorrect="off" autoComplete="one-time-code" placeholder="ABCD-EFGH" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
+          <small className="muted">On your PC run <code>scripts\pair.ps1</code>. The code works once and expires in 10 minutes. You can also enter it on the next screen.</small></label>
         <Btn type="submit">Continue</Btn>
       </form>
+      {onBack && <button type="button" className="link" onClick={onBack}>Back</button>}
       <p className="muted small">Plain HTTP is refused. No credentials are ever put in this address.</p>
     </Frame>
   );
 }
 
-export function Pair({ serverLabel, deviceDefault, onPair, onSwitch }: { serverLabel: string; deviceDefault: string; onPair: (code: string, device: string) => Promise<void>; onSwitch: () => void }) {
-  const [code, setCode] = useState("");
+export function Pair({ serverLabel, deviceDefault, onPair, onSwitch, initialCode = "" }: { serverLabel: string; deviceDefault: string; onPair: (code: string, device: string) => Promise<void>; onSwitch: () => void; initialCode?: string }) {
+  const [code, setCode] = useState(initialCode);
   const [device, setDevice] = useState(deviceDefault);
   const [err, setErr] = useState<string | null>(null);
   const go = useOnce(async () => {
@@ -97,3 +102,30 @@ export function Incompatible({ detail, onReload }: { detail: string; onReload: (
     </Frame>
   );
 }
+
+/** The first screen on a phone: use AIOS right here with nothing else, or connect to AIOS on your PC. */
+export function Welcome({ allowDevLoopback, hasStandalone, onStandalone, onAdd }: { allowDevLoopback: boolean; hasStandalone: boolean; onStandalone: () => void; onAdd: (label: string, url: string, code: string) => void }) {
+  const [connect, setConnect] = useState(false);
+  if (connect) return <SetupServer allowDevLoopback={allowDevLoopback} onAdd={onAdd} onBack={() => setConnect(false)} />;
+  return (
+    <main className="boot welcome-flow">
+      <h1>AIOS</h1>
+      <p className="muted">Your personal command center.</p>
+      <div className="mode-cards">
+        <button type="button" className="mode-card primary" onClick={onStandalone}>
+          <strong>{hasStandalone ? "Use AIOS on this phone" : "Use AIOS on this phone only"}</strong>
+          <span>My Day panels, notes and your universe, kept on this phone. Works offline. No PC and no account needed.</span>
+          <span className="btn-action">{hasStandalone ? "Open it" : "Start now"}</span>
+        </button>
+        <button type="button" className="mode-card" onClick={() => setConnect(true)}>
+          <strong>Connect to AIOS on my PC</strong>
+          <span>Use Claude, the reviewer, projects and approvals from your PC. You need the PC&apos;s address and a one-time pairing code.</span>
+          <span className="btn-action ghost">Connect</span>
+        </button>
+      </div>
+      <p className="muted small">You can switch any time in Settings. Standalone notes stay on this phone and are not copied to your PC unless you ask.</p>
+    </main>
+  );
+}
+
+export { STANDALONE_URL };

@@ -173,3 +173,14 @@ def test_missions_appear_in_the_universe_with_their_progress(client):
     assert w.status_code == 201
     probe = next(o for o in client.get(f"{V}/universe/objects").json()["items"] if o["id"] == f"probe:{w.json()['id']}")
     assert probe["state"]["text"] == "1 of 2 steps done, by 2027-06-01"
+
+
+def test_the_phone_apps_copy_of_the_catalog_is_up_to_date_and_has_nothing_that_needs_claude():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("export_widget_catalog", Path(__file__).resolve().parents[1] / "scripts" / "export_widget_catalog.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.OUT.read_text(encoding="utf-8") == mod.build(), "run scripts/export_widget_catalog.py and commit the result"
+    kinds = {t["kind"] for t in widgets.CATALOG if not t["needs_claude"]}
+    assert "routine" not in kinds and {"checklist", "counter", "habit", "facts", "mission"} <= kinds

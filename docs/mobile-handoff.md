@@ -97,3 +97,7 @@ Background polling would drain battery and is not promised. Until approved, Sett
 4. Push (needs approval), keeping the privacy rules above.
 5. TalkBack and keyboard audit; foldable/tablet pass; custom launcher icon.
 6. Mobile screens for proposal edit/merge/supersede if wanted; research handoff screen once that feature exists.
+
+## Dedicated emulator for the e2e (`AIOS_E2E`)
+
+`apps/web/e2e/android-emulator.e2e.mjs` boots an AVD named `AIOS_E2E` on port 5564 when no device is attached (set `AIOS_E2E_AVD` for another name, or `ANDROID_SERIAL` to use a device you already started). Keep nothing else installed on it: a launcher or test app from another project that is the default home app steals focus and breaks the run. To create it without Android Studio, copy an existing AVD's `config.ini` into `%USERPROFILE%\.android\avd\AIOS_E2E.avd\`, change `AvdId`, and add `AIOS_E2E.ini` with the `path=` and `target=` lines of the original; the emulator builds a fresh data disk on the first boot (about two minutes).

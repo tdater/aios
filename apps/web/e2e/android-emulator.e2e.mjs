@@ -23,10 +23,24 @@ const env = { ...process.env, PYTHONPATH: join(repo, "apps", "api"), AIOS_STATE_
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const adb = (...a) => spawnSync(adbExe, a, { encoding: "utf8" });
 const sh = (cmd) => adb("shell", cmd).stdout.trim();
+{ // adb talks to the one device named by ANDROID_SERIAL. With several attached and none named it would pick any, so refuse.
+  // With none attached, boot the dedicated AIOS_E2E AVD (nothing else installed on it, so no other app steals focus) on port 5564.
+  const attached = () => adb("devices").stdout.split(String.fromCharCode(10)).slice(1).filter((l) => l.includes(String.fromCharCode(9) + "device"));
+  if (attached().length > 1 && !process.env.ANDROID_SERIAL) { console.log("More than one device is attached: set ANDROID_SERIAL (e.g. emulator-5564, the AIOS_E2E AVD) and rerun."); process.exit(2); }
+  if (attached().length === 0) {
+    const avd = process.env.AIOS_E2E_AVD || "AIOS_E2E";
+    console.log(`No emulator attached: booting the ${avd} AVD on port 5564 (it must already exist; see docs/mobile-handoff.md)`);
+    spawn(join(process.env.ANDROID_HOME, "emulator", "emulator.exe"), ["-avd", avd, "-port", "5564", "-no-snapshot", "-no-boot-anim", "-gpu", "swiftshader_indirect"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    process.env.ANDROID_SERIAL = "emulator-5564";
+    let up = false;
+    for (let i = 0; i < 100 && !up; i++) { await sleep(3000); up = adb("shell", "getprop", "sys.boot_completed").stdout.trim() === "1"; }
+    if (!up) { console.log("The emulator did not finish booting in 5 minutes."); process.exit(2); }
+  }
+}
 let server = null;
 async function startServer() {
   server = spawn(py, ["-m", "aios.main"], { env, cwd: repo, stdio: "ignore", windowsHide: true });
-  for (let i = 0; i < 60; i++) { try { if ((await fetch(`${API}/meta`)).ok) return; } catch {} await sleep(250); }
+  for (let i = 0; i < 160; i++) { try { if ((await fetch(`${API}/meta`)).ok) return; } catch {} await sleep(250); }
   throw new Error("server did not start");
 }
 const stopServer = () => { if (server) { spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { windowsHide: true }); server = null; } };
@@ -100,14 +114,22 @@ try {
     adb("reverse", `tcp:${PORT}`, `tcp:${PORT}`);
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0");
     adb("shell", "settings", "put", "system", "user_rotation", "0");
-    await launch();
+    try { await launch(); } catch (e) {        // a cold start on a busy emulator sometimes never shows the process: stop the app and try once more
+      console.log(`      first launch failed (${e.message}); retrying once`);
+      adb("shell", "am", "force-stop", APP);
+      await sleep(3000);
+      await launch();
+    }
+    await page.getByRole("button", { name: /Use AIOS on this phone only/ }).waitFor();         // the first screen: this phone on its own, or a PC
+    screencap("a00-welcome");
+    await page.getByRole("button", { name: /Connect to AIOS on my PC/ }).click();
     await page.getByText("Connect to your AIOS server").waitFor();
     screencap("a01-setup");
   });
 
   let issuedToken = null;
   await step("server address: cleartext and credentialed URLs refused; dev loopback accepted (debug only)", async () => {
-    for (const [bad, msg] of [["http://example.com", /HTTPS is required/], ["https://user:pw@host.example", /credentials/i], ["http://192.168.1.50:8765", /HTTPS is required/]]) {
+    for (const [bad, msg] of [["http://example.com", /HTTPS is required/], ["https://user:pw@host.example", /credentials/i], ["http://192.168.1.50:8765", /IP address like 192\.168\.1\.50/]]) {
       await page.getByLabel("Server address").fill(bad);
       await page.getByRole("button", { name: "Continue" }).click();
       await page.getByRole("alert").getByText(msg).waitFor();   // the error box only (the help text also says "credentials")
@@ -158,6 +180,7 @@ try {
     await startServer();
     await page.locator(".badge", { hasText: "interrupted" }).first().waitFor({ timeout: 40000 });
     await page.locator(".pill.connected").waitFor({ timeout: 40000 });
+    await page.getByText(/Connection lost/).first().waitFor({ state: "detached", timeout: 20000 }).catch(() => {});   // the run monitor clears it on its next poll, a moment after the pill turns green
     expect((await page.getByText(/Connection lost/).count()) === 0, "banner should clear");
   });
 
@@ -203,7 +226,7 @@ try {
   await step("rotation: landscape layout, safe areas, nothing clipped", async () => {
     adb("shell", "settings", "put", "system", "user_rotation", "1");
     await sleep(2000);
-    await page.waitForFunction(() => innerWidth > innerHeight);
+    for (let i = 0; i < 30 && !(await page.evaluate(() => innerWidth > innerHeight)); i++) await sleep(500);   // polled with evaluate: waitForFunction needs eval, which the app's CSP forbids
     await page.waitForSelector(".shell.landscape");
     const clipped = await page.evaluate(() => { const c = document.querySelector(".content"); return c.scrollWidth > c.clientWidth + 1; });
     expect(!clipped, "content clipped in landscape");
@@ -219,7 +242,9 @@ try {
     const url = page.url();
     expect(url.startsWith("http://localhost"), `WebView navigated away to ${url}`);
     expect((await page.title()) === "AIOS", "page title changed");
-    adb("shell", "input", "keyevent", "3");   // home, in case a system browser opened
+    await sleep(2500);                        // a system browser may still be opening (a fresh emulator shows Chrome's first-run screen)
+    adb("shell", "am", "force-stop", "com.android.chrome");
+    adb("shell", "input", "keyevent", "3");   // home
     adb("shell", "am", "start", "-n", ACTIVITY);
     await sleep(1500);
   });

@@ -75,7 +75,7 @@ export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const tab = (TABS as readonly string[]).includes(parts[0]) ? (parts[0] as Route["tab"]) : "home";
   if (tab === "inbox" && parts[1] && parts[2]) return { tab, sub: parts[1], id: parts[2] };
-  if (tab === "home" && parts[1] === "details") return { tab, sub: "details" };
+  if (tab === "home" && (parts[1] === "details" || parts[1] === "tools" || parts[1] === "ambient")) return { tab, sub: parts[1] };      // whole screens under Home
   if (tab === "home" && parts[1] === "o" && parts[2]) return { tab, sub: "o", id: parts[2] };      // #/home/o/<object id>: a spot in the universe
   return { tab, id: parts[1] };
 }

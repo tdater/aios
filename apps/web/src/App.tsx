@@ -12,7 +12,9 @@ import { ensureDailyNote } from "./core/daily";
 import { isDocumentRoute } from "./core/workspace";
 import { getPlatform, Platform } from "./platform";
 import { registerServiceWorker, resetAppCaches, updateStore } from "./pwa/register";
-import { Frame, Incompatible, Pair, ServerChanged, SetupServer, Unreachable } from "./screens/Boot";
+import { Frame, Incompatible, Pair, ServerChanged, STANDALONE_URL, Unreachable, Welcome } from "./screens/Boot";
+import { LocalClient, LocalEngine } from "./core/localEngine";
+import { NeedsPc } from "./screens/NeedsPc";
 import { GraphScreen } from "./screens/Graph";
 import { InsightsScreen } from "./screens/Insights";
 import { MyAIs } from "./screens/MyAIs";
@@ -55,6 +57,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
   const rt = useMemo(() => runtime ?? createRuntime(pf), [runtime, pf]);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [gen, setGen] = useState(0);
+  const [pendingCode, setPendingCode] = useState("");           // a pairing code typed on the first screen, offered again on the sign-in screen
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   const settings = useStore(rt.settings.store);
@@ -72,6 +75,13 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
       if (!server) {
         if (pf.isNative) return setPhase({ kind: "setup" });
         server = rt.registry.add("This server", "");
+      }
+      if (server.url === STANDALONE_URL) {                       // this phone's own AIOS: no network, no sign-in
+        const local = new LocalClient(new LocalEngine(rt.kv));
+        const mon = new ConnectionMonitor(local);
+        mon.start();
+        if (!cancelled) setPhase({ kind: "ready", server, client: local, monitor: mon });
+        return;
       }
       const client = new AiosClient(server.url, null, {
         onUnauthenticated: () => {
@@ -113,7 +123,9 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
 
   if (phase.kind === "loading") return <Frame title="Starting…"><p className="muted" aria-busy="true">Contacting your server…</p></Frame>;
   if (phase.kind === "setup")
-    return <SetupServer allowDevLoopback={pf.allowDevLoopback} onAdd={(label, url) => { const e = rt.registry.add(label, url); rt.registry.setActive(e.id); reinit(); }} />;
+    return <Welcome allowDevLoopback={pf.allowDevLoopback} hasStandalone={rt.registry.list().some((s) => s.url === STANDALONE_URL)}
+      onStandalone={() => { const have = rt.registry.list().find((s) => s.url === STANDALONE_URL); const e = have ?? rt.registry.add("This phone", STANDALONE_URL); rt.registry.setActive(e.id); reinit(); }}
+      onAdd={(label, url, code) => { setPendingCode(code); const e = rt.registry.add(label, url); rt.registry.setActive(e.id); reinit(); }} />;
   if (phase.kind === "unreachable")
     return <Unreachable label={phase.server.label} detail={phase.detail} onRetry={reinit} onSwitch={() => { rt.registry.clearActive(); reinit(); }} />;
   if (phase.kind === "incompatible") return <Incompatible detail={phase.detail} onReload={() => void resetAppCaches()} />;
@@ -122,7 +134,7 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
       onCancel={() => { rt.registry.clearActive(); reinit(); }}
       onConfirm={async () => { rt.cache.clearPartition(rt.partitionOf(phase.server)); rt.drafts.clear(rt.partitionOf(phase.server)); await pf.secure.remove(tokenKey(phase.server.id)); rt.registry.adoptServerId(phase.server.id, phase.serverId); reinit(); }} />;
   if (phase.kind === "pair")
-    return <Pair serverLabel={phase.server.label} deviceDefault={pf.deviceLabel()}
+    return <Pair serverLabel={phase.server.label} deviceDefault={pf.deviceLabel()} initialCode={pendingCode}
       onSwitch={() => { rt.registry.clearActive(); reinit(); }}
       onPair={async (code, device) => {
         const r = await phase.client.post<{ token?: string }>("/auth/pair", { code, device_name: device, kind: pf.isNative ? "native" : "browser" });
@@ -135,6 +147,10 @@ export default function App({ platform, runtime }: { platform?: Platform; runtim
 
 // The main path comes first (Workspace -> Projects -> Runs -> Inbox for approvals). Notes and the graph are
 // still here, but quieter: they are the secondary experience, not the product.
+/** The phone's own AIOS: only what works without a PC. Everything else says so and offers to connect. */
+const PHONE_TABS: Route["tab"][] = ["home", "projects", "knowledge", "graph", "settings"];
+const PC_ONLY: Partial<Record<Route["tab"], string>> = { work: "The Workspace", runs: "Runs", inbox: "The Inbox", ais: "My AIs", insights: "Insights" };
+
 const NAV: { tab: Route["tab"]; label: string; icon: IconName; wideOnly?: boolean; secondary?: boolean }[] = [
   { tab: "home", label: "Home", icon: "home" }, { tab: "work", label: "Workspace", icon: "chat" }, { tab: "projects", label: "Projects", icon: "folder" },
   { tab: "runs", label: "Runs", icon: "play" }, { tab: "inbox", label: "Inbox", icon: "inbox" }, { tab: "ais", label: "My AIs", icon: "users" }, { tab: "insights", label: "Insights", icon: "star" },
@@ -148,6 +164,8 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
   const update = useStore(updateStore);
   const summary = useStore(summaryStore);
   const route = useRoute();
+  const standalone = phase.server.url === STANDALONE_URL;
+  const tabName = (tab: Route["tab"], label: string) => (standalone && tab === "projects" ? "Missions" : navLabel(settings.mode, tab, label));
   const vp = useViewport();
   const partition = rt.partitionOf(phase.server);
   const workspace = useMemo(() => rt.workspaceFor(partition), [rt, partition]);
@@ -256,14 +274,14 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
           <Notice tone="warn">{conn.state === "unauthenticated" ? "Signed out." : conn.state === "stale" ? "Connection is stale." : "Disconnected."} What you see may be out of date, and approvals and other changes are disabled until you reconnect.</Notice>
         )}
         <nav className="nav" aria-label="Main">
-          {NAV.filter((n) => tabVisible(settings, n.tab)).map((n) => (
+          {NAV.filter((n) => (standalone ? PHONE_TABS.includes(n.tab) : tabVisible(settings, n.tab))).map((n) => (
             <span key={n.tab} style={{ display: "contents" }}>
-              {n.tab === "settings" && settings.mode === "simple" && <QuickAdd />}
+              {n.tab === "settings" && (settings.mode === "simple" || standalone) && <QuickAdd phoneOnly={standalone} />}
               {n.tab === "settings" && <span className="spacer" />}
               {n.tab === "knowledge" && <span className="navdivider" aria-hidden="true" />}
               <button className={`${route.tab === n.tab ? "on" : ""} ${n.wideOnly ? "only-wide" : ""} ${n.secondary ? "secondary" : ""}`} aria-current={route.tab === n.tab ? "page" : undefined}
-                title={navLabel(settings.mode, n.tab, n.label)} onClick={() => go({ tab: n.tab })}>
-                <Icon name={n.icon} size={wide ? 20 : 22} /><span className="navlabel">{navLabel(settings.mode, n.tab, n.label)}</span>
+                title={tabName(n.tab, n.label)} onClick={() => go({ tab: n.tab })}>
+                <Icon name={n.icon} size={wide ? 20 : 22} /><span className="navlabel">{tabName(n.tab, n.label)}</span>
                 {n.tab === "inbox" && badge > 0 && <span className="badgecount" aria-label={`${badge} waiting`}>{badge > 99 ? "99+" : badge}</span>}
               </button>
             </span>
@@ -272,22 +290,23 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
         <div className="workspace">
           <TabStrip />
           <main className={`content ${flush ? "flush" : ""}`} id="main">
-            {route.tab === "home" && (route.sub === "details" ? <Home />
+            {standalone && PC_ONLY[route.tab] ? <NeedsPc what={PC_ONLY[route.tab]!} /> : null}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "home" && ((route.sub === "details" && !standalone) ? <Home />
               : route.sub === "tools" ? <Tools />
               : route.sub === "ambient" ? <Ambient />
               : route.id && route.sub !== "o" ? <Task id={route.id} />
-              : settings.homeView === "classic"
-                ? <Cockpit objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Cockpit>
-                : <Bridge objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Bridge>)}
-            {route.tab === "work" && <Workspace id={route.id} />}
-            {route.tab === "projects" && <Projects id={route.id} />}
-            {route.tab === "runs" && <Runs id={route.id} />}
-            {route.tab === "inbox" && <Inbox sub={route.sub} id={route.id} />}
-            {route.tab === "knowledge" && <Knowledge id={route.id} />}
-            {route.tab === "graph" && <GraphScreen id={route.id} />}
-            {route.tab === "insights" && <InsightsScreen />}
-            {route.tab === "ais" && <MyAIs section={route.id} />}
-            {route.tab === "settings" && <Settings section={route.id} />}
+              : (settings.homeView === "classic" || standalone)
+                ? <Cockpit objectId={route.sub === "o" ? route.id : undefined}>{!standalone && <details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details>}</Cockpit>
+                : <Bridge objectId={route.sub === "o" ? route.id : undefined}>{!standalone && <details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details>}</Bridge>)}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "work" && <Workspace id={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "projects" && <Projects id={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "runs" && <Runs id={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "inbox" && <Inbox sub={route.sub} id={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "knowledge" && <Knowledge id={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "graph" && <GraphScreen id={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "insights" && <InsightsScreen />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "ais" && <MyAIs section={route.id} />}
+            {!(standalone && PC_ONLY[route.tab]) && route.tab === "settings" && <Settings section={route.id} />}
           </main>
         </div>
         {wide && <StatusBar pendingDrafts={pending} />}

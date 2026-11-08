@@ -1,3 +1,5 @@
+import { STANDALONE_URL } from "../core/localEngine";
+import { PairQr } from "../ui/PairQr";
 import { useEffect, useState } from "react";
 import { MODES, Tab, hideable } from "../core/modes";
 import { ACCENTS, THEME_MODES } from "../core/settings";
@@ -15,6 +17,8 @@ import { Badge, Btn, Empty, ErrorBox, Loading, Notice, ago, fmtLocal, useOnce } 
 interface Health { version: string; db: string; schema: string[]; run_counts: Record<string, number>; disk_free_gb: number; backup_status: string; billable_env: Record<string, string[]> }
 
 export function Settings({ section }: { section?: string }) {
+  const { server: active } = useApp();
+  const standalone = active.url === STANDALONE_URL;           // this phone's own AIOS has no history import, publishing or sign-in to manage
   useEffect(() => {                           // #/settings/history jumps straight to the history section
     if (section) setTimeout(() => document.getElementById(section)?.scrollIntoView?.({ block: "start" }), 60);
   }, [section]);
@@ -28,10 +32,10 @@ export function Settings({ section }: { section?: string }) {
       </section>
       <AppearanceSection />
       <AbilitiesSection />
-      <HistorySection />
-      <PublishSection />
+      {!standalone && <HistorySection />}
+      {!standalone && <PublishSection />}
       <ServerSection />
-      <SessionSection />
+      {!standalone && <SessionSection />}
       <PrivacySection />
       <section className="card">
         <h3>Notifications</h3>
@@ -112,14 +116,14 @@ function ServerSection() {
         {registry.list().map((s) => (
           <li key={s.id} className="card-static">
             <div className="row"><strong>{s.label}</strong>{s.id === server.id && <Badge s="completed" label="active" />}</div>
-            <div className="muted small">{s.url || "this site (same origin)"} {s.serverId ? `· id ${s.serverId.slice(0, 12)}…` : ""}</div>
+            <div className="muted small">{s.url === STANDALONE_URL ? "This phone only. Nothing leaves it." : s.url || "this site (same origin)"} {s.serverId ? `· id ${s.serverId.slice(0, 12)}…` : ""}</div>
             <div className="row">
               {s.id !== server.id && <Btn kind="ghost" onClick={() => switchServer(s.id)}>Switch</Btn>}
               {confirm === s.id ? <><Btn kind="danger" onClick={() => void removeServer(s.id)}>Remove + wipe its local data</Btn><Btn kind="ghost" onClick={() => setConfirm(null)}>Cancel</Btn></> : <Btn kind="ghost" onClick={() => setConfirm(s.id)}>Remove…</Btn>}
             </div>
           </li>))}
       </ul>
-      {isNative ? <Btn kind="ghost" onClick={() => switchServer(null)}>Add another server</Btn> : <p className="muted small">The browser app talks only to the site it was loaded from.</p>}
+      {isNative ? <Btn kind="ghost" onClick={() => switchServer(null)}>Connect to my PC, or add another server</Btn> : <p className="muted small">The browser app talks only to the site it was loaded from.</p>}
     </section>
   );
 }
@@ -127,10 +131,10 @@ function ServerSection() {
 function SessionSection() {
   const { client, signOut, connected } = useApp();
   const l = useLoad(() => client.get<{ items: SessionInfo[] }>("/auth/sessions"), [client]);
-  const [code, setCode] = useState<{ code: string; expires_at: string } | null>(null);
+  const [code, setCode] = useState<{ code: string; expires_at: string; links?: string[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const revoke = useOnce(async (id: string) => { try { await client.post(`/auth/sessions/${id}/revoke`); } catch (e) { setErr((e as Error).message); } await l.reload(); });
-  const mk = useOnce(async () => { try { setCode((await client.post<{ code: string; expires_at: string }>("/auth/pairing-codes")).data); } catch (e) { setErr((e as Error).message); } });
+  const mk = useOnce(async () => { try { setCode((await client.post<{ code: string; expires_at: string; links?: string[] }>("/auth/pairing-codes")).data); } catch (e) { setErr((e as Error).message); } });
   return (
     <section className="card">
       <h3>Session &amp; devices</h3>
@@ -146,6 +150,17 @@ function SessionSection() {
       <div className="row"><Btn kind="ghost" onClick={() => void signOut()}>Sign out this device</Btn>
         <Btn kind="ghost" busy={mk.busy} disabled={!connected} onClick={() => void mk.run()}>Pair another device</Btn></div>
       {code && <Notice tone="info">Code <strong className="code">{code.code}</strong> — single use, expires {fmtLocal(code.expires_at)}.</Notice>}
+      {code?.links?.[0] && (
+        <div className="pair-phone" aria-label="Pair a phone with a QR code">
+          <PairQr link={code.links[0]} />
+          <ol className="muted small">
+            <li>Make sure the phone is on your Tailscale network.</li>
+            <li>Open the phone&apos;s camera and point it at this code, then tap the link it shows.</li>
+            <li>AIOS opens with the code filled in. Press <strong>Pair</strong>.</li>
+          </ol>
+          <p className="muted small">The link is <code>{code.links[0].split("#")[0]}</code> and works once.</p>
+        </div>)}
+      {code && !code.links?.length && <p className="muted small">To pair a phone by QR code, first run <code>scripts\phone-access.ps1</code> on this PC so the phone has a secure address to open.</p>}
     </section>
   );
 }

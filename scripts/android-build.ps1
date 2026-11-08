@@ -11,7 +11,7 @@ $Android = Join-Path $Web 'android'
 # Gradle 8.14 + AGP 8.13 need JDK 17-21; Android Studio's bundled JBR may be newer, so locate a JDK 21.
 $jdk = @($env:JAVA_HOME, (Get-ChildItem 'C:\Program Files\Microsoft\jdk-21*' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
          (Get-ChildItem 'C:\Program Files\Eclipse Adoptium\jdk-21*' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)) |
-       Where-Object { $_ -and (Test-Path "$_\bin\java.exe") -and ((& "$_\bin\java.exe" -version 2>&1 | Select-Object -First 1) -match '"(17|21)\.') } | Select-Object -First 1
+       Where-Object { $_ -and (Test-Path "$_\bin\java.exe") -and ((cmd /c "`"$_\bin\java.exe`" -version 2>&1" | Select-Object -First 1) -match '"(17|21)\.') } | Select-Object -First 1
 if (-not $jdk) { throw 'JDK 17 or 21 not found. Install one or set JAVA_HOME.' }
 $env:JAVA_HOME = $jdk
 if (-not $env:ANDROID_HOME) { throw 'ANDROID_HOME is not set.' }
