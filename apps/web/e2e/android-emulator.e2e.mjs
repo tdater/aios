@@ -25,12 +25,12 @@ const adb = (...a) => spawnSync(adbExe, a, { encoding: "utf8" });
 const sh = (cmd) => adb("shell", cmd).stdout.trim();
 { // adb talks to the one device named by ANDROID_SERIAL; with several attached and none named it would pick any, so refuse
   const attached = adb("devices").stdout.split("\n").slice(1).filter((l) => /\tdevice\b/.test(l));
-  if (attached.length > 1 && !process.env.ANDROID_SERIAL) { console.log("More than one device is attached: set ANDROID_SERIAL (e.g. emulator-5564, the AIOS_Test AVD) and rerun."); process.exit(2); }
+  if (attached.length > 1 && !process.env.ANDROID_SERIAL) { console.log("More than one device is attached: set ANDROID_SERIAL (e.g. emulator-5564, the AIOS_E2E AVD) and rerun."); process.exit(2); }
 }
 let server = null;
 async function startServer() {
   server = spawn(py, ["-m", "aios.main"], { env, cwd: repo, stdio: "ignore", windowsHide: true });
-  for (let i = 0; i < 60; i++) { try { if ((await fetch(`${API}/meta`)).ok) return; } catch {} await sleep(250); }
+  for (let i = 0; i < 160; i++) { try { if ((await fetch(`${API}/meta`)).ok) return; } catch {} await sleep(250); }
   throw new Error("server did not start");
 }
 const stopServer = () => { if (server) { spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { windowsHide: true }); server = null; } };
@@ -170,6 +170,7 @@ try {
     await startServer();
     await page.locator(".badge", { hasText: "interrupted" }).first().waitFor({ timeout: 40000 });
     await page.locator(".pill.connected").waitFor({ timeout: 40000 });
+    await page.getByText(/Connection lost/).first().waitFor({ state: "detached", timeout: 20000 }).catch(() => {});   // the run monitor clears it on its next poll, a moment after the pill turns green
     expect((await page.getByText(/Connection lost/).count()) === 0, "banner should clear");
   });
 
@@ -215,7 +216,7 @@ try {
   await step("rotation: landscape layout, safe areas, nothing clipped", async () => {
     adb("shell", "settings", "put", "system", "user_rotation", "1");
     await sleep(2000);
-    await page.waitForFunction(() => innerWidth > innerHeight);
+    for (let i = 0; i < 30 && !(await page.evaluate(() => innerWidth > innerHeight)); i++) await sleep(500);   // polled with evaluate: waitForFunction needs eval, which the app's CSP forbids
     await page.waitForSelector(".shell.landscape");
     const clipped = await page.evaluate(() => { const c = document.querySelector(".content"); return c.scrollWidth > c.clientWidth + 1; });
     expect(!clipped, "content clipped in landscape");
