@@ -2,7 +2,11 @@
 
 Read this first, then `docs/universe-spec.md`, `docs/architecture.md`, `docs/mobile-handoff.md`, `docs/api-v1.md`.
 
-## Checkpoint (2026-11-07, release 0.7.0; newest, read this first)
+## Checkpoint (2026-11-08, release 0.8.0 prepared on `feat-standalone`; newest)
+
+0.8.0 is the standalone phone app (see the next checkpoint down for details). Merge PR #18 after CI, then tag `v0.8.0` and publish with the changelog notes. v0.6.0 and v0.7.0 are published.
+
+## Checkpoint (2026-11-07, release 0.7.0)
 
 0.7.0 makes the ship bridge the default Home (`apps/web/src/bridge/*`, `Cockpit` `windowMode`/`command` props, setting `homeView`). Spec: `docs/superpowers/specs/2026-11-07-bridge-design.md` (see its implementation notes); plan: `docs/superpowers/plans/2026-11-07-bridge.md`. Screenshots: `node e2e/bridge-shots.mjs [outDir]` (needs `npm run build`).
 Verified: web `vitest` 726 passed (70 files), `tsc` clean, build OK, backend `pytest` passed (no failures), secret scan ok, real-Edge screenshots of desktop, a trip, and phone (the parallax and warp animation were not watched playing).
