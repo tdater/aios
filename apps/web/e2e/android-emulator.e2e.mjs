@@ -23,6 +23,10 @@ const env = { ...process.env, PYTHONPATH: join(repo, "apps", "api"), AIOS_STATE_
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const adb = (...a) => spawnSync(adbExe, a, { encoding: "utf8" });
 const sh = (cmd) => adb("shell", cmd).stdout.trim();
+{ // adb talks to the one device named by ANDROID_SERIAL; with several attached and none named it would pick any, so refuse
+  const attached = adb("devices").stdout.split("\n").slice(1).filter((l) => /\tdevice\b/.test(l));
+  if (attached.length > 1 && !process.env.ANDROID_SERIAL) { console.log("More than one device is attached: set ANDROID_SERIAL (e.g. emulator-5564, the AIOS_Test AVD) and rerun."); process.exit(2); }
+}
 let server = null;
 async function startServer() {
   server = spawn(py, ["-m", "aios.main"], { env, cwd: repo, stdio: "ignore", windowsHide: true });
