@@ -23,9 +23,19 @@ const env = { ...process.env, PYTHONPATH: join(repo, "apps", "api"), AIOS_STATE_
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const adb = (...a) => spawnSync(adbExe, a, { encoding: "utf8" });
 const sh = (cmd) => adb("shell", cmd).stdout.trim();
-{ // adb talks to the one device named by ANDROID_SERIAL; with several attached and none named it would pick any, so refuse
-  const attached = adb("devices").stdout.split("\n").slice(1).filter((l) => /\tdevice\b/.test(l));
-  if (attached.length > 1 && !process.env.ANDROID_SERIAL) { console.log("More than one device is attached: set ANDROID_SERIAL (e.g. emulator-5564, the AIOS_E2E AVD) and rerun."); process.exit(2); }
+{ // adb talks to the one device named by ANDROID_SERIAL. With several attached and none named it would pick any, so refuse.
+  // With none attached, boot the dedicated AIOS_E2E AVD (nothing else installed on it, so no other app steals focus) on port 5564.
+  const attached = () => adb("devices").stdout.split(String.fromCharCode(10)).slice(1).filter((l) => l.includes(String.fromCharCode(9) + "device"));
+  if (attached().length > 1 && !process.env.ANDROID_SERIAL) { console.log("More than one device is attached: set ANDROID_SERIAL (e.g. emulator-5564, the AIOS_E2E AVD) and rerun."); process.exit(2); }
+  if (attached().length === 0) {
+    const avd = process.env.AIOS_E2E_AVD || "AIOS_E2E";
+    console.log(`No emulator attached: booting the ${avd} AVD on port 5564 (it must already exist; see docs/mobile-handoff.md)`);
+    spawn(join(process.env.ANDROID_HOME, "emulator", "emulator.exe"), ["-avd", avd, "-port", "5564", "-no-snapshot", "-no-boot-anim", "-gpu", "swiftshader_indirect"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    process.env.ANDROID_SERIAL = "emulator-5564";
+    let up = false;
+    for (let i = 0; i < 100 && !up; i++) { await sleep(3000); up = adb("shell", "getprop", "sys.boot_completed").stdout.trim() === "1"; }
+    if (!up) { console.log("The emulator did not finish booting in 5 minutes."); process.exit(2); }
+  }
 }
 let server = null;
 async function startServer() {
