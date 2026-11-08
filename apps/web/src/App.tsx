@@ -20,6 +20,7 @@ import { Tour } from "./ui/Tour";
 import { Home } from "./screens/Home";
 import { AskBox } from "./ui/Ask";
 import { Cockpit } from "./ui/Cockpit";
+import { Bridge } from "./bridge/Bridge";
 import { Inbox } from "./screens/Inbox";
 import { Knowledge } from "./screens/Knowledge";
 import { Projects } from "./screens/Projects";
@@ -275,7 +276,9 @@ function Shell({ phase, rt, pf, reinit }: { phase: Extract<Phase, { kind: "ready
               : route.sub === "tools" ? <Tools />
               : route.sub === "ambient" ? <Ambient />
               : route.id && route.sub !== "o" ? <Task id={route.id} />
-              : <Cockpit objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Cockpit>)}
+              : settings.homeView === "classic"
+                ? <Cockpit objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Cockpit>
+                : <Bridge objectId={route.sub === "o" ? route.id : undefined}><details className="ask-dock"><summary>Ask AIOS for anything</summary><AskBox /></details></Bridge>)}
             {route.tab === "work" && <Workspace id={route.id} />}
             {route.tab === "projects" && <Projects id={route.id} />}
             {route.tab === "runs" && <Runs id={route.id} />}

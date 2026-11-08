@@ -839,3 +839,84 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .ambient-foot { display: flex; gap: 1.2em; font-size: .45em; opacity: .75; }
 .ambient-foot .on { color: #ffd37a; font-weight: 700; }
 .ambient:focus-visible { outline: 4px solid #ffd37a; }
+
+/* ---------------------------------------------------------------- the bridge (Home as a ship's command center) */
+.bridge { position: relative; width: 100%; height: calc(100dvh - 120px); min-height: 520px; overflow: hidden; background: #03050c; color: #e8eefc; display: grid; gap: 10px; padding: 12px;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2.6fr) minmax(180px, 1fr); grid-template-rows: minmax(220px, 1fr) auto auto auto;
+  grid-template-areas: "ops win alerts" "ops holo alerts" "today today today" "status status status"; --bx: 0px; --by: 0px; --px: 0px; --py: 0px; }
+.bridge-frame { position: absolute; inset: -20px; width: calc(100% + 40px); height: calc(100% + 40px); transform: translate(var(--bx), var(--by)); pointer-events: none; z-index: 0; }
+.bridge > :not(.bridge-frame) { position: relative; z-index: 1; }
+.bridge-window { grid-area: win; position: relative; overflow: hidden; border-radius: 22px; border: 2px solid rgba(94, 226, 214, .55); box-shadow: 0 0 28px rgba(94, 226, 214, .18), inset 0 0 40px rgba(0, 0, 0, .6); min-height: 0; }
+.bridge-window .cockpit { height: 100%; min-height: 0; border-radius: 20px; }
+.cockpit.window-mode .topbar, .cockpit.window-mode .dock, .cockpit.window-mode .zoombar, .cockpit.window-mode .compass, .cockpit.window-mode .radar,
+.cockpit.window-mode .hud, .cockpit.window-mode .mydock, .cockpit.window-mode .cockpit-bottom, .cockpit.window-mode .hud-show { display: none; }
+.bridge .cockpit.window-mode .object-card { position: fixed; top: 76px; right: 14px; bottom: auto; left: auto; width: min(420px, calc(100vw - 28px)); max-height: calc(100dvh - 96px); overflow: auto; z-index: 40; }
+.bridge-panel { transform: translate(var(--px), var(--py)); background: rgba(6, 14, 30, .78); border: 1px solid rgba(143, 180, 255, .28); border-radius: 14px; padding: 10px 12px; min-height: 0; overflow: auto; backdrop-filter: blur(6px); }
+.bridge-panel h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #8fb4ff; }
+.bridge-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.bridge-panel li > button { width: 100%; display: flex; gap: 8px; align-items: baseline; text-align: left; background: rgba(20, 34, 62, .6); color: inherit; border: 1px solid rgba(143, 180, 255, .18); border-radius: 8px; padding: 6px 8px; cursor: pointer; min-height: 36px; }
+.bridge-panel li > button:hover { border-color: rgba(143, 180, 255, .55); }
+.bridge-panel button:focus-visible, .bridge-panel input:focus-visible { outline: 3px solid #ffd37a; outline-offset: 2px; }
+.bridge-panel .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; align-self: center; }
+.bridge-ops { grid-area: ops; }
+.bridge-alerts { grid-area: alerts; border-color: rgba(143, 180, 255, .28); }
+.bridge-alerts.has-alerts { border-color: rgba(255, 93, 108, .7); animation: bridge-pulse 2.4s ease-in-out infinite; }
+.bridge-alerts .alert-bad { border-color: #ff5d6c; background: rgba(255, 93, 108, .16); }
+.bridge-alerts .alert-warn { border-color: #ffc857; background: rgba(255, 200, 87, .14); }
+.bridge-alerts .all-clear { margin: 0; color: #3ee0a0; font-size: 14px; }
+.bridge-holo { grid-area: holo; display: grid; gap: 8px; max-height: 300px; border-color: rgba(94, 226, 214, .45); }
+.bridge-holo input { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(94, 226, 214, .4); background: rgba(3, 8, 18, .8); color: inherit; }
+.bridge-holo .holo-list { max-height: 130px; overflow: auto; }
+.bridge-holo .holo-list button[aria-pressed="true"] { border-color: #5ee2d6; background: rgba(94, 226, 214, .18); }
+.holo-card { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.holo-card > strong { color: #5ee2d6; }
+.holo-card .engage { margin-left: auto; min-height: 40px; padding: 0 22px; background: #5ee2d6; color: #02130f; border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; }
+.holo-card .engage:disabled { opacity: .35; cursor: not-allowed; }
+.bridge-today { grid-area: today; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; overflow: visible; }
+.bridge-today h2 { margin: 0; }
+.bp-tiles, .bp-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.bp-tile { display: grid; background: rgba(20, 34, 62, .6); color: inherit; border: 1px solid rgba(143, 180, 255, .25); border-radius: 10px; padding: 4px 12px; min-width: 96px; cursor: pointer; text-align: left; }
+.bp-tile strong { font-size: 20px; }
+.bp-tile.warn { border-color: #ffc857; } .bp-tile.bad { border-color: #ff5d6c; }
+.bridge-status { grid-area: status; display: flex; gap: 12px; align-items: center; font-size: 13px; color: #9fb2d6; }
+.bridge-ask { position: absolute !important; right: 14px; bottom: 6px; z-index: 6 !important; max-width: min(420px, 50%); }
+.bridge-ask:empty { display: none; }
+.warp-fx { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 30; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.0) 0, rgba(180,220,255,.0) 30%, rgba(94,226,214,.55) 100%); }
+.bridge.warp-charge .warp-fx { opacity: .25; transition: opacity .2s; }
+.bridge.warp-streak .warp-fx { opacity: 1; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.85) 0 .6deg, transparent .6deg 7deg); animation: bridge-streak .5s linear infinite; }
+.bridge.warp-arrive .warp-fx { opacity: 0; transition: opacity .6s ease-out; background: #fff; }
+.bridge.calm .warp-fx, .bridge.calm.warp-streak .warp-fx { animation: none; background: #03050c; }
+.bridge.calm.warp-charge .warp-fx { opacity: .6; } .bridge.calm.warp-arrive .warp-fx { transition: opacity .15s; }
+@keyframes bridge-pulse { 0%, 100% { box-shadow: 0 0 0 rgba(255, 93, 108, 0); } 50% { box-shadow: 0 0 22px rgba(255, 93, 108, .55); } }
+@keyframes bridge-streak { from { transform: scale(1); } to { transform: scale(1.35); } }
+@media (prefers-reduced-motion: reduce) { .bridge-alerts.has-alerts { animation: none; } .warp-fx { animation: none !important; } .bridge-frame, .bridge-panel { transform: none; } }
+.bridge.calm .bridge-alerts.has-alerts { animation: none; }
+.bridge-phone { height: auto; min-height: 0; overflow: visible; grid-template-columns: 1fr; grid-template-rows: none;
+  grid-template-areas: "win" "alerts" "holo" "ops" "today" "status"; }
+.bridge-phone .bridge-window { height: 42dvh; min-height: 260px; }
+.bridge-phone .bridge-holo { max-height: none; }
+.bridge-phone .bridge-ask { position: static !important; max-width: none; }
+.bridge-tv { font-size: 18px; }
+.bridge-tv .bridge-panel li > button, .bridge-tv .btn, .bridge-tv .engage, .bridge-tv .bp-tile { min-height: 56px; font-size: 18px; }
+@media (max-width: 900px) and (min-width: 600px) { .bridge { grid-template-columns: 1fr 2fr; grid-template-areas: "win win" "holo alerts" "ops today" "status status"; grid-template-rows: minmax(220px, 40dvh) auto auto auto; height: auto; overflow: visible; } }
+
+/* bridge: make the window the star, and let the room show around the panels */
+.bridge { padding: 40px 22px 14px; gap: 12px; grid-template-rows: minmax(300px, 1fr) auto auto auto; background: radial-gradient(ellipse at 50% 38%, #0a1426 0, #03050c 70%); }
+.bridge::before { content: ""; position: absolute; left: 14%; right: 14%; top: 10px; height: 8px; border-radius: 4px; z-index: 0; background: linear-gradient(90deg, transparent, #bfe9ff 18%, #fff 50%, #bfe9ff 82%, transparent); box-shadow: 0 0 22px 4px rgba(150, 215, 255, .55); }
+.bridge::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; z-index: 0; pointer-events: none; background: linear-gradient(0deg, rgba(94, 226, 214, .12), transparent); border-top: 1px solid rgba(94, 226, 214, .18); }
+.bridge-window { border-width: 3px; box-shadow: 0 0 36px rgba(94, 226, 214, .35), 0 0 90px rgba(94, 226, 214, .12), inset 0 0 50px rgba(0, 0, 0, .7); }
+.bridge-panel { background: rgba(6, 14, 30, .62); box-shadow: 0 0 18px rgba(30, 80, 160, .18); }
+.bridge-ops, .bridge-alerts { box-shadow: inset 3px 0 0 rgba(255, 154, 60, .55), 0 0 18px rgba(30, 80, 160, .18); }
+.bridge-alerts { box-shadow: inset -3px 0 0 rgba(255, 154, 60, .55), 0 0 18px rgba(30, 80, 160, .18); }
+.bridge-holo { max-height: 232px; gap: 6px; }
+.bridge-holo .holo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); max-height: 92px; }
+.bridge-holo .holo-list li > button { min-height: 30px; padding: 3px 8px; }
+.bridge-phone::before, .bridge-phone::after { display: none; }
+.bridge-phone { padding: 14px 12px; }
+.bridge-holo .holo-list { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); max-height: 104px; }
+.bridge-panel li > button strong { white-space: nowrap; }
+.bridge-holo .holo-list li > button { flex-wrap: wrap; align-items: baseline; }
+.bridge > .bridge-window { z-index: 5; }
+.bridge-tv .bridge-holo .holo-list li > button { min-height: 56px; }
+.bridge-tv .bridge-holo .holo-list { max-height: 240px; grid-template-columns: 1fr; }
+.bridge-tv .bridge-holo { max-height: 420px; }

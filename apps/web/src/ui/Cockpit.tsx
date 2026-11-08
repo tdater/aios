@@ -46,7 +46,10 @@ function declutter(world: NonNullable<ReturnType<typeof layoutWorld>>, cam: Came
 }
 
 /** The whole app is this: your universe, full screen. Travel with the dock, Go to or by dragging; open anything to see and change it. */
-export function Cockpit({ objectId, children }: { objectId?: string; children?: ReactNode }) {
+export type CockpitCommand = { kind: "region"; id: Region; n: number } | { kind: "reset"; n: number };
+
+/** `windowMode` is the universe seen through the bridge window: the same camera, labels and cards, without the dock, radar and panels (the bridge supplies those). `command` lets the bridge send the window somewhere. */
+export function Cockpit({ objectId, children, windowMode, command }: { objectId?: string; children?: ReactNode; windowMode?: boolean; command?: CockpitCommand }) {
   const { client, settings } = useApp();
   const uni = useLoad(() => client.get<Universe>("/universe"), [client], 15000);
   const objs = useLoad(() => client.get<ObjectList>("/universe/objects"), [client], 8000);
@@ -140,6 +143,13 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
   const open = (id: string | null) => go(id ? { tab: "home", sub: "o", id } : { tab: "home" });
   const travelTo = (r: Region) => { if (world) { setRegion(r); flyTo(regionCamera(world, r, camRef.current)); playSound("warp", { reducedMotion: reduced }); } };
 
+  const handledCommand = useRef(0);
+  useEffect(() => {                                      // the bridge sends the window to a region (or back to the start view); each command runs once, even if the world loads late
+    if (!command || !world || handledCommand.current === command.n) return;
+    handledCommand.current = command.n;
+    if (command.kind === "region") travelTo(command.id); else { setRegion(null); flyTo(defaultCamera()); }
+  }, [command?.n, !!world]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // dragging looks around, the wheel moves closer or further, keys do the same
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const onDown = (e: React.PointerEvent) => { if ((e.target as Element).closest("button, a, input, textarea, select, summary, details, label, .object-card, .dock, .u-label, .mydock, .gallery-pop, .goto, .listview, .topbar, .cockpit-bottom, .radar, .compass")) return; drag.current = { x: e.clientX, y: e.clientY, moved: false }; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); };
@@ -177,7 +187,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
     else if (/^[1-6]$/.test(k) && !e.ctrlKey && !e.metaKey && !e.altKey) { open(null); travelTo(REGIONS[Number(k) - 1].id); }
     else if (k === "0") { open(null); setRegion(null); flyTo(defaultCamera()); }
     else if (k === "Escape") { if (goOpen) setGoOpen(false); else if (selected) open(null); }
-    else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "g") { e.preventDefault(); setGoOpen(true); }
+    else if (!windowMode && (e.ctrlKey || e.metaKey) && k.toLowerCase() === "g") { e.preventDefault(); setGoOpen(true); }
   };
 
   if (uni.loading && !uni.data) return <p className="muted" aria-busy="true">Loading your universe…</p>;
@@ -193,7 +203,7 @@ export function Cockpit({ objectId, children }: { objectId?: string; children?: 
   const crumbs = breadcrumb(world, selected, region ?? regionNear(world, cam.target));
 
   return (
-    <div className="cockpit" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onClick={onClick} onDoubleClick={onDouble} onKeyDown={onKey} tabIndex={-1} data-testid="cockpit">
+    <div className={windowMode ? "cockpit window-mode" : "cockpit"} ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onClick={onClick} onDoubleClick={onDouble} onKeyDown={onKey} tabIndex={-1} data-testid="cockpit">
       {!listView && (useGL ? (
         <Suspense fallback={null}>
           <UniverseGL world={shown} cam={cam} selected={selected} hovered={hovered} told={told} time={reduced ? 0 : simT} reducedMotion={reduced} onUnsupported={() => setGlOk(false)} />
