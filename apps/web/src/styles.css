@@ -899,3 +899,21 @@ details.tech { margin: 18px 0 8px; } details.tech > summary { cursor: pointer; c
 .bridge-tv { font-size: 18px; }
 .bridge-tv .bridge-panel li > button, .bridge-tv .btn, .bridge-tv .engage, .bridge-tv .bp-tile { min-height: 56px; font-size: 18px; }
 @media (max-width: 900px) and (min-width: 600px) { .bridge { grid-template-columns: 1fr 2fr; grid-template-areas: "win win" "holo alerts" "ops today" "status status"; grid-template-rows: minmax(220px, 40dvh) auto auto auto; height: auto; overflow: visible; } }
+
+/* bridge: make the window the star, and let the room show around the panels */
+.bridge { padding: 40px 22px 14px; gap: 12px; grid-template-rows: minmax(300px, 1fr) auto auto auto; background: radial-gradient(ellipse at 50% 38%, #0a1426 0, #03050c 70%); }
+.bridge::before { content: ""; position: absolute; left: 14%; right: 14%; top: 10px; height: 8px; border-radius: 4px; z-index: 0; background: linear-gradient(90deg, transparent, #bfe9ff 18%, #fff 50%, #bfe9ff 82%, transparent); box-shadow: 0 0 22px 4px rgba(150, 215, 255, .55); }
+.bridge::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; z-index: 0; pointer-events: none; background: linear-gradient(0deg, rgba(94, 226, 214, .12), transparent); border-top: 1px solid rgba(94, 226, 214, .18); }
+.bridge-window { border-width: 3px; box-shadow: 0 0 36px rgba(94, 226, 214, .35), 0 0 90px rgba(94, 226, 214, .12), inset 0 0 50px rgba(0, 0, 0, .7); }
+.bridge-panel { background: rgba(6, 14, 30, .62); box-shadow: 0 0 18px rgba(30, 80, 160, .18); }
+.bridge-ops, .bridge-alerts { box-shadow: inset 3px 0 0 rgba(255, 154, 60, .55), 0 0 18px rgba(30, 80, 160, .18); }
+.bridge-alerts { box-shadow: inset -3px 0 0 rgba(255, 154, 60, .55), 0 0 18px rgba(30, 80, 160, .18); }
+.bridge-holo { max-height: 232px; gap: 6px; }
+.bridge-holo .holo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); max-height: 92px; }
+.bridge-holo .holo-list li > button { min-height: 30px; padding: 3px 8px; }
+.bridge-phone::before, .bridge-phone::after { display: none; }
+.bridge-phone { padding: 14px 12px; }
+.bridge-holo .holo-list { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); max-height: 104px; }
+.bridge-panel li > button strong { white-space: nowrap; }
+.bridge-holo .holo-list li > button { flex-wrap: wrap; align-items: baseline; }
+.bridge > .bridge-window { z-index: 5; }
